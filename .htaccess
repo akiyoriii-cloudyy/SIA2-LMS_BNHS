@@ -1,0 +1,32 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase /LMS_BNHS/
+
+    # Handle Authorization Header (for Bearer tokens on /api/*)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Handle X-XSRF-Token Header
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Allow direct access to /public/*
+    RewriteRule ^public(/|$) - [L]
+
+    # Don't rewrite the front controller itself.
+    RewriteRule ^index\.php(/|$) - [L]
+
+    # Serve existing files/directories from /public without showing /public in the URL.
+    RewriteCond %{DOCUMENT_ROOT}/LMS_BNHS/public/$1 -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/LMS_BNHS/public/$1 -d
+    RewriteRule ^(.+)$ public/$1 [L]
+
+    # Otherwise, send requests to the root front controller (which boots Laravel from /public).
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(.*)$ index.php/$1 [L,QSA]
+</IfModule>

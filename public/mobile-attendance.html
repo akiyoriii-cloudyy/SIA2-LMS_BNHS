@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Attendance Sync</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 16px; background: #f3f4f6; }
+        .card { background: #fff; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+        input, button, select { width: 100%; padding: 10px; margin: 6px 0; }
+        button { background: #0f766e; color: #fff; border: none; border-radius: 6px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>Mobile Attendance (Offline-capable)</h3>
+        <div class="row">
+            <input id="email" placeholder="Email" value="teacher@bnhs.local">
+            <input id="password" placeholder="Password" type="password" value="password">
+        </div>
+        <div class="row">
+            <input id="device_name" placeholder="Device name" value="mobile-demo">
+            <button onclick="login()">Login</button>
+        </div>
+        <p id="whoami"></p>
+        <input id="token" placeholder="Bearer token (auto-filled after login)">
+        <input id="device_id" placeholder="Device ID" value="device-local-1">
+        <select id="section_id"></select>
+        <div class="row">
+            <button onclick="loadBootstrap()">Refresh Sections</button>
+            <button onclick="loadRoster()">Load Roster</button>
+        </div>
+        <select id="enrollment_id"></select>
+        <input id="attendance_date" type="date">
+        <select id="status">
+            <option value="present">Present</option>
+            <option value="late">Late</option>
+            <option value="absent">Absent</option>
+            <option value="excused">Excused</option>
+        </select>
+        <input id="remarks" placeholder="Remarks (optional)">
+        <div class="row">
+            <button onclick="queueRecord()">Save Offline</button>
+            <button onclick="syncNow()">Sync</button>
+        </div>
+        <p id="state"></p>
+    </div>
+
+    <script>
+        const DB_KEY = 'attendance_offline_queue';
+        const TOKEN_KEY = 'attendance_bearer_token';
+        const ACTIVE_SCHOOL_YEAR_KEY = 'attendance_active_school_year_id';
+
+        document.getElementById('token').value = (localStorage.getItem(TOKEN_KEY) || '').trim();
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('mobile-sw.js').catch(() => {});
+        }
+
+        function getQueue() {
+            return JSON.parse(localStorage.getItem(DB_KEY) || '[]');
+        }
+
+        function setQueue(queue) {
+            localStorage.setItem(DB_KEY, JSON.stringify(queue));
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const device_name = document.getElementById('device_name').value.trim() || 'mobile-demo';
+
+            if (!email || !password) {
+                setState('Email/password required.');
+                return;
+            }
+
+            try {
+                const response = await fetch(new URL('api/auth/login', window.location.href), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, device_name })
+                });
+
+                if (!response.ok) {
+                    setState('Login failed.');
+                    return;
+                }
+
+                const data = await response.json();
+                const token = (data.token || '').trim();
+                if (!token) {
+                    setState('Login succeeded but no token returned.');
+                    return;
+                }
+
+                localStorage.setItem(TOKEN_KEY, token);
+                document.getElementById('token').value = token;
+                document.getElementById('whoami').textContent = `Logged in: ${data.user?.name || ''} (${(data.user?.roles || []).join(', ')})`;
+                await loadBootstrap();
+                setState('Logged in.');
+            } catch (error) {
+                setState('Login error (offline?).');
+            }
+        }
+
+        function getBearer() {
+            const token = document.getElementById('token').value.trim();
+            return token ? `Bearer ${token}` : '';
+        }
+
+        async function loadBootstrap() {
+            const auth = getBearer();
+            if (!auth) {
+                setState('Login first (token missing).');
+                return;
+            }
+
+            try {
+                const response = await fetch(new URL('api/mobile/bootstrap', window.location.href), {
+                    method: 'GET',
+                    headers: { 'Authorization': auth }
+                });
+
+                if (!response.ok) {
+                    setState('Failed to load sections.');
+                    return;
+                }
+
+                const data = await response.json();
+                const activeSchoolYearId = data.active_school_year?.id || null;
+                if (activeSchoolYearId) {
+                    localStorage.setItem(ACTIVE_SCHOOL_YEAR_KEY, String(activeSchoolYearId));
+                }
+
+                const sections = Array.isArray(data.sections) ? data.sections : [];
+                const select = document.getElementById('section_id');
+                select.innerHTML = '';
+                for (const section of sections) {
+                    const opt = document.createElement('option');
+                    opt.value = String(section.id);
+                    const label = `${section.name} (G${section.grade_level}${section.strand ? ' - ' + section.strand : ''})`;
+                    opt.textContent = label;
+                    select.appendChild(opt);
+                }
+
+                setState(`Loaded ${sections.length} sections.`);
+            } catch (error) {
+                setState('Offline. Cannot refresh sections.');
+            }
+        }
+
+        async function loadRoster() {
+            const auth = getBearer();
+            const sectionId = document.getElementById('section_id').value;
+            const schoolYearId = localStorage.getItem(ACTIVE_SCHOOL_YEAR_KEY) || '';
+
+            if (!auth || !sectionId) {
+                setState('Need token + section.');
+                return;
+            }
+
+            const url = new URL('api/mobile/roster', window.location.href);
+            url.searchParams.set('section_id', sectionId);
+            if (schoolYearId) url.searchParams.set('school_year_id', schoolYearId);
+
+            try {
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
+                    headers: { 'Authorization': auth }
+                });
+
+                if (!response.ok) {
+                    setState('Failed to load roster.');
+                    return;
+                }
+
+                const data = await response.json();
+                const enrollments = Array.isArray(data.data) ? data.data : [];
+                const select = document.getElementById('enrollment_id');
+                select.innerHTML = '';
+                for (const row of enrollments) {
+                    const opt = document.createElement('option');
+                    opt.value = String(row.enrollment_id);
+                    opt.textContent = `${row.student_name || 'Student'} (#${row.enrollment_id})`;
+                    select.appendChild(opt);
+                }
+
+                setState(`Loaded roster: ${enrollments.length} students.`);
+            } catch (error) {
+                setState('Offline. Cannot load roster.');
+            }
+        }
+
+        function queueRecord() {
+            const enrollment_id = Number(document.getElementById('enrollment_id').value);
+            const attendance_date = document.getElementById('attendance_date').value;
+            const status = document.getElementById('status').value;
+            const remarks = document.getElementById('remarks').value;
+            if (!enrollment_id || !attendance_date) return;
+
+            const queue = getQueue();
+            queue.push({ enrollment_id, attendance_date, status, remarks });
+            setQueue(queue);
+            setState(`Saved offline. Pending records: ${queue.length}`);
+        }
+
+        async function syncNow() {
+            const token = document.getElementById('token').value.trim();
+            const device_id = document.getElementById('device_id').value.trim();
+            const records = getQueue();
+            if (!token || !device_id || records.length === 0) {
+                setState('No token/device/records to sync.');
+                return;
+            }
+
+            const batch_uuid = crypto.randomUUID();
+            try {
+                const response = await fetch(new URL('api/mobile/sync/attendance', window.location.href), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ device_id, batch_uuid, records })
+                });
+
+                if (!response.ok) {
+                    setState('Sync failed. Keeping offline records.');
+                    return;
+                }
+
+                setQueue([]);
+                setState('Sync completed.');
+            } catch (error) {
+                setState('Offline. Sync will retry when internet is available.');
+            }
+        }
+
+        window.addEventListener('online', syncNow);
+
+        function setState(message) {
+            document.getElementById('state').textContent = message;
+        }
+
+        (async function init() {
+            const today = new Date();
+            document.getElementById('attendance_date').value = today.toISOString().slice(0, 10);
+
+            if (document.getElementById('token').value.trim()) {
+                await loadBootstrap();
+            }
+        })();
+    </script>
+</body>
+</html>
