@@ -3,13 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\GradeEntry;
+use App\Models\AttendanceRecord;
 use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\Section;
+use App\Models\SmsLog;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -18,14 +24,112 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        $activeSchoolYear = SchoolYear::query()
+            ->where('is_active', true)
+            ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
+
+        $schoolYearId = $activeSchoolYear?->id;
+        $quarter = max(1, min(4, (int) $request->integer('quarter', $this->guessQuarterFromDate(now()))));
+
+        $enrollmentQuery = Enrollment::query()->when(
+            $schoolYearId,
+            fn ($q) => $q->where('school_year_id', $schoolYearId),
+        );
+
+        $applyEnrollmentScope = $user && $user->hasRole('teacher', 'student') && ! $user->hasRole('admin');
+
+        if ($user?->hasRole('teacher') && $user->teacher && $schoolYearId) {
+            $teacherSectionIds = SubjectAssignment::query()
+                ->where('teacher_id', $user->teacher->id)
+                ->where('school_year_id', $schoolYearId)
+                ->pluck('section_id')
+                ->unique()
+                ->values();
+
+            $enrollmentQuery->whereIn('section_id', $teacherSectionIds);
+        }
+
+        if ($user?->hasRole('student') && $user->student && $schoolYearId) {
+            $enrollmentQuery->where('student_id', $user->student->id);
+        }
+
+        $enrollmentIds = $enrollmentQuery->pluck('id');
+        $sectionIds = (clone $enrollmentQuery)->pluck('section_id')->unique()->values();
+
+        $totalStudents = Enrollment::query()
+            ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
+            ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('id', $enrollmentIds))
+            ->distinct('student_id')
+            ->count('student_id');
+
+        $totalSubjects = SubjectAssignment::query()
+            ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
+            ->when($user?->hasRole('teacher') && $user->teacher, fn ($q) => $q->where('teacher_id', $user->teacher->id))
+            ->when($user?->hasRole('student') && $sectionIds->isNotEmpty(), fn ($q) => $q->whereIn('section_id', $sectionIds))
+            ->distinct('subject_id')
+            ->count('subject_id');
+
+        $recentGrades = GradeEntry::query()
+            ->with(['enrollment.student', 'subjectAssignment.subject'])
+            ->where('quarter', $quarter)
+            ->when($schoolYearId, function ($q) use ($schoolYearId): void {
+                $q->whereHas('enrollment', fn ($e) => $e->where('school_year_id', $schoolYearId))
+                    ->whereHas('subjectAssignment', fn ($a) => $a->where('school_year_id', $schoolYearId));
+            })
+            ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('enrollment_id', $enrollmentIds))
+            ->orderByDesc('updated_at')
+            ->limit(5)
+            ->get();
+
+        $currentWeekStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+        $absenceAlertsCount = SmsLog::query()
+            ->where('week_start', $currentWeekStart)
+            ->when($schoolYearId, fn ($q) => $q->whereHas('enrollment', fn ($e) => $e->where('school_year_id', $schoolYearId)))
+            ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('enrollment_id', $enrollmentIds))
+            ->count();
+
+        $alertLogs = SmsLog::query()
+            ->with('student')
+            ->when($schoolYearId, fn ($q) => $q->whereHas('enrollment', fn ($e) => $e->where('school_year_id', $schoolYearId)))
+            ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('enrollment_id', $enrollmentIds))
+            ->orderByDesc('created_at')
+            ->limit(3)
+            ->get();
+
+        $nearThreshold = AttendanceRecord::query()
+            ->select([
+                'enrollment_id',
+                'school_week_start',
+                DB::raw('COUNT(*) as absences_count'),
+            ])
+            ->where('status', 'absent')
+            ->where('school_week_start', $currentWeekStart)
+            ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('enrollment_id', $enrollmentIds))
+            ->groupBy('enrollment_id', 'school_week_start')
+            ->having('absences_count', '>=', 4)
+            ->having('absences_count', '<', 5)
+            ->orderByDesc('absences_count')
+            ->limit(3)
+            ->get()
+            ->load('enrollment.student');
+
+        $attendanceWindowStart = now()->subDays(30)->toDateString();
+        $attendanceRecords = AttendanceRecord::query()
+            ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('enrollment_id', $enrollmentIds))
+            ->where('attendance_date', '>=', $attendanceWindowStart);
+
+        $attendanceTotal = (int) $attendanceRecords->count();
+        $attendanceAbsent = (int) (clone $attendanceRecords)->where('status', 'absent')->count();
+        $attendanceRate = $attendanceTotal > 0
+            ? (int) round((($attendanceTotal - $attendanceAbsent) / $attendanceTotal) * 100)
+            : 0;
+
         $stats = [
-            'school_years' => SchoolYear::count(),
-            'sections' => Section::count(),
-            'subjects' => Subject::count(),
-            'teachers' => Teacher::count(),
-            'students' => Student::count(),
-            'enrollments' => Enrollment::count(),
-            'courses' => Course::count(),
+            'total_students' => $totalStudents,
+            'total_subjects' => $totalSubjects,
+            'absence_alerts' => $absenceAlertsCount,
+            'attendance_rate' => $attendanceRate,
         ];
 
         $quickLinks = [
@@ -44,7 +148,35 @@ class DashboardController extends Controller
         return view('dashboard', [
             'stats' => $stats,
             'quickLinks' => $quickLinks,
+            'activeSchoolYear' => $activeSchoolYear,
+            'quarter' => $quarter,
+            'recentGrades' => $recentGrades,
+            'alertLogs' => $alertLogs,
+            'nearThreshold' => $nearThreshold,
         ]);
+    }
+
+    private function guessQuarterFromDate(Carbon $date): int
+    {
+        $month = (int) $date->format('n');
+
+        if (in_array($month, [6, 7, 8], true)) {
+            return 1;
+        }
+
+        if (in_array($month, [9, 10], true)) {
+            return 2;
+        }
+
+        if (in_array($month, [11, 12], true)) {
+            return 3;
+        }
+
+        if (in_array($month, [1, 2, 3], true)) {
+            return 4;
+        }
+
+        return 1;
     }
 
     public function systemTables(): View
@@ -130,4 +262,3 @@ class DashboardController extends Controller
         return view('system-tables', ['tables' => $tables]);
     }
 }
-

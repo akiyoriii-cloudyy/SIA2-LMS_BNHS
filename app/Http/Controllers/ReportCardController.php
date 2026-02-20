@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\Section;
+use App\Models\SubjectAssignment;
+use App\Models\Teacher;
 use App\Services\GradingService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -51,9 +53,26 @@ class ReportCardController extends Controller
             'reportCard.items.subjectAssignment.section',
         ]);
 
+        $peerEnrollments = Enrollment::query()
+            ->with('student')
+            ->where('school_year_id', $enrollment->school_year_id)
+            ->where('section_id', $enrollment->section_id)
+            ->orderBy('id')
+            ->get();
+
+        $adviserTeacher = SubjectAssignment::query()
+            ->with(['teacher.user'])
+            ->where('school_year_id', $enrollment->school_year_id)
+            ->where('section_id', $enrollment->section_id)
+            ->whereNotNull('teacher_id')
+            ->orderBy('id')
+            ->first()?->teacher;
+
         return view('report-cards.show', [
             'enrollment' => $enrollment,
             'reportCard' => $enrollment->reportCard,
+            'peerEnrollments' => $peerEnrollments,
+            'adviserTeacher' => $adviserTeacher,
         ]);
     }
 }

@@ -37,5 +37,9 @@ class SmsLog extends Model
     {
         return $this->belongsTo(Student::class);
     }
-}
 
+    public function enrollment(): BelongsTo
+    {
+        return $this->belongsTo(Enrollment::class);
+    }
+}

@@ -1,7 +1,12 @@
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open('mobile-attendance-v1').then((cache) => {
-            return cache.addAll(['./mobile-attendance.html']);
+        caches.open('mobile-attendance-v2').then((cache) => {
+            return cache.addAll([
+                './mobile-attendance.html',
+                './mobile-attendance.css',
+                './mobile-attendance.js',
+                './mobile-sw.js',
+            ]);
         })
     );
 });

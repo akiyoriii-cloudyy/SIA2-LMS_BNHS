@@ -13,6 +13,7 @@ Route::middleware(['auth.api'])->group(function (): void {
         Route::get('/mobile/bootstrap', [MobileSyncController::class, 'bootstrap']);
         Route::get('/mobile/courses', [MobileSyncController::class, 'courses']);
         Route::get('/mobile/roster', [MobileSyncController::class, 'roster']);
+        Route::get('/mobile/enrollments/{enrollment}/profile', [MobileSyncController::class, 'enrollmentProfile']);
         Route::post('/mobile/sync/attendance', [MobileSyncController::class, 'syncAttendance']);
     });
 });

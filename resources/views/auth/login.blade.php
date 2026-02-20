@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Login</title>
-    <link rel="stylesheet" href="{{ asset('lms.css') }}">
+    <link rel="stylesheet" href="{{ asset('lms.css') }}?v={{ @filemtime(public_path('lms.css')) }}">
     <script>
         window.__LMS_THEME_SEED = "guest";
     </script>
-    <script src="{{ asset('lms-theme.js') }}" defer></script>
+    <script src="{{ asset('lms-theme.js') }}?v={{ @filemtime(public_path('lms-theme.js')) }}" defer></script>
 </head>
 <body class="lms">
     <div class="auth-wrap">
