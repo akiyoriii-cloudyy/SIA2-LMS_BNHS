@@ -60,12 +60,18 @@ class AttendanceController extends Controller
         ]);
 
         $date = Carbon::parse($validated['attendance_date']);
-        foreach ($validated['attendance'] ?? [] as $enrollmentId => $row) {
-            $enrollment = Enrollment::query()
-                ->where('id', (int) $enrollmentId)
-                ->where('school_year_id', $validated['school_year_id'])
-                ->where('section_id', $validated['section_id'])
-                ->first();
+        $attendanceRows = $validated['attendance'] ?? [];
+
+        $enrollmentsById = Enrollment::query()
+            ->where('school_year_id', (int) $validated['school_year_id'])
+            ->where('section_id', (int) $validated['section_id'])
+            ->whereIn('id', array_map('intval', array_keys($attendanceRows)))
+            ->get()
+            ->keyBy('id');
+
+        foreach ($attendanceRows as $enrollmentId => $row) {
+            /** @var Enrollment|null $enrollment */
+            $enrollment = $enrollmentsById->get((int) $enrollmentId);
 
             if (! $enrollment) {
                 continue;
@@ -88,4 +94,3 @@ class AttendanceController extends Controller
         ])->with('success', 'Attendance saved. Weekly absence alerts are processed automatically.');
     }
 }
-

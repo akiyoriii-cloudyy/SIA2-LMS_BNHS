@@ -7,28 +7,29 @@
     </div>
 
     <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>Course</th>
-                    <th>Subject</th>
-                    <th>Teacher</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($courses as $course)
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
                     <tr>
-                        <td>{{ $course->title }}</td>
-                        <td>{{ $course->subject?->title }}</td>
-                        <td>{{ $course->teacher?->full_name ?? 'N/A' }}</td>
-                        <td>{{ $course->is_published ? 'Published' : 'Draft' }}</td>
+                        <th>Course</th>
+                        <th>Subject</th>
+                        <th>Teacher</th>
+                        <th>Status</th>
                     </tr>
-                @empty
-                    <tr><td colspan="4">No courses found.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @forelse ($courses as $course)
+                        <tr>
+                            <td>{{ $course->title }}</td>
+                            <td>{{ $course->subject?->title }}</td>
+                            <td>{{ $course->teacher?->full_name ?? 'N/A' }}</td>
+                            <td>{{ $course->is_published ? 'Published' : 'Draft' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4">No courses found.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 @endsection
-

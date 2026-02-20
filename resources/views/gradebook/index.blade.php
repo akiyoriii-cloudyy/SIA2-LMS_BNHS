@@ -70,44 +70,45 @@
             <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
             <input type="hidden" name="quarter" value="{{ $quarter }}">
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Student Name</th>
-                        <th>Quiz (30%)</th>
-                        <th>Assignment (30%)</th>
-                        <th>Exam (40%)</th>
-                        <th>Quarter Grade</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($enrollments as $index => $enrollment)
-                        @php $grade = $existingGrades->get($enrollment->id); @endphp
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
                         <tr>
-                            <td>{{ $index + 1 }}</td>
-                            <td>{{ $enrollment->student->full_name }}</td>
-                            <td>
-                                <input type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][quiz]" value="{{ old("grades.{$enrollment->id}.quiz", $grade?->quiz) }}">
-                            </td>
-                            <td>
-                                <input type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][assignment]" value="{{ old("grades.{$enrollment->id}.assignment", $grade?->assignment) }}">
-                            </td>
-                            <td>
-                                <input type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][exam]" value="{{ old("grades.{$enrollment->id}.exam", $grade?->exam) }}">
-                            </td>
-                            <td class="text-right">{{ $grade?->quarter_grade !== null ? number_format($grade->quarter_grade, 2) : '-' }}</td>
+                            <th>#</th>
+                            <th>Student Name</th>
+                            <th>Quiz (30%)</th>
+                            <th>Assignment (30%)</th>
+                            <th>Exam (40%)</th>
+                            <th>Quarter Grade</th>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6">No enrolled students found for the selected school year and section.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @forelse ($enrollments as $index => $enrollment)
+                            @php $grade = $existingGrades->get($enrollment->id); @endphp
+                            <tr>
+                                <td>{{ $index + 1 }}</td>
+                                <td>{{ $enrollment->student->full_name }}</td>
+                                <td>
+                                    <input type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][quiz]" value="{{ old("grades.{$enrollment->id}.quiz", $grade?->quiz) }}">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][assignment]" value="{{ old("grades.{$enrollment->id}.assignment", $grade?->assignment) }}">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][exam]" value="{{ old("grades.{$enrollment->id}.exam", $grade?->exam) }}">
+                                </td>
+                                <td class="text-right">{{ $grade?->quarter_grade !== null ? number_format($grade->quarter_grade, 2) : '-' }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6">No enrolled students found for the selected school year and section.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
             <br>
             <button class="btn" type="submit">Save Grades</button>
         </form>
     </div>
 @endsection
-

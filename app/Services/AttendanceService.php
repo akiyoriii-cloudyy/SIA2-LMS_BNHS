@@ -2,15 +2,14 @@
 
 namespace App\Services;
 
+use App\Jobs\SendSmsLog;
 use App\Models\AttendanceRecord;
 use App\Models\Enrollment;
 use App\Models\Guardian;
-use App\Models\SchoolNotification;
 use App\Models\SmsLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class AttendanceService
 {
@@ -37,7 +36,9 @@ class AttendanceService
                 ]
             );
 
-            $this->triggerWeeklyAbsenceNotificationIfNeeded($enrollment, $attendanceDate);
+            if ($status === 'absent') {
+                $this->triggerWeeklyAbsenceNotificationIfNeeded($enrollment, $attendanceDate);
+            }
 
             return $record;
         });
@@ -99,45 +100,7 @@ class AttendanceService
                 'status' => 'queued',
             ]);
 
-            $this->sendSmsAndFinalizeLog($log);
-            $this->createInAppNotification($student->id, $message, $weekStart, $absenceCount);
+            SendSmsLog::dispatch($log->id)->afterCommit();
         }
-    }
-
-    private function sendSmsAndFinalizeLog(SmsLog $log): void
-    {
-        /** @var SmsService $smsService */
-        $smsService = app(SmsService::class);
-
-        try {
-            $result = $smsService->send($log->phone_number, $log->message);
-            $log->update([
-                'provider_message_id' => $result['id'] ?? null,
-                'status' => $result['status'] ?? 'sent',
-                'sent_at' => now(),
-            ]);
-        } catch (Throwable $e) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    private function createInAppNotification(int $studentId, string $message, string $weekStart, int $absenceCount): void
-    {
-        SchoolNotification::create([
-            'student_id' => $studentId,
-            'type' => 'weekly_absence_alert',
-            'channel' => 'sms',
-            'title' => 'Weekly Absence Alert',
-            'message' => $message,
-            'meta' => [
-                'week_start' => $weekStart,
-                'absences_count' => $absenceCount,
-            ],
-            'sent_at' => now(),
-        ]);
     }
 }
-

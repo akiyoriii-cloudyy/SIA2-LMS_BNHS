@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'auth.api' => \App\Http\Middleware\ApiTokenMiddleware::class,
         ]);
+
+        $middleware->appendToGroup('web', \App\Http\Middleware\LoadUserRoles::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

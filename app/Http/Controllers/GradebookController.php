@@ -88,12 +88,16 @@ class GradebookController extends Controller
         $quarter = (int) $validated['quarter'];
         $gradeRows = $validated['grades'] ?? [];
 
+        $enrollmentsById = Enrollment::query()
+            ->where('school_year_id', (int) $validated['school_year_id'])
+            ->where('section_id', (int) $validated['section_id'])
+            ->whereIn('id', array_map('intval', array_keys($gradeRows)))
+            ->get()
+            ->keyBy('id');
+
         foreach ($gradeRows as $enrollmentId => $row) {
-            $enrollment = Enrollment::query()
-                ->where('id', (int) $enrollmentId)
-                ->where('school_year_id', (int) $validated['school_year_id'])
-                ->where('section_id', (int) $validated['section_id'])
-                ->first();
+            /** @var Enrollment|null $enrollment */
+            $enrollment = $enrollmentsById->get((int) $enrollmentId);
 
             if (! $enrollment) {
                 continue;

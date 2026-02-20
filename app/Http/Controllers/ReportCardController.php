@@ -26,7 +26,7 @@ class ReportCardController extends Controller
             ->orderBy('id')
             ->get();
 
-        foreach ($enrollments as $enrollment) {
+        foreach ($enrollments->whereNull('reportCard') as $enrollment) {
             $gradingService->syncEnrollmentReportCard($enrollment);
         }
 
@@ -57,4 +57,3 @@ class ReportCardController extends Controller
         ]);
     }
 }
-

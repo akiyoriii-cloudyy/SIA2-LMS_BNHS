@@ -72,6 +72,10 @@ class User extends Authenticatable
 
     public function hasRole(string ...$roles): bool
     {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->whereIn('name', $roles)->isNotEmpty();
+        }
+
         return $this->roles()->whereIn('name', $roles)->exists();
     }
 }

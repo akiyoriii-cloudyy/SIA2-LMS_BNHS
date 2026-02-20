@@ -4,20 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LMS Login</title>
-    <style>
-        body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #e5e7eb; }
-        .wrap { min-height: 100vh; display: grid; place-items: center; }
-        .card { background: #fff; padding: 24px; border-radius: 10px; width: 100%; max-width: 380px; border: 1px solid #d1d5db; }
-        input { width: 100%; padding: 10px; border: 1px solid #9ca3af; border-radius: 8px; margin-bottom: 12px; }
-        button { width: 100%; padding: 10px; border: none; background: #0f766e; color: #fff; border-radius: 8px; cursor: pointer; }
-        .error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; padding: 8px; border-radius: 8px; margin-bottom: 10px; }
-    </style>
+    <link rel="stylesheet" href="{{ asset('lms.css') }}">
+    <script>
+        window.__LMS_THEME_SEED = "guest";
+    </script>
+    <script src="{{ asset('lms-theme.js') }}" defer></script>
 </head>
-<body>
-    <div class="wrap">
-        <div class="card">
-            <h2>School LMS Login</h2>
-            <p>Admin / Teacher / Student access</p>
+<body class="lms">
+    <div class="auth-wrap">
+        <div class="card auth-card">
+            <div class="header">
+                <div class="badge"><span class="dot"></span> BNHS LMS</div>
+                <h1 class="title">School LMS Login</h1>
+                <p class="subtitle">Admin / Teacher / Student access</p>
+            </div>
 
             @if ($errors->any())
                 <div class="error">{{ $errors->first() }}</div>
@@ -31,10 +31,14 @@
                 <label>Password</label>
                 <input type="password" name="password" required>
 
-                <button type="submit">Sign In</button>
+                <button class="btn" type="submit" style="width:100%;">Sign In</button>
             </form>
+
+            <div class="auth-meta">
+                <span>Secure access portal</span>
+                <span class="muted">Theme adapts per user</span>
+            </div>
         </div>
     </div>
 </body>
 </html>
-

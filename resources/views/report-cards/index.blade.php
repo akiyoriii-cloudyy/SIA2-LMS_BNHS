@@ -32,32 +32,33 @@
     </div>
 
     <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Student</th>
-                    <th>General Average</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($enrollments as $index => $enrollment)
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
                     <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ $enrollment->student->full_name }}</td>
-                        <td>{{ $enrollment->reportCard?->general_average !== null ? number_format($enrollment->reportCard->general_average, 2) : 'Incomplete' }}</td>
-                        <td>
-                            <a class="btn" href="{{ route('report-cards.show', $enrollment) }}">View / Print</a>
-                        </td>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>General Average</th>
+                        <th>Action</th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="4">No students found.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @forelse ($enrollments as $index => $enrollment)
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $enrollment->student->full_name }}</td>
+                            <td>{{ $enrollment->reportCard?->general_average !== null ? number_format($enrollment->reportCard->general_average, 2) : 'Incomplete' }}</td>
+                            <td>
+                                <a class="btn" href="{{ route('report-cards.show', $enrollment) }}">View / Print</a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4">No students found.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 @endsection
-

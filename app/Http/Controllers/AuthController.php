@@ -26,13 +26,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        $user = $request->user();
-
-        if ($user && $user->hasRole('admin', 'teacher')) {
-            return redirect()->route('gradebook.index');
-        }
-
-        return redirect()->route('courses.index');
+        return redirect()->route('dashboard');
     }
 
     public function logout(Request $request): RedirectResponse

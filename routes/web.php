@@ -5,6 +5,7 @@ use App\Http\Controllers\ReportCardController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -18,9 +19,14 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware(['auth'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
     Route::get('/courses', [CourseController::class, 'index'])->middleware('role:admin,teacher,student')->name('courses.index');
 
     Route::middleware('role:admin,teacher')->group(function (): void {
+        Route::get('/system/tables', [DashboardController::class, 'systemTables'])->name('system.tables');
+
         Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook.index');
         Route::post('/gradebook', [GradebookController::class, 'store'])->name('gradebook.store');
 

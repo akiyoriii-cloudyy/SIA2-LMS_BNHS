@@ -3,123 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Senior High Grading System</title>
-    <style>
-        :root {
-            --bg: #f5f7fb;
-            --text: #1f2937;
-            --card: #ffffff;
-            --line: #d1d5db;
-            --accent: #0f766e;
-            --accent-dark: #0b5f58;
-        }
-
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        .nav {
-            background: #0b1324;
-            padding: 12px 20px;
-            display: flex;
-            gap: 16px;
-        }
-
-        .nav a {
-            color: #e2e8f0;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 14px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn:hover { background: var(--accent-dark); }
-
-        .grid-4 {
-            display: grid;
-            gap: 12px;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            border: 1px solid var(--line);
-            padding: 8px;
-            text-align: left;
-        }
-
-        th { background: #e5e7eb; }
-
-        input, select {
-            width: 100%;
-            padding: 7px;
-            border: 1px solid var(--line);
-            border-radius: 6px;
-        }
-
-        .text-right { text-align: right; }
-        .alert {
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 12px;
-            background: #dcfce7;
-            border: 1px solid #86efac;
-        }
-
-        @media (max-width: 800px) {
-            .grid-4 { grid-template-columns: 1fr; }
-            .container { padding: 10px; }
-        }
-    </style>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'BNHS LMS')</title>
+    <link rel="stylesheet" href="{{ asset('lms.css') }}">
+    <script>
+        window.__LMS_THEME_SEED = @json(auth()->check() ? (auth()->id().'|'.auth()->user()->email) : 'guest');
+    </script>
+    <script src="{{ asset('lms-theme.js') }}" defer></script>
 </head>
-<body>
-    <div class="nav">
-        @auth
-            <a href="{{ route('courses.index') }}">Courses</a>
-            @if (auth()->user()->hasRole('admin', 'teacher'))
-                <a href="{{ route('gradebook.index') }}">Gradebook</a>
-                <a href="{{ route('attendance.index') }}">Attendance</a>
-                <a href="{{ route('report-cards.index') }}">Report Cards</a>
-            @endif
-            <form method="POST" action="{{ route('logout') }}" style="margin-left:auto;">
-                @csrf
-                <button class="btn" type="submit">Logout</button>
-            </form>
-        @endauth
-    </div>
-    <div class="container">
-        @yield('content')
+<body class="lms">
+    <input class="nav-toggle" type="checkbox" id="nav-toggle">
+
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div>
+                    <strong>BNHS LMS</strong><br>
+                    <small>Senior High</small>
+                </div>
+                <label class="toggle-btn" for="nav-toggle">&#10005;</label>
+            </div>
+
+            @auth
+                <div class="sidebar-user">
+                    Signed in as <strong>{{ auth()->user()->name }}</strong>
+                </div>
+
+                <nav class="menu">
+                    <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
+
+                    <div class="group">LMS</div>
+                    <a href="{{ route('courses.index') }}" class="{{ request()->routeIs('courses.*') ? 'active' : '' }}">Courses</a>
+
+                    @if (auth()->user()->hasRole('admin', 'teacher'))
+                        <div class="group">Grading</div>
+                        <a href="{{ route('gradebook.index') }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">Gradebook</a>
+                        <a href="{{ route('attendance.index') }}" class="{{ request()->routeIs('attendance.*') ? 'active' : '' }}">Attendance</a>
+                        <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">Report Cards</a>
+
+                        <div class="group">System</div>
+                        <a href="{{ route('system.tables') }}" class="{{ request()->routeIs('system.tables') ? 'active' : '' }}">Database Tables</a>
+                    @endif
+                </nav>
+
+                <div class="sidebar-footer">
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button class="btn" type="submit" style="width:100%;">Logout</button>
+                    </form>
+                </div>
+            @endauth
+        </aside>
+
+        <main class="main">
+            <div class="topbar">
+                <label class="toggle-btn" for="nav-toggle">&#9776;</label>
+                <div style="font-weight:800;">BNHS LMS</div>
+                <div style="width:42px;"></div>
+            </div>
+
+            <div class="container">
+                @yield('content')
+            </div>
+        </main>
     </div>
 </body>
 </html>

@@ -9,6 +9,7 @@ use App\Models\ReportCardItem;
 use App\Models\SubjectAssignment;
 use App\Models\SubjectFinalGrade;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class GradingService
 {
@@ -64,23 +65,36 @@ class GradingService
             ->get()
             ->keyBy('subject_assignment_id');
 
+        $now = Carbon::now();
+        $rows = [];
         foreach ($assignmentIds as $assignmentId) {
             $grade = $subjectFinalGrades->get($assignmentId);
+            $rows[] = [
+                'report_card_id' => $reportCard->id,
+                'subject_assignment_id' => $assignmentId,
+                'q1' => $grade?->q1,
+                'q2' => $grade?->q2,
+                'q3' => $grade?->q3,
+                'q4' => $grade?->q4,
+                'final_grade' => $grade?->final_grade,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
 
-            ReportCardItem::updateOrCreate(
-                [
-                    'report_card_id' => $reportCard->id,
-                    'subject_assignment_id' => $assignmentId,
-                ],
-                [
-                    'q1' => $grade?->q1,
-                    'q2' => $grade?->q2,
-                    'q3' => $grade?->q3,
-                    'q4' => $grade?->q4,
-                    'final_grade' => $grade?->final_grade,
-                ]
+        if ($rows !== []) {
+            ReportCardItem::upsert(
+                $rows,
+                ['report_card_id', 'subject_assignment_id'],
+                ['q1', 'q2', 'q3', 'q4', 'final_grade', 'updated_at']
             );
         }
+
+        $staleItemsQuery = ReportCardItem::query()->where('report_card_id', $reportCard->id);
+        if ($assignmentIds->isNotEmpty()) {
+            $staleItemsQuery->whereNotIn('subject_assignment_id', $assignmentIds);
+        }
+        $staleItemsQuery->delete();
 
         $totalSubjects = $assignmentIds->count();
         $completedSubjects = $subjectFinalGrades->whereNotNull('final_grade')->count();
@@ -140,4 +154,3 @@ class GradingService
         return round(($q1 + $q2 + $q3 + $q4) / 4, 2);
     }
 }
-
