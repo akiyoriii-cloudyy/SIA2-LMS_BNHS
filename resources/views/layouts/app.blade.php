@@ -5,71 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'BNHS LMS')</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('lms.css') }}?v={{ @filemtime(public_path('lms.css')) }}">
     <script>
         window.__LMS_THEME_SEED = @json(auth()->check() ? (auth()->id().'|'.auth()->user()->email) : 'guest');
     </script>
     <script src="{{ asset('lms-theme.js') }}?v={{ @filemtime(public_path('lms-theme.js')) }}" defer></script>
 </head>
-<body class="lms">
-    <input class="nav-toggle" type="checkbox" id="nav-toggle">
+<body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }}">
+    @if (auth()->check())
+        <input class="nav-toggle" type="checkbox" id="nav-toggle">
 
-    <div class="shell">
-        <aside class="sidebar">
-            @auth
+        <div class="shell">
+            <aside class="sidebar">
                 <div class="sidebar-logo">
-                    <div class="logo-box">EduTrack</div>
-                    <div class="logo-sub">SHS Management System</div>
+                    <div class="logo-badge">
+                        <div class="logo-icon">🎓</div>
+                        <div>
+                            <div class="logo-text">EduTrack</div>
+                            <div class="logo-sub">SHS Management System</div>
+                        </div>
+                    </div>
+                    <div class="school-tag">
+                        Bawing District • Division of General Santos<br>
+                        Region XII – SOCCSKSARGEN
+                    </div>
                     <label class="toggle-btn" for="nav-toggle" aria-label="Close menu">&#10005;</label>
                 </div>
 
                 <nav class="menu">
-                    <div class="group">Overview</div>
+                    <div class="group">Main</div>
                     <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <span class="icon">▣</span> Dashboard
-                    </a>
-
-                    <div class="group">LMS</div>
-                    <a href="{{ route('courses.index') }}" class="{{ request()->routeIs('courses.*') ? 'active' : '' }}">
-                        <span class="icon">≡</span> Courses
+                        <span class="icon">📊</span> Dashboard
                     </a>
 
                     @if (auth()->user()->hasRole('admin', 'teacher'))
-                        <div class="group">Grading</div>
                         <a href="{{ route('gradebook.index') }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
-                            <span class="icon">✎</span> Grade Entry
+                            <span class="icon">✏️</span> Grade Entry
                         </a>
                         <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
-                            <span class="icon">☰</span> Report Card
+                            <span class="icon">📋</span> DepEd Report Card
                         </a>
-
-                        <div class="group">Attendance</div>
-                        <a href="{{ route('mobile.app') }}" class="{{ request()->routeIs('mobile.app') ? 'active' : '' }}">
-                            <span class="icon">▦</span> Mobile App
-                        </a>
-                        <a href="{{ route('attendance.index') }}" class="{{ request()->routeIs('attendance.*') ? 'active' : '' }}">
-                            <span class="icon">✓</span> Attendance
-                        </a>
-                        <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
-                            <span class="icon">✉</span> SMS Logs
-                        </a>
-
-                        <div class="group">System</div>
                         <a href="{{ route('system.tables') }}" class="{{ request()->routeIs('system.tables') ? 'active' : '' }}">
-                            <span class="icon">▦</span> Database
+                            <span class="icon">🗄️</span> Database Tables
                         </a>
+
+                        <div class="group">Records</div>
                         <a href="{{ route('students.index') }}" class="{{ request()->routeIs('students.*') ? 'active' : '' }}">
-                            <span class="icon">◎</span> Students
+                            <span class="icon">🧑‍🎓</span> Students
+                        </a>
+                        <a href="{{ route('subjects.index') }}" class="{{ request()->routeIs('subjects.*') ? 'active' : '' }}">
+                            <span class="icon">📚</span> Subjects
+                        </a>
+                        <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
+                            <span class="icon">🖨️</span> Print Reports
+                            <span class="nav-badge">3</span>
                         </a>
                     @endif
                 </nav>
 
                 <div class="sidebar-footer">
-                    <div class="sidebar-profile">
-                        <div class="avatar">{{ mb_substr((string) auth()->user()->name, 0, 1) }}</div>
-                        <div>
-                            <div style="font-weight:900;">{{ auth()->user()->name }}</div>
-                            <div class="muted" style="font-size: 12px;">
+                    <div class="teacher-card">
+                        <div class="teacher-avatar">{{ mb_substr((string) auth()->user()->name, 0, 1) }}</div>
+                        <div class="teacher-info">
+                            <div class="tname">{{ auth()->user()->name }}</div>
+                            <div class="trole">
                                 @php
                                     $role = auth()->user()->roles->first()?->name ?? 'user';
                                 @endphp
@@ -79,23 +81,29 @@
                     </div>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button class="btn" type="submit" style="width:100%;">Logout</button>
+                        <button class="btn" type="submit">Logout</button>
                     </form>
                 </div>
-            @endauth
-        </aside>
+            </aside>
 
-        <main class="main">
-            <div class="topbar">
-                <label class="toggle-btn" for="nav-toggle">&#9776;</label>
-                <div style="font-weight:900;">EduTrack</div>
-                <div style="width:42px;"></div>
-            </div>
+            <main class="main">
+                <div class="topbar">
+                    <label class="toggle-btn" for="nav-toggle">&#9776;</label>
+                    <div style="font-weight:900;">EduTrack</div>
+                    <div style="width:42px;"></div>
+                </div>
 
+                <div class="container">
+                    @yield('content')
+                </div>
+            </main>
+        </div>
+    @else
+        <main class="main main--guest">
             <div class="container">
                 @yield('content')
             </div>
         </main>
-    </div>
+    @endif
 </body>
 </html>

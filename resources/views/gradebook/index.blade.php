@@ -1,69 +1,114 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="page-head page-head--dash">
-        <div>
-            <h1>Grade Entry</h1>
-            <div class="crumbs muted">Grading / Enter Grades</div>
+    @php
+        $stats = $gradeEntryStats ?? [];
+
+        $totalStudents = (int) ($stats['total_students'] ?? 0);
+        $totalSubjects = (int) ($stats['total_subjects'] ?? 0);
+        $pendingCount = (int) ($stats['pending'] ?? 0);
+        $schoolYearName = (string) ($stats['school_year'] ?? '—');
+        $sectionLabel = (string) ($stats['section_label'] ?? '—');
+        $subjectTitle = (string) ($stats['subject_title'] ?? ($subjects->firstWhere('id', $selectedSubject)?->title ?? 'Subject'));
+    @endphp
+
+    <div class="dash-topbar">
+        <div class="dash-topbar-left">
+            <span class="dash-topbar-title">EduGrade Pro</span>
+            <span class="dash-topbar-sep">/</span>
+            <span class="dash-topbar-bc">Grade Entry</span>
         </div>
-        <div class="pill-row">
-            <div class="pill">Quarter {{ $quarter }}</div>
-            <div class="pill">
-                {{ $subjects->firstWhere('id', $selectedSubject)?->title ?? 'Subject' }}
-            </div>
+
+        <div class="dash-topbar-actions">
+            <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">Report Card</a>
+            <button class="btn btn-gold btn-sm" type="button" data-action="compute-all">Compute All</button>
+            <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print</button>
         </div>
     </div>
 
-    <div class="card">
-        <form method="GET" action="{{ route('gradebook.index') }}" class="filters">
-            <div class="grid-4">
-                <div>
-                    <label class="muted" style="font-size: 12px; font-weight: 800;">School Year</label>
-                    <select name="school_year_id">
-                        @foreach ($schoolYears as $schoolYear)
-                            <option value="{{ $schoolYear->id }}" @selected($selectedSchoolYear === $schoolYear->id)>
-                                {{ $schoolYear->name }}{{ $schoolYear->is_active ? ' (Active)' : '' }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="muted" style="font-size: 12px; font-weight: 800;">Section</label>
-                    <select name="section_id">
-                        @foreach ($sections as $section)
-                            <option value="{{ $section->id }}" @selected($selectedSection === $section->id)>
-                                Grade {{ $section->grade_level }} - {{ $section->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="muted" style="font-size: 12px; font-weight: 800;">Subject</label>
-                    <select name="subject_id">
-                        @foreach ($subjects as $subject)
-                            <option value="{{ $subject->id }}" @selected($selectedSubject === $subject->id)>
-                                {{ $subject->code }} - {{ $subject->title }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="muted" style="font-size: 12px; font-weight: 800;">Quarter</label>
-                    <select name="quarter">
-                        @for ($q = 1; $q <= 4; $q++)
-                            <option value="{{ $q }}" @selected($quarter === $q)>Quarter {{ $q }}</option>
-                        @endfor
-                    </select>
-                </div>
+    <div class="dash-kpi-grid">
+        <div class="dash-kpi kpi-gold">
+            <div class="dash-kpi-top">
+                <div class="dash-kpi-icon">👩‍🎓</div>
             </div>
+            <div class="dash-kpi-value">{{ number_format($totalStudents ?: (int) $enrollments->count()) }}</div>
+            <div class="dash-kpi-label">TOTAL STUDENTS</div>
+            <div class="dash-kpi-sub">{{ $sectionLabel }}</div>
+        </div>
 
-            <div style="display:flex; gap: 10px; margin-top: 12px; flex-wrap: wrap;">
-                <button class="btn" type="submit">Load</button>
-                <span class="muted" style="align-self:center; font-style: italic;">
-                    Grades auto-transfer to Report Card. No re-entry needed.
-                </span>
+        <div class="dash-kpi kpi-sage">
+            <div class="dash-kpi-top">
+                <div class="dash-kpi-icon">📚</div>
             </div>
-        </form>
+            <div class="dash-kpi-value">{{ number_format($totalSubjects ?: (int) $subjects->count()) }}</div>
+            <div class="dash-kpi-label">SUBJECTS</div>
+            <div class="dash-kpi-sub">Core + Specialized</div>
+        </div>
+
+        <div class="dash-kpi kpi-navy">
+            <div class="dash-kpi-top">
+                <div class="dash-kpi-icon">🗓️</div>
+            </div>
+            <div class="dash-kpi-value">Q{{ $quarter }}</div>
+            <div class="dash-kpi-label">QUARTER</div>
+            <div class="dash-kpi-sub">SY. {{ $schoolYearName }}</div>
+        </div>
+
+        <div class="dash-kpi kpi-red">
+            <div class="dash-kpi-top">
+                <div class="dash-kpi-icon">⏳</div>
+            </div>
+            <div class="dash-kpi-value">{{ number_format($pendingCount) }}</div>
+            <div class="dash-kpi-label">PENDING</div>
+            <div class="dash-kpi-sub">Incomplete grades</div>
+        </div>
+    </div>
+
+    <div class="dash-panel ge-strip">
+        <div class="dash-panel-body">
+            <div class="ge-steps">
+                <div class="ge-step ge-step--dark">
+                    <div class="ge-step-icon">📝</div>
+                    <div class="ge-step-label">Quizzes</div>
+                    <div class="ge-step-sub">30%</div>
+                </div>
+                <div class="ge-step ge-step--dark">
+                    <div class="ge-step-icon">📌</div>
+                    <div class="ge-step-label">Assign.</div>
+                    <div class="ge-step-sub">30%</div>
+                </div>
+                <div class="ge-step ge-step--dark">
+                    <div class="ge-step-icon">📄</div>
+                    <div class="ge-step-label">Exam</div>
+                    <div class="ge-step-sub">40%</div>
+                </div>
+                <div class="ge-step ge-step--gold">
+                    <div class="ge-step-icon">⚙️</div>
+                    <div class="ge-step-label">Auto Avg</div>
+                    <div class="ge-step-sub">Computed</div>
+                </div>
+                <div class="ge-step ge-step--gold">
+                    <div class="ge-step-icon">📊</div>
+                    <div class="ge-step-label">Qtrly</div>
+                    <div class="ge-step-sub">Q1–Q4</div>
+                </div>
+                <div class="ge-step ge-step--sage">
+                    <div class="ge-step-icon">🧾</div>
+                    <div class="ge-step-label">Form 138</div>
+                    <div class="ge-step-sub">Auto-filled</div>
+                </div>
+                <div class="ge-step ge-step--sage">
+                    <div class="ge-step-icon">🏆</div>
+                    <div class="ge-step-label">Gen. Avg</div>
+                    <div class="ge-step-sub">Auto</div>
+                </div>
+                <div class="ge-step ge-step--sage">
+                    <div class="ge-step-icon">🖨️</div>
+                    <div class="ge-step-label">Fold &amp; Print</div>
+                    <div class="ge-step-sub">Booklet</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     @if (session('success'))
@@ -77,88 +122,143 @@
         </div>
     @endif
 
-    <div class="card">
-        <div class="tabs">
-            @foreach ($subjects as $subject)
-                <a class="tab {{ $selectedSubject === $subject->id ? 'active' : '' }}"
-                   href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'subject_id' => $subject->id, 'quarter' => $quarter]) }}">
-                    {{ $subject->title }}
-                </a>
-            @endforeach
+    <div class="dash-panel ge-table">
+        <div class="dash-panel-hd">
+            <div>
+                <div class="dash-panel-title">{{ $subjectTitle }}</div>
+                <div class="dash-panel-sub">{{ $sectionLabel }} • Quarter {{ $quarter }} | Grades auto-transfer to Form 138 Report Card</div>
+            </div>
+            <div class="dash-topbar-actions" style="margin-left:auto;">
+                <button class="btn btn-gold btn-sm" type="button" id="auto-compute-all">⚡ Auto-Compute All</button>
+            </div>
         </div>
 
-        <div class="pill-row" style="margin: 12px 0 8px;">
-            @for ($q = 1; $q <= 4; $q++)
-                <a class="pill pill-link {{ $quarter === $q ? 'pill-link--active' : '' }}"
-                   href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'subject_id' => $selectedSubject, 'quarter' => $q]) }}">
-                    Q{{ $q }}
-                </a>
-            @endfor
-        </div>
+        <div class="dash-panel-body">
+            <form method="GET" action="{{ route('gradebook.index') }}" class="ge-filters">
+                <input type="hidden" name="quarter" value="{{ $quarter }}">
 
-        <form method="POST" action="{{ route('gradebook.store') }}" id="grade-entry-form">
-            @csrf
-            <input type="hidden" name="school_year_id" value="{{ $selectedSchoolYear }}">
-            <input type="hidden" name="section_id" value="{{ $selectedSection }}">
-            <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
-            <input type="hidden" name="quarter" value="{{ $quarter }}">
+                <div class="ge-filter-row">
+                    <div class="ge-filter">
+                        <select name="subject_id" aria-label="Subject">
+                            @foreach ($subjects as $subject)
+                                <option value="{{ $subject->id }}" @selected($selectedSubject === $subject->id)>
+                                    {{ $subject->title }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
-            <div class="table-wrap">
-                <table class="table gradebook-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Student Name</th>
-                            <th>Quiz (30%)</th>
-                            <th>Assignment (30%)</th>
-                            <th>Exam (40%)</th>
-                            <th>Quarter Avg ← auto</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($enrollments as $index => $enrollment)
-                            @php $grade = $existingGrades->get($enrollment->id); @endphp
-                            <tr data-row="grade">
-                                <td>{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
-                                <td>{{ $enrollment->student->full_name }}</td>
-                                <td>
-                                    <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][quiz]" value="{{ old("grades.{$enrollment->id}.quiz", $grade?->quiz) }}">
-                                </td>
-                                <td>
-                                    <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][assignment]" value="{{ old("grades.{$enrollment->id}.assignment", $grade?->assignment) }}">
-                                </td>
-                                <td>
-                                    <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][exam]" value="{{ old("grades.{$enrollment->id}.exam", $grade?->exam) }}">
-                                </td>
-                                <td class="avg-cell">
-                                    <span class="chip js-avg">{{ $grade?->quarter_grade !== null ? number_format($grade->quarter_grade, 2) : '—' }}</span>
-                                </td>
-                                <td class="remarks-cell">
-                                    @php
-                                        $qg = $grade?->quarter_grade;
-                                        $remark = $qg === null ? '—' : ((float) $qg >= 75 ? 'Passed' : 'Failed');
-                                    @endphp
-                                    <span class="chip js-remark {{ $remark === 'Passed' ? 'chip--ok' : ($remark === 'Failed' ? 'chip--bad' : '') }}">{{ $remark }}</span>
-                                </td>
-                            </tr>
-                        @empty
+                    <div class="ge-filter">
+                        <select name="section_id" aria-label="Section">
+                            @foreach ($sections as $section)
+                                <option value="{{ $section->id }}" @selected($selectedSection === $section->id)>
+                                    Grade {{ $section->grade_level }} — {{ $section->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="ge-filter ge-filter--sy">
+                        <select name="school_year_id" aria-label="School year">
+                            @foreach ($schoolYears as $schoolYear)
+                                <option value="{{ $schoolYear->id }}" @selected($selectedSchoolYear === $schoolYear->id)>
+                                    {{ $schoolYear->name }}{{ $schoolYear->is_active ? ' (Active)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="ge-filter ge-filter--search">
+                        <input type="text" name="q" placeholder="Search student..." value="{{ $search ?? '' }}">
+                    </div>
+
+                    <div class="ge-filter ge-filter--btn">
+                        <button class="btn btn-sm" type="submit">Load</button>
+                    </div>
+                </div>
+
+                <div class="ge-quarter-pills">
+                    @for ($q = 1; $q <= 4; $q++)
+                        <a class="pill pill-link {{ $quarter === $q ? 'pill-link--active' : '' }}"
+                           href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'subject_id' => $selectedSubject, 'quarter' => $q, 'q' => $search]) }}">
+                            Q{{ $q }}
+                        </a>
+                    @endfor
+                </div>
+            </form>
+
+            <form method="POST" action="{{ route('gradebook.store') }}" id="grade-entry-form">
+                @csrf
+                <input type="hidden" name="school_year_id" value="{{ $selectedSchoolYear }}">
+                <input type="hidden" name="section_id" value="{{ $selectedSection }}">
+                <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
+                <input type="hidden" name="quarter" value="{{ $quarter }}">
+                <input type="hidden" name="q" value="{{ $search ?? '' }}">
+
+                <div class="table-wrap">
+                    <table class="table gradebook-table gradebook-table--pro">
+                        <thead>
                             <tr>
-                                <td colspan="7">No enrolled students found for the selected school year and section.</td>
+                                <th>NO.</th>
+                                <th>STUDENT NAME</th>
+                                <th>QUIZZES (30%)</th>
+                                <th>ASSIGNMENT (30%)</th>
+                                <th>EXAM (40%)</th>
+                                <th>QTRLY AVG</th>
+                                <th>STATUS</th>
+                                <th>— FORM 138</th>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            @forelse ($enrollments as $index => $enrollment)
+                                @php $grade = $existingGrades->get($enrollment->id); @endphp
+                                <tr data-row="grade">
+                                    <td>{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
+                                    <td class="student-cell">{{ $enrollment->student->full_name }}</td>
+                                    <td>
+                                        <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][quiz]" value="{{ old("grades.{$enrollment->id}.quiz", $grade?->quiz) }}">
+                                    </td>
+                                    <td>
+                                        <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][assignment]" value="{{ old("grades.{$enrollment->id}.assignment", $grade?->assignment) }}">
+                                    </td>
+                                    <td>
+                                        <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][exam]" value="{{ old("grades.{$enrollment->id}.exam", $grade?->exam) }}">
+                                    </td>
+                                    <td class="avg-cell">
+                                        <span class="avg-pill js-avg">{{ $grade?->quarter_grade !== null ? number_format($grade->quarter_grade, 2) : '—' }}</span>
+                                    </td>
+                                    <td class="status-cell">
+                                        @php
+                                            $qg = $grade?->quarter_grade;
+                                            $remark = $qg === null ? '—' : ((float) $qg >= 75 ? 'PASSED' : 'FAILED');
+                                        @endphp
+                                        <span class="grade-status js-remark {{ $remark === 'PASSED' ? 'status-pass' : ($remark === 'FAILED' ? 'status-fail' : '') }}">{{ $remark }}</span>
+                                    </td>
+                                    <td class="form138-cell">
+                                        <label class="form138">
+                                            <input type="checkbox" checked disabled>
+                                            <span>Auto → Form 138</span>
+                                        </label>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8">No enrolled students found for the selected school year and section.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
 
-            <div class="actions">
-                <button class="btn" type="submit">Save All Grades</button>
-                <button class="btn btn--ghost" type="reset">Reset</button>
-                <span class="muted" style="align-self:center; font-style: italic;">
-                    Grades auto-transfer to Report Card. No re-entry needed.
-                </span>
-            </div>
-        </form>
+                <div class="actions">
+                    <button class="btn" type="submit">Save All Grades</button>
+                    <button class="btn btn--ghost" type="reset">Reset</button>
+                    <span class="muted" style="align-self:center; font-style: italic;">
+                        Grades auto-transfer to Report Card. No re-entry needed.
+                    </span>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div class="card card--dash-note">
@@ -182,9 +282,9 @@
             };
 
             const compute = (row) => {
-                const quiz = toNumber(row.querySelector('input[name*=\"[quiz]\"]')?.value);
-                const assign = toNumber(row.querySelector('input[name*=\"[assignment]\"]')?.value);
-                const exam = toNumber(row.querySelector('input[name*=\"[exam]\"]')?.value);
+                const quiz = toNumber(row.querySelector('input[name*="[quiz]"]')?.value);
+                const assign = toNumber(row.querySelector('input[name*="[assignment]"]')?.value);
+                const exam = toNumber(row.querySelector('input[name*="[exam]"]')?.value);
 
                 const avgEl = row.querySelector('.js-avg');
                 const remarkEl = row.querySelector('.js-remark');
@@ -194,7 +294,7 @@
                 if (quiz === null || assign === null || exam === null) {
                     avgEl.textContent = '—';
                     remarkEl.textContent = '—';
-                    remarkEl.classList.remove('chip--ok', 'chip--bad');
+                    remarkEl.classList.remove('status-pass', 'status-fail');
                     return;
                 }
 
@@ -204,21 +304,27 @@
                 avgEl.textContent = rounded.toFixed(1);
 
                 if (rounded >= 75) {
-                    remarkEl.textContent = 'Passed';
-                    remarkEl.classList.add('chip--ok');
-                    remarkEl.classList.remove('chip--bad');
+                    remarkEl.textContent = 'PASSED';
+                    remarkEl.classList.add('status-pass');
+                    remarkEl.classList.remove('status-fail');
                 } else {
-                    remarkEl.textContent = 'Failed';
-                    remarkEl.classList.add('chip--bad');
-                    remarkEl.classList.remove('chip--ok');
+                    remarkEl.textContent = 'FAILED';
+                    remarkEl.classList.add('status-fail');
+                    remarkEl.classList.remove('status-pass');
                 }
             };
+
+            const computeAll = () => rows.forEach((row) => compute(row));
 
             rows.forEach((row) => {
                 row.querySelectorAll('input.grade-input').forEach((input) => {
                     input.addEventListener('input', () => compute(row));
                 });
                 compute(row);
+            });
+
+            document.querySelectorAll('[data-action="compute-all"], #auto-compute-all').forEach((btn) => {
+                btn.addEventListener('click', () => computeAll());
             });
         })();
     </script>

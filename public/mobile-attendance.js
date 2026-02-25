@@ -1,8 +1,6 @@
-/* EduTrack Mobile Attendance (prototype UI)
-   - Offline queue in localStorage
-   - Sync batches via /api/mobile/sync/attendance
-   - Roster + weekly absences via /api/mobile/roster
-   - Student profile via /api/mobile/enrollments/{id}/profile
+/* EduTrack Mobile – 3 key screens: Attend, Students, Reports (+ Settings for login/roster)
+   - Roster via /api/mobile/roster, profile via /api/mobile/enrollments/{id}/profile
+   - Submit syncs via /api/mobile/sync/attendance when online
 */
 
 const DB_KEY = 'attendance_offline_queue_v2';
@@ -37,6 +35,7 @@ function escapeHtml(str) {
 function setOnlineUI(isOnline) {
   const dot = $('net-dot');
   const label = $('net-label');
+  if (!dot || !label) return;
   if (isOnline) {
     dot.classList.remove('off');
     label.textContent = 'Online';
@@ -57,11 +56,10 @@ function setQueue(queue) {
 }
 
 function updateQueueUI() {
-  const count = getQueue().length;
-  $('queue-badge').textContent = `${count} pending`;
-  $('offline-summary').textContent = count === 0
-    ? 'No records saved locally.'
-    : `${count} records saved locally and waiting to sync.`;
+  const badge = $('queue-badge');
+  const summary = $('offline-summary');
+  if (badge) badge.textContent = `${getQueue().length} pending`;
+  if (summary) summary.textContent = getQueue().length === 0 ? 'No records saved locally.' : `${getQueue().length} records saved locally and waiting to sync.`;
   renderOfflineUI();
 }
 
@@ -86,11 +84,11 @@ function getRosterLookup() {
 }
 
 function renderOfflineUI() {
+  const pill = $('offline-pill');
+  if (!pill) return;
   const queue = getQueue();
   const isOnline = navigator.onLine;
-
-  const pill = $('offline-pill');
-  if (pill) pill.classList.toggle('hidden', isOnline);
+  pill.classList.toggle('hidden', isOnline);
 
   const banner = $('offline-banner');
   const bannerSub = $('offline-banner-sub');
@@ -186,8 +184,10 @@ function setTopSub() {
     ? dateObj.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' })
     : '—';
   const secLabel = section ? `Grade ${section.grade_level} ${section.name}` : 'Grade —';
-  $('top-sub').textContent = `${secLabel} · ${dateLabel}`;
-  $('att-meta').textContent = `${secLabel} · ${dateLabel}`;
+  const meta = `${secLabel} - ${dateLabel}`;
+  $('top-sub').textContent = meta;
+  const attMeta = $('att-meta');
+  if (attMeta) attMeta.textContent = meta;
 }
 
 async function login() {
@@ -246,7 +246,7 @@ async function loadBootstrap() {
     });
 
     if (!response.ok) {
-      setStatus('Failed to load bootstrap.');
+      setStatus('Failed to load sections.');
       return;
     }
 
@@ -281,7 +281,7 @@ async function loadBootstrap() {
     setTopSub();
     setStatus(`Loaded ${state.sections.length} sections.`);
   } catch {
-    setStatus('Offline. Cannot refresh sections.');
+    setStatus('Cannot refresh sections. Check connection.');
   }
 }
 
@@ -362,7 +362,7 @@ function renderAlertBanner() {
   }
 
   banner.classList.remove('hidden');
-  $('alert-text').textContent = `${top.name} — ${top.absences} absences this week.`;
+  $('alert-text').textContent = `${top.name} – ${top.absences} absences this week.`;
   $('alert-sub').textContent = top.sms === 'sent'
     ? 'SMS sent.'
     : `SMS status: ${top.sms || 'queued'}.`;
@@ -467,9 +467,9 @@ async function loadRoster() {
       state.weekStart = cached.week_start || '';
       renderAttendAndStudents();
       renderReports();
-      setStatus(`Offline. Loaded cached roster (${state.roster.length}).`);
+      setStatus(`Using cached roster (${state.roster.length}).`);
     } else {
-      setStatus('Offline. Cannot load roster.');
+      setStatus('Cannot load roster. Check connection and try again.');
     }
   }
 }
@@ -486,6 +486,10 @@ async function refreshRoster() {
 function submitAttendance() {
   const date = $('attendance_date').value;
   if (!date) return;
+  if (!navigator.onLine) {
+    setStatus('Connect to the internet to submit attendance.');
+    return;
+  }
 
   const queue = getQueue();
   for (const row of state.roster) {
@@ -493,15 +497,9 @@ function submitAttendance() {
     const status = state.picks.get(enrollmentId) || 'present';
     queue.push({ enrollment_id: enrollmentId, attendance_date: date, status, remarks: null });
   }
-
   setQueue(queue);
-  setStatus(`Saved offline. Pending records: ${queue.length}`);
-
-  if (navigator.onLine) {
-    syncNow();
-  } else {
-    navTo('settings');
-  }
+  setStatus(`Submitting…`);
+  syncNow();
 }
 
 async function syncNow() {
@@ -509,7 +507,7 @@ async function syncNow() {
   const deviceId = ($('device_id').value || '').trim();
   const records = getQueue();
   if (!token || !deviceId || records.length === 0) {
-    setStatus('No token/device/records to sync.');
+    setStatus(records.length === 0 ? 'No attendance to submit.' : 'No token/device.');
     return;
   }
 
@@ -525,15 +523,15 @@ async function syncNow() {
     });
 
     if (!response.ok) {
-      setStatus('Sync failed. Keeping offline records.');
+      setStatus('Submit failed. Try again.');
       return;
     }
 
     setQueue([]);
-    setStatus('Sync completed.');
+    setStatus('Attendance submitted.');
     await loadRoster();
   } catch {
-    setStatus('Offline. Sync will retry when internet is available.');
+    setStatus('Network error. Try again when connected.');
   }
 }
 
@@ -588,7 +586,7 @@ function renderProfileAlert(absences, smsStatus) {
   const text = $('profile-alert-text');
 
   if (absences >= 5) {
-    ic.textContent = '⚠';
+    ic.textContent = '▲';
     const msg = smsStatus === 'sent'
       ? 'SMS sent to parent'
       : `SMS status: ${smsStatus || 'queued'}`;
@@ -671,19 +669,34 @@ function closeProfile() {
 function navTo(which) {
   const views = ['attend', 'students', 'reports', 'settings', 'profile'];
   for (const v of views) {
-    $(`view-${v}`).classList.toggle('hidden', v !== which);
+    const el = $(`view-${v}`);
+    if (el) el.classList.toggle('hidden', v !== which);
   }
 
-  const navs = ['attend', 'students', 'reports', 'settings'];
+  const navs = ['attend', 'students', 'reports'];
   for (const n of navs) {
-    $(`nav-${n}`).classList.toggle('active', n === which);
+    const btn = $(`nav-${n}`);
+    if (btn) btn.classList.toggle('active', n === which);
   }
+
+  const bottomNav = $('bottom-nav');
+  if (bottomNav) bottomNav.style.display = which === 'settings' ? 'none' : 'block';
+  if (which === 'profile') {
+    const btn = $('nav-students');
+    if (btn) btn.classList.add('active');
+  }
+  const settingsBackRow = $('settings-back-row');
+  if (settingsBackRow) settingsBackRow.style.display = (which === 'settings' && getBearer()) ? 'flex' : 'none';
 
   setTopMode(which);
 }
 
 function openSettings() {
   navTo('settings');
+}
+
+function closeSettings() {
+  navTo('attend');
 }
 
 function setTopMode(which) {
@@ -705,16 +718,18 @@ window.syncNow = syncNow;
 window.openSettings = openSettings;
 window.openProfile = openProfile;
 window.closeProfile = closeProfile;
+window.closeSettings = closeSettings;
 window.navTo = navTo;
 
 window.addEventListener('online', () => {
   setOnlineUI(true);
-  syncNow();
+  if (getQueue().length > 0) syncNow();
 });
 window.addEventListener('offline', () => setOnlineUI(false));
 
 (async function init() {
-  $('token').value = (localStorage.getItem(TOKEN_KEY) || '').trim();
+  const tokenEl = $('token');
+  if (tokenEl) tokenEl.value = (localStorage.getItem(TOKEN_KEY) || '').trim();
   updateQueueUI();
   setOnlineUI(navigator.onLine);
 
@@ -727,7 +742,8 @@ window.addEventListener('offline', () => setOnlineUI(false));
     navigator.serviceWorker.register('mobile-sw.js').catch(() => {});
   }
 
-  if ($('token').value.trim()) {
+  const token = (tokenEl && tokenEl.value || '').trim();
+  if (token) {
     await loadBootstrap();
     const cached = readRosterCache();
     if (cached?.data && Array.isArray(cached.data)) {

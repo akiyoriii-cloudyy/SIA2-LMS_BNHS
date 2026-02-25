@@ -8,6 +8,7 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SmsLogController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\SubjectController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -30,6 +31,7 @@ Route::middleware(['auth'])->group(function (): void {
         Route::get('/system/tables', [DashboardController::class, 'systemTables'])->name('system.tables');
         Route::get('/sms-logs', [SmsLogController::class, 'index'])->name('sms-logs.index');
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+        Route::get('/subjects', [SubjectController::class, 'index'])->name('subjects.index');
         Route::view('/mobile-app', 'mobile-app')->name('mobile.app');
 
         Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook.index');

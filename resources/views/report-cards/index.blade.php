@@ -1,10 +1,24 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="page-head page-head--dash">
+    <div class="dash-topbar">
+        <div class="dash-topbar-left">
+            <span class="dash-topbar-title">EduGrade Pro</span>
+            <span class="dash-topbar-sep">/</span>
+            <span class="dash-topbar-bc">DepEd Report Card</span>
+        </div>
+
+        <div class="dash-topbar-actions">
+            <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">Report Card</a>
+            <a class="btn btn-gold btn-sm" href="{{ route('gradebook.index') }}">Compute All</a>
+            <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print</button>
+        </div>
+    </div>
+
+    <div class="page-head page-head--dash" style="margin-bottom: 14px;">
         <div>
             <h1>Report Card</h1>
-            <div class="crumbs muted">Grading / Report Card</div>
+            <div class="crumbs muted">DepEd Form 138 — SHS</div>
         </div>
     </div>
 
@@ -56,7 +70,7 @@
                             <td>{{ $enrollment->student->full_name }}</td>
                             <td>{{ $enrollment->reportCard?->general_average !== null ? number_format($enrollment->reportCard->general_average, 2) : 'Incomplete' }}</td>
                             <td>
-                                <a class="btn" href="{{ route('report-cards.show', $enrollment) }}">Open</a>
+                                <a class="btn" href="{{ route('report-cards.show', [$enrollment->id, 'page' => 'outside']) }}">Open</a>
                             </td>
                         </tr>
                     @empty

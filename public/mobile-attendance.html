@@ -14,9 +14,12 @@
                     <div class="title">EduTrack</div>
                     <div class="sub" id="top-sub">Grade — · —</div>
                 </div>
-                <div class="chip">
-                    <span class="dot" id="net-dot"></span>
-                    <span id="net-label">Online</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button type="button" class="top-btn" id="header-settings-btn" onclick="openSettings()" aria-label="Settings" style="padding:6px 10px;">&#9881;</button>
+                    <div class="chip">
+                        <span class="dot" id="net-dot"></span>
+                        <span id="net-label">Online</span>
+                    </div>
                 </div>
             </div>
 
@@ -25,31 +28,21 @@
                     <div class="title">Student Profile</div>
                     <div class="sub" id="top-profile-sub">—</div>
                 </div>
-                <button class="top-btn" type="button" onclick="closeProfile()">← Back</button>
+                <button class="top-btn" type="button" onclick="closeProfile()">&lt; Back</button>
             </div>
         </header>
 
         <main class="content">
             <section id="view-attend">
-                <div class="banner hidden" id="alert-banner">
-                    <div class="ic">⚠</div>
-                    <div>
-                        <div id="alert-text" style="font-weight:900;">—</div>
-                        <div class="muted" id="alert-sub">—</div>
-                    </div>
+                <div class="row" style="margin-bottom:10px; gap:8px;">
+                    <input id="attendance_date" type="date" style="flex:1; min-width:0;" />
+                    <button class="btn small ghost" type="button" onclick="refreshRoster()" title="Refresh roster">↻</button>
                 </div>
-
-                <div class="card">
-                    <div class="row between">
-                        <div>
-                            <div class="title2">Attendance Taking</div>
-                            <div class="muted" style="font-size:12px;" id="att-meta">—</div>
-                        </div>
-                        <button class="btn small ghost" type="button" onclick="openSettings()">⚙</button>
-                    </div>
-                    <div class="row" style="margin-top:10px;">
-                        <input id="attendance_date" type="date" />
-                        <button class="btn small ghost" type="button" onclick="refreshRoster()">↻</button>
+                <div class="banner hidden" id="alert-banner">
+                    <div class="ic">▲</div>
+                    <div>
+                        <div id="alert-text" style="font-weight:700;">—</div>
+                        <div class="muted" id="alert-sub">—</div>
                     </div>
                 </div>
 
@@ -57,9 +50,6 @@
 
                 <div class="card">
                     <button class="btn" type="button" onclick="submitAttendance()">Submit Attendance</button>
-                    <div class="muted" style="font-size:12px; margin-top:8px;">
-                        P = Present, A = Absent, L = Late. Works offline (saved locally) and syncs on reconnect.
-                    </div>
                 </div>
             </section>
 
@@ -85,68 +75,34 @@
             </section>
 
             <section id="view-settings" class="hidden">
+                <input type="hidden" id="token" />
+                <input type="hidden" id="device_id" value="device-local-1" />
+                <input type="hidden" id="device_name" value="mobile-demo" />
+                <div class="row between" style="margin-bottom:12px; display:none;" id="settings-back-row">
+                    <button type="button" class="btn ghost small" onclick="closeSettings()">← Back to app</button>
+                </div>
                 <div class="card">
-                    <div class="row between">
-                        <div>
-                            <div class="title2">Offline Mode</div>
-                            <div class="muted" style="font-size:12px;">Stored locally — syncs on reconnect.</div>
-                        </div>
-                        <span class="sb badge" id="queue-badge">0 pending</span>
-                    </div>
-                    <div class="pill hidden" id="offline-pill" style="margin-top:10px;">Offline — Local SQLite active</div>
-                    <div class="banner hidden" id="offline-banner" style="margin-top:10px; margin-bottom:0;">
-                        <div class="ic">⚠</div>
-                        <div>
-                            <div style="font-weight:900;" id="offline-banner-title">Records saved locally.</div>
-                            <div class="muted" id="offline-banner-sub">—</div>
-                        </div>
-                    </div>
-                    <div class="muted" style="font-size:12px; margin-top:10px;" id="offline-summary">—</div>
+                    <div class="title2">Login</div>
+                    <div class="muted" style="font-size:12px;">Sign in to load your sections and roster.</div>
                     <div style="margin-top:10px;">
-                        <button class="btn" type="button" onclick="syncNow()">Sync Now</button>
+                        <input id="email" placeholder="Email" value="teacher@bnhs.local" style="margin-bottom:8px;" />
+                        <input id="password" placeholder="Password" type="password" value="password" style="margin-bottom:8px;" />
+                        <button class="btn" type="button" onclick="login()">Login</button>
+                        <div class="muted" style="font-size:12px; margin-top:8px;" id="whoami"></div>
                     </div>
                 </div>
-
-                <div class="list" id="offline-list"></div>
-
-                <div class="muted note" id="offline-note">
-                    Data will auto-sync when Wi-Fi is restored. SMS alerts will fire upon reconnect.
-                </div>
-
-                <details class="card soft">
-                    <summary class="title2">Advanced (Login / Sync)</summary>
-
+                <div class="card">
+                    <div class="title2">Section &amp; Roster</div>
+                    <div class="muted" style="font-size:12px;">Choose section and load roster.</div>
                     <div style="margin-top:10px;">
-                        <div class="title2">Login</div>
-                        <div class="muted" style="font-size:12px;">Teacher/admin token is stored on this device.</div>
-                        <div style="margin-top:10px;">
-                            <div class="row">
-                                <input id="email" placeholder="Email" value="teacher@bnhs.local" />
-                                <input id="password" placeholder="Password" type="password" value="password" />
-                            </div>
-                            <div class="row" style="margin-top:10px;">
-                                <input id="device_name" placeholder="Device name" value="mobile-demo" />
-                                <button class="btn small" type="button" onclick="login()">Login</button>
-                            </div>
-                            <div class="muted" style="font-size:12px; margin-top:8px;" id="whoami"></div>
+                        <select id="section_id"></select>
+                        <div class="row" style="margin-top:10px; gap:8px;">
+                            <button class="btn ghost" type="button" onclick="loadBootstrap()">Refresh Sections</button>
+                            <button class="btn" type="button" onclick="loadRoster()">Load Roster</button>
                         </div>
+                        <div class="muted" style="font-size:12px; margin-top:8px;" id="state"></div>
                     </div>
-
-                    <div style="margin-top:16px;">
-                        <div class="title2">Sync Settings</div>
-                        <div class="muted" style="font-size:12px;">Choose section and load roster.</div>
-                        <div style="margin-top:10px;">
-                            <input id="token" placeholder="Bearer token (auto-filled after login)" />
-                            <input id="device_id" placeholder="Device ID" value="device-local-1" style="margin-top:10px;" />
-                            <select id="section_id" style="margin-top:10px;"></select>
-                            <div class="row" style="margin-top:10px;">
-                                <button class="btn ghost" type="button" onclick="loadBootstrap()">Refresh Sections</button>
-                                <button class="btn" type="button" onclick="loadRoster()">Load Roster</button>
-                            </div>
-                            <div class="muted" style="font-size:12px; margin-top:10px;" id="state"></div>
-                        </div>
-                    </div>
-                </details>
+                </div>
             </section>
 
             <section id="view-profile" class="hidden">
@@ -156,7 +112,7 @@
                             <div class="title2">Student Profile</div>
                             <div class="muted" style="font-size:12px;" id="profile-sub">—</div>
                         </div>
-                        <button class="btn small ghost" type="button" onclick="closeProfile()">← Back</button>
+                        <button class="btn small ghost" type="button" onclick="closeProfile()">&lt; Back</button>
                     </div>
 
                     <div class="card" style="margin:0;">
@@ -184,19 +140,16 @@
         </main>
     </div>
 
-    <div class="bottom">
+    <div class="bottom" id="bottom-nav">
         <div class="nav">
             <button id="nav-attend" class="active" onclick="navTo('attend')">
-                <span class="ico">🗓</span>Attend.
+                <span class="ico">✓</span>Attend
             </button>
             <button id="nav-students" onclick="navTo('students')">
                 <span class="ico">👥</span>Students
             </button>
             <button id="nav-reports" onclick="navTo('reports')">
                 <span class="ico">📊</span>Reports
-            </button>
-            <button id="nav-settings" onclick="navTo('settings')">
-                <span class="ico">⚙</span>Settings
             </button>
         </div>
     </div>

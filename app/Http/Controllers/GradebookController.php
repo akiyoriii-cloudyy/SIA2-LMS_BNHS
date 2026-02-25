@@ -25,6 +25,7 @@ class GradebookController extends Controller
         $selectedSection = (int) ($request->integer('section_id') ?: ($sections->first()?->id ?? 0));
         $selectedSubject = (int) ($request->integer('subject_id') ?: ($subjects->first()?->id ?? 0));
         $quarter = max(1, min(4, (int) $request->integer('quarter', 1)));
+        $search = trim((string) $request->query('q', ''));
 
         $subjectAssignment = SubjectAssignment::query()
             ->where('school_year_id', $selectedSchoolYear)
@@ -34,14 +35,40 @@ class GradebookController extends Controller
 
         $enrollments = collect();
         $existingGrades = collect();
+        $sectionEnrollmentIds = collect();
+        $sectionTotalStudents = 0;
+        $sectionSubjectsCount = 0;
+        $pendingGradesCount = 0;
 
         if ($selectedSchoolYear && $selectedSection) {
-            $enrollments = Enrollment::query()
+            $baseEnrollmentQuery = Enrollment::query()
                 ->with('student')
                 ->where('school_year_id', $selectedSchoolYear)
-                ->where('section_id', $selectedSection)
+                ->where('section_id', $selectedSection);
+
+            $sectionEnrollmentIds = (clone $baseEnrollmentQuery)->pluck('id');
+
+            $sectionTotalStudents = (clone $baseEnrollmentQuery)
+                ->distinct('student_id')
+                ->count('student_id');
+
+            if ($search !== '') {
+                $baseEnrollmentQuery->whereHas('student', function ($q) use ($search): void {
+                    $q->where('last_name', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%");
+                });
+            }
+
+            $enrollments = $baseEnrollmentQuery
                 ->orderBy('id')
                 ->get();
+
+            $sectionSubjectsCount = SubjectAssignment::query()
+                ->where('school_year_id', $selectedSchoolYear)
+                ->where('section_id', $selectedSection)
+                ->distinct('subject_id')
+                ->count('subject_id');
         }
 
         if ($subjectAssignment) {
@@ -51,6 +78,23 @@ class GradebookController extends Controller
                 ->get()
                 ->keyBy('enrollment_id');
         }
+
+        if ($sectionEnrollmentIds->isNotEmpty()) {
+            $pendingGradesCount = (int) $sectionEnrollmentIds
+                ->filter(function (int $enrollmentId) use ($existingGrades): bool {
+                    $grade = $existingGrades->get($enrollmentId);
+
+                    return ! $grade
+                        || $grade->quiz === null
+                        || $grade->assignment === null
+                        || $grade->exam === null;
+                })
+                ->count();
+        }
+
+        $selectedSectionModel = $sections->firstWhere('id', $selectedSection);
+        $selectedSubjectModel = $subjects->firstWhere('id', $selectedSubject);
+        $selectedSchoolYearModel = $schoolYears->firstWhere('id', $selectedSchoolYear);
 
         return view('gradebook.index', [
             'schoolYears' => $schoolYears,
@@ -63,6 +107,17 @@ class GradebookController extends Controller
             'enrollments' => $enrollments,
             'existingGrades' => $existingGrades,
             'subjectAssignment' => $subjectAssignment,
+            'search' => $search,
+            'gradeEntryStats' => [
+                'total_students' => $sectionTotalStudents,
+                'total_subjects' => $sectionSubjectsCount ?: (int) $subjects->count(),
+                'pending' => $pendingGradesCount,
+                'school_year' => $selectedSchoolYearModel?->name,
+                'section_label' => $selectedSectionModel
+                    ? sprintf('Grade %s — %s', $selectedSectionModel->grade_level, $selectedSectionModel->name)
+                    : null,
+                'subject_title' => $selectedSubjectModel?->title,
+            ],
         ]);
     }
 
