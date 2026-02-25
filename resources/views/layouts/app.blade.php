@@ -37,11 +37,36 @@
 
                 <nav class="menu">
                     <div class="group">Main</div>
+<<<<<<< HEAD
                     <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                         <span class="icon">📊</span> Dashboard
                     </a>
 
                     @if (auth()->user()->hasRole('admin', 'teacher'))
+=======
+                    @if (auth()->user()->hasRole('admin'))
+                        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="icon">👥</span> User Management
+                        </a>
+
+                        <div class="group">Admin</div>
+                        <a href="{{ route('admin.settings') }}" class="{{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
+                            <span class="icon">⚙️</span> Settings
+                        </a>
+                        <a href="{{ route('system.tables') }}" class="{{ request()->routeIs('system.tables') ? 'active' : '' }}">
+                            <span class="icon">🗄️</span> Database Tables
+                        </a>
+                        <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
+                            <span class="icon">📨</span> SMS Logs
+                        </a>
+                    @else
+                        <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="icon">📊</span> Dashboard
+                        </a>
+                    @endif
+
+                    @if (auth()->user()->hasRole('teacher'))
+>>>>>>> f3df034 (Update the Admin Dashboard)
                         <a href="{{ route('gradebook.index') }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
                             <span class="icon">✏️</span> Grade Entry
                         </a>

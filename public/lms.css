@@ -615,6 +615,78 @@ input:focus, select:focus {
 .dash-panel-sub{ font-size:11px; color: var(--text-muted); margin-top:1px; }
 .dash-panel-body{ padding: 18px 20px; }
 
+<<<<<<< HEAD
+=======
+/* --- Admin: User management --- */
+.role-badge{
+    display:inline-flex;
+    align-items:center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--navy);
+}
+
+.role-admin{ background: rgba(232,184,75,0.16); border-color: rgba(232,184,75,0.45); }
+.role-teacher{ background: rgba(74,124,111,0.14); border-color: rgba(74,124,111,0.35); }
+.role-student{ background: rgba(30,53,87,0.10); border-color: rgba(30,53,87,0.30); }
+
+.row-deleted td{
+    background: rgba(254, 226, 226, 0.35);
+}
+
+.pager{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.pager-actions{ display:flex; gap: 10px; align-items:center; }
+
+.admin-actions{
+    display:flex;
+    gap: 10px;
+    align-items:flex-start;
+    flex-wrap: wrap;
+}
+
+.pw-details{ position: relative; }
+.pw-details > summary{ list-style:none; cursor:pointer; }
+.pw-details > summary::-webkit-details-marker{ display:none; }
+
+.pw-panel{
+    position:absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 5;
+    width: min(380px, 70vw);
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(10,22,40,0.12);
+}
+
+.pw-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+    align-items:center;
+}
+
+@media (max-width: 900px) {
+    .pw-panel{ position: static; width: 100%; margin-top: 10px; box-shadow:none; }
+    .pw-grid{ grid-template-columns: 1fr; }
+}
+
+>>>>>>> f3df034 (Update the Admin Dashboard)
 .subj-avg-table{ width:100%; border-collapse:collapse; font-size:12px; }
 .subj-avg-table th{ font-size:10px; text-transform:uppercase; letter-spacing:.07em; color: var(--text-muted); font-weight:700; padding: 8px 12px; border-bottom: 1px solid var(--border); text-align:left; }
 .subj-avg-table td{ padding: 9px 12px; border-bottom: 1px solid var(--border); }

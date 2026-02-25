@@ -7,13 +7,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+<<<<<<< HEAD
+=======
+use Illuminate\Database\Eloquent\SoftDeletes;
+>>>>>>> f3df034 (Update the Admin Dashboard)
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
+<<<<<<< HEAD
     use HasFactory, Notifiable;
+=======
+    use HasFactory, Notifiable, SoftDeletes;
+>>>>>>> f3df034 (Update the Admin Dashboard)
 
     /**
      * The attributes that are mass assignable.

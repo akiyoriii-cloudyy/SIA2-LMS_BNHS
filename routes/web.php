@@ -4,6 +4,10 @@ use App\Http\Controllers\GradebookController;
 use App\Http\Controllers\ReportCardController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
+<<<<<<< HEAD
+=======
+use App\Http\Controllers\Admin\UsersController as AdminUsersController;
+>>>>>>> f3df034 (Update the Admin Dashboard)
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SmsLogController;
@@ -27,6 +31,21 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::get('/courses', [CourseController::class, 'index'])->middleware('role:admin,teacher,student')->name('courses.index');
 
+<<<<<<< HEAD
+=======
+    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function (): void {
+        Route::get('/users', [AdminUsersController::class, 'index'])->name('users.index');
+        Route::post('/users', [AdminUsersController::class, 'store'])->name('users.store');
+        Route::put('/users/{id}/password', [AdminUsersController::class, 'updatePassword'])->name('users.password.update');
+        Route::delete('/users/{id}', [AdminUsersController::class, 'destroy'])->name('users.destroy');
+        Route::post('/users/{id}/restore', [AdminUsersController::class, 'restore'])->name('users.restore');
+
+        Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings');
+        Route::put('/settings/profile', [\App\Http\Controllers\Admin\SettingsController::class, 'updateProfile'])->name('settings.profile.update');
+        Route::put('/settings/password', [\App\Http\Controllers\Admin\SettingsController::class, 'updatePassword'])->name('settings.password.update');
+    });
+
+>>>>>>> f3df034 (Update the Admin Dashboard)
     Route::middleware('role:admin,teacher')->group(function (): void {
         Route::get('/system/tables', [DashboardController::class, 'systemTables'])->name('system.tables');
         Route::get('/sms-logs', [SmsLogController::class, 'index'])->name('sms-logs.index');

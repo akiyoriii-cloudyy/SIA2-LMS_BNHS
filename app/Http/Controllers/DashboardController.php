@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+<<<<<<< HEAD
+=======
+use App\Http\Controllers\Admin\UsersController as AdminUsersController;
+>>>>>>> f3df034 (Update the Admin Dashboard)
 use App\Models\Course;
 use App\Models\GradeEntry;
 use App\Models\AttendanceRecord;
@@ -14,6 +18,10 @@ use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\ReportCard;
 use App\Models\Teacher;
+<<<<<<< HEAD
+=======
+use Illuminate\Http\RedirectResponse;
+>>>>>>> f3df034 (Update the Admin Dashboard)
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +29,21 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+<<<<<<< HEAD
     public function index(Request $request): View
     {
         $user = $request->user();
 
+=======
+    public function index(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user?->hasRole('admin')) {
+            return redirect()->route('admin.users.index', $request->query());
+        }
+
+>>>>>>> f3df034 (Update the Admin Dashboard)
         $activeSchoolYear = SchoolYear::query()
             ->where('is_active', true)
             ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
