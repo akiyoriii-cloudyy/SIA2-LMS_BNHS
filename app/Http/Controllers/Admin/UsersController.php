@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
-use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -51,13 +50,13 @@ class UsersController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'role' => ['required', 'string', Rule::in(['admin', 'teacher', 'student'])],
+            'role' => ['required', 'string', Rule::in(['admin', 'teacher'])],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'first_name' => ['nullable', 'string', 'max:255', 'required_if:role,teacher', 'required_if:role,student'],
-            'last_name' => ['nullable', 'string', 'max:255', 'required_if:role,teacher', 'required_if:role,student'],
+            'first_name' => ['nullable', 'string', 'max:255', 'required_if:role,teacher'],
+            'last_name' => ['nullable', 'string', 'max:255', 'required_if:role,teacher'],
         ]);
 
         $user = User::query()->create([
@@ -74,13 +73,6 @@ class UsersController extends Controller
 
         if ($validated['role'] === 'teacher') {
             Teacher::updateOrCreate(
-                ['user_id' => $user->id],
-                ['first_name' => (string) $validated['first_name'], 'last_name' => (string) $validated['last_name']],
-            );
-        }
-
-        if ($validated['role'] === 'student') {
-            Student::updateOrCreate(
                 ['user_id' => $user->id],
                 ['first_name' => (string) $validated['first_name'], 'last_name' => (string) $validated['last_name']],
             );

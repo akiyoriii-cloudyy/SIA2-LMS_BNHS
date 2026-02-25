@@ -2,10 +2,6 @@
 
 namespace App\Http\Controllers;
 
-<<<<<<< HEAD
-=======
-use App\Http\Controllers\Admin\UsersController as AdminUsersController;
->>>>>>> f3df034 (Update the Admin Dashboard)
 use App\Models\Course;
 use App\Models\GradeEntry;
 use App\Models\AttendanceRecord;
@@ -18,10 +14,7 @@ use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\ReportCard;
 use App\Models\Teacher;
-<<<<<<< HEAD
-=======
 use Illuminate\Http\RedirectResponse;
->>>>>>> f3df034 (Update the Admin Dashboard)
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -29,12 +22,6 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-<<<<<<< HEAD
-    public function index(Request $request): View
-    {
-        $user = $request->user();
-
-=======
     public function index(Request $request): View|RedirectResponse
     {
         $user = $request->user();
@@ -43,7 +30,6 @@ class DashboardController extends Controller
             return redirect()->route('admin.users.index', $request->query());
         }
 
->>>>>>> f3df034 (Update the Admin Dashboard)
         $activeSchoolYear = SchoolYear::query()
             ->where('is_active', true)
             ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
@@ -56,7 +42,7 @@ class DashboardController extends Controller
             fn ($q) => $q->where('school_year_id', $schoolYearId),
         );
 
-        $applyEnrollmentScope = $user && $user->hasRole('teacher', 'student') && ! $user->hasRole('admin');
+        $applyEnrollmentScope = $user && $user->hasRole('teacher') && ! $user->hasRole('admin');
 
         if ($user?->hasRole('teacher') && $user->teacher && $schoolYearId) {
             $teacherSectionIds = SubjectAssignment::query()
@@ -67,10 +53,6 @@ class DashboardController extends Controller
                 ->values();
 
             $enrollmentQuery->whereIn('section_id', $teacherSectionIds);
-        }
-
-        if ($user?->hasRole('student') && $user->student && $schoolYearId) {
-            $enrollmentQuery->where('student_id', $user->student->id);
         }
 
         $enrollmentIds = $enrollmentQuery->pluck('id');
@@ -85,7 +67,6 @@ class DashboardController extends Controller
         $totalSubjects = SubjectAssignment::query()
             ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
             ->when($user?->hasRole('teacher') && $user->teacher, fn ($q) => $q->where('teacher_id', $user->teacher->id))
-            ->when($user?->hasRole('student') && $sectionIds->isNotEmpty(), fn ($q) => $q->whereIn('section_id', $sectionIds))
             ->distinct('subject_id')
             ->count('subject_id');
 

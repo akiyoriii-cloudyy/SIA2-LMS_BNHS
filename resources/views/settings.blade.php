@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Admin Settings')
+@section('title', 'Settings')
 
 @section('content')
     <div class="dash-topbar">
@@ -28,11 +28,11 @@
             <div class="dash-panel-hd">
                 <div>
                     <div class="dash-panel-title">Profile</div>
-                    <div class="dash-panel-sub">Update your admin account details</div>
+                    <div class="dash-panel-sub">Update your account details</div>
                 </div>
             </div>
             <div class="dash-panel-body">
-                <form method="POST" action="{{ route('admin.settings.profile.update') }}">
+                <form method="POST" action="{{ route('settings.profile.update') }}">
                     @csrf
                     @method('PUT')
                     <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
@@ -64,7 +64,7 @@
                 </div>
             </div>
             <div class="dash-panel-body">
-                <form method="POST" action="{{ route('admin.settings.password.update') }}">
+                <form method="POST" action="{{ route('settings.password.update') }}">
                     @csrf
                     @method('PUT')
                     <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
@@ -85,10 +85,8 @@
                         </div>
                     </div>
                 </form>
-                <div class="muted" style="font-size:12px; margin-top: 10px;">
-                    Tip: Admins can also reset other users' passwords from User Management.
-                </div>
             </div>
         </div>
     </div>
 @endsection
+

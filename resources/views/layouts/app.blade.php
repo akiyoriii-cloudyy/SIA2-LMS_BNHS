@@ -22,7 +22,7 @@
             <aside class="sidebar">
                 <div class="sidebar-logo">
                     <div class="logo-badge">
-                        <div class="logo-icon">🎓</div>
+                        <div class="logo-icon">ET</div>
                         <div>
                             <div class="logo-text">EduTrack</div>
                             <div class="logo-sub">SHS Management System</div>
@@ -37,55 +37,50 @@
 
                 <nav class="menu">
                     <div class="group">Main</div>
-<<<<<<< HEAD
-                    <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <span class="icon">📊</span> Dashboard
-                    </a>
-
-                    @if (auth()->user()->hasRole('admin', 'teacher'))
-=======
                     @if (auth()->user()->hasRole('admin'))
                         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('dashboard') ? 'active' : '' }}">
-                            <span class="icon">👥</span> User Management
+                            User Management
                         </a>
 
                         <div class="group">Admin</div>
                         <a href="{{ route('admin.settings') }}" class="{{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
-                            <span class="icon">⚙️</span> Settings
+                            Settings
                         </a>
                         <a href="{{ route('system.tables') }}" class="{{ request()->routeIs('system.tables') ? 'active' : '' }}">
-                            <span class="icon">🗄️</span> Database Tables
+                            Database Tables
                         </a>
                         <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
-                            <span class="icon">📨</span> SMS Logs
+                            SMS Logs
                         </a>
                     @else
                         <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                            <span class="icon">📊</span> Dashboard
+                            Dashboard
+                        </a>
+                        <a href="{{ route('settings') }}" class="{{ request()->routeIs('settings*') ? 'active' : '' }}">
+                            Settings
                         </a>
                     @endif
 
                     @if (auth()->user()->hasRole('teacher'))
->>>>>>> f3df034 (Update the Admin Dashboard)
                         <a href="{{ route('gradebook.index') }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
-                            <span class="icon">✏️</span> Grade Entry
+                            Grade Entry
                         </a>
                         <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
-                            <span class="icon">📋</span> DepEd Report Card
+                            DepEd Report Card
                         </a>
                         <a href="{{ route('system.tables') }}" class="{{ request()->routeIs('system.tables') ? 'active' : '' }}">
-                            <span class="icon">🗄️</span> Database Tables
+                            Database Tables
                         </a>
 
                         <div class="group">Records</div>
                         <a href="{{ route('students.index') }}" class="{{ request()->routeIs('students.*') ? 'active' : '' }}">
-                            <span class="icon">🧑‍🎓</span> Students
+                            Students
                         </a>
                         <a href="{{ route('subjects.index') }}" class="{{ request()->routeIs('subjects.*') ? 'active' : '' }}">
-                            <span class="icon">📚</span> Subjects
+                            Subjects
                         </a>
                         <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
-                            <span class="icon">🖨️</span> Print Reports
+                            Print Reports
                             <span class="nav-badge">3</span>
                         </a>
                     @endif

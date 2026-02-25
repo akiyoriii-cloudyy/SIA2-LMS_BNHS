@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMS Login</title>
+    <title>Reset Password</title>
     <link rel="stylesheet" href="{{ asset('lms.css') }}?v={{ @filemtime(public_path('lms.css')) }}">
     <script>
         window.__LMS_THEME_SEED = "guest";
@@ -15,30 +15,36 @@
         <div class="card auth-card">
             <div class="header">
                 <div class="badge"><span class="dot"></span> BNHS LMS</div>
-                <h1 class="title">School LMS Login</h1>
-                <p class="subtitle">Admin / Teacher / Student access</p>
+                <h1 class="title">Reset Password</h1>
+                <p class="subtitle">Set a new password for your account.</p>
             </div>
 
             @if ($errors->any())
                 <div class="error">{{ $errors->first() }}</div>
             @endif
 
-            <form method="POST" action="{{ route('login.submit') }}">
+            <form method="POST" action="{{ route('password.update') }}">
                 @csrf
-                <label>Email</label>
-                <input type="email" name="email" value="{{ old('email') }}" required>
+                <input type="hidden" name="token" value="{{ $token }}">
 
-                <label>Password</label>
+                <label>Email</label>
+                <input type="email" name="email" value="{{ old('email', $email) }}" required>
+
+                <label>New password</label>
                 <input type="password" name="password" required>
 
-                <button class="btn" type="submit" style="width:100%;">Sign In</button>
+                <label>Confirm new password</label>
+                <input type="password" name="password_confirmation" required>
+
+                <button class="btn" type="submit" style="width:100%;">Reset password</button>
             </form>
 
             <div class="auth-meta">
-                <a class="muted" href="{{ route('password.request') }}">Forgot password?</a>
-                <span class="muted">Theme adapts per user</span>
+                <a class="muted" href="{{ route('login') }}">Back to login</a>
+                <span class="muted">Password reset</span>
             </div>
         </div>
     </div>
 </body>
 </html>
+

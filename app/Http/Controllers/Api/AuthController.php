@@ -25,6 +25,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
+        $user->loadMissing('roles');
+        if (! $user->hasRole('admin', 'teacher')) {
+            return response()->json(['message' => 'Access denied.'], 403);
+        }
+
         $plainToken = Str::random(80);
 
         ApiToken::create([

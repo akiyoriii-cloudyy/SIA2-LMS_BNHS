@@ -26,6 +26,17 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
+        $user = $request->user();
+        if ($user && ! $user->hasRole('admin', 'teacher')) {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'Access denied. This portal is for Admin and Teacher accounts only.',
+            ])->onlyInput('email');
+        }
+
         return redirect()->route('dashboard');
     }
 

@@ -22,7 +22,6 @@ class GradingDemoSeeder extends Seeder
     {
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'School administrator']);
         $teacherRole = Role::firstOrCreate(['name' => 'teacher'], ['description' => 'Subject teacher']);
-        $studentRole = Role::firstOrCreate(['name' => 'student'], ['description' => 'Student account']);
 
         $adminUser = User::firstOrCreate(
             ['email' => 'admin@bnhs.local'],
@@ -86,23 +85,10 @@ class GradingDemoSeeder extends Seeder
         ];
 
         foreach ($students as $studentData) {
-            $studentUser = User::firstOrCreate(
-                ['email' => strtolower($studentData['first_name']).'.'.strtolower($studentData['last_name']).'@bnhs.local'],
-                [
-                    'name' => $studentData['first_name'].' '.$studentData['last_name'],
-                    'password' => Hash::make('password'),
-                ]
-            );
-            $studentUser->roles()->syncWithoutDetaching([$studentRole->id]);
-
             $student = Student::firstOrCreate(
                 ['first_name' => $studentData['first_name'], 'last_name' => $studentData['last_name']],
-                ['sex' => $studentData['sex'], 'user_id' => $studentUser->id]
+                ['sex' => $studentData['sex']]
             );
-
-            if (! $student->user_id) {
-                $student->update(['user_id' => $studentUser->id]);
-            }
 
             $enrollment = Enrollment::firstOrCreate([
                 'student_id' => $student->id,

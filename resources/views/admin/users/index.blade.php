@@ -28,7 +28,7 @@
             <div class="dash-panel-hd">
                 <div>
                     <div class="dash-panel-title">Add New User</div>
-                    <div class="dash-panel-sub">Create an admin, teacher, or student account</div>
+                    <div class="dash-panel-sub">Create an admin or teacher account</div>
                 </div>
             </div>
             <div class="dash-panel-body">
@@ -40,7 +40,6 @@
                             <select name="role" required>
                                 <option value="admin" @selected(old('role') === 'admin')>Admin</option>
                                 <option value="teacher" @selected(old('role') === 'teacher')>Teacher</option>
-                                <option value="student" @selected(old('role') === 'student')>Student</option>
                             </select>
                         </div>
                         <div>
@@ -64,11 +63,11 @@
                             <input type="password" name="password_confirmation" required>
                         </div>
                         <div>
-                            <label>First name (Teacher/Student)</label>
+                            <label>First name (Teacher)</label>
                             <input name="first_name" value="{{ old('first_name') }}">
                         </div>
                         <div>
-                            <label>Last name (Teacher/Student)</label>
+                            <label>Last name (Teacher)</label>
                             <input name="last_name" value="{{ old('last_name') }}">
                         </div>
                         <div style="display:flex; align-items:flex-end;">

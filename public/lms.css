@@ -615,8 +615,6 @@ input:focus, select:focus {
 .dash-panel-sub{ font-size:11px; color: var(--text-muted); margin-top:1px; }
 .dash-panel-body{ padding: 18px 20px; }
 
-<<<<<<< HEAD
-=======
 /* --- Admin: User management --- */
 .role-badge{
     display:inline-flex;
@@ -657,6 +655,30 @@ input:focus, select:focus {
     flex-wrap: wrap;
 }
 
+.inline-details{ position: relative; }
+.inline-details > summary{ list-style:none; cursor:pointer; }
+.inline-details > summary::-webkit-details-marker{ display:none; }
+
+.inline-panel{
+    position:absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 5;
+    width: min(520px, 80vw);
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(10,22,40,0.12);
+}
+
+.inline-grid{
+    display:grid;
+    grid-template-columns: 180px 1fr auto;
+    gap: 10px;
+    align-items:center;
+}
+
 .pw-details{ position: relative; }
 .pw-details > summary{ list-style:none; cursor:pointer; }
 .pw-details > summary::-webkit-details-marker{ display:none; }
@@ -682,11 +704,12 @@ input:focus, select:focus {
 }
 
 @media (max-width: 900px) {
+    .inline-panel{ position: static; width: 100%; margin-top: 10px; box-shadow:none; }
+    .inline-grid{ grid-template-columns: 1fr; }
     .pw-panel{ position: static; width: 100%; margin-top: 10px; box-shadow:none; }
     .pw-grid{ grid-template-columns: 1fr; }
 }
 
->>>>>>> f3df034 (Update the Admin Dashboard)
 .subj-avg-table{ width:100%; border-collapse:collapse; font-size:12px; }
 .subj-avg-table th{ font-size:10px; text-transform:uppercase; letter-spacing:.07em; color: var(--text-muted); font-weight:700; padding: 8px 12px; border-bottom: 1px solid var(--border); text-align:left; }
 .subj-avg-table td{ padding: 9px 12px; border-bottom: 1px solid var(--border); }

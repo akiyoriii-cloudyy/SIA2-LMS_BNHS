@@ -16,22 +16,28 @@
         </div>
 
         <div class="dash-topbar-actions">
-            <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">Report Card</a>
-            <a class="btn btn-gold btn-sm" href="{{ route('gradebook.index') }}">Compute All</a>
             <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print</button>
         </div>
     </div>
 
+    @if (session('status'))
+        <div class="alert">{{ session('status') }}</div>
+    @endif
+
+    @if ($errors->any())
+        <div class="error">{{ $errors->first() }}</div>
+    @endif
+
     <div class="dash-kpi-grid dash-kpi-grid--2">
         <div class="dash-kpi kpi-sage">
-            <div class="dash-kpi-top"><div class="dash-kpi-icon">📚</div></div>
+            <div class="dash-kpi-top"><div class="dash-kpi-icon">SB</div></div>
             <div class="dash-kpi-value">{{ number_format($total) }}</div>
             <div class="dash-kpi-label">TOTAL SUBJECTS</div>
             <div class="dash-kpi-sub">Catalog</div>
         </div>
 
         <div class="dash-kpi kpi-navy">
-            <div class="dash-kpi-top"><div class="dash-kpi-icon">🔎</div></div>
+            <div class="dash-kpi-top"><div class="dash-kpi-icon">SR</div></div>
             <div class="dash-kpi-value">{{ number_format($filtered) }}</div>
             <div class="dash-kpi-label">RESULTS</div>
             <div class="dash-kpi-sub">{{ $q !== '' ? 'Filtered' : 'All subjects' }}</div>
@@ -46,6 +52,20 @@
             </div>
         </div>
         <div class="dash-panel-body">
+            <details class="inline-details" style="margin-bottom: 12px;">
+                <summary class="btn btn-gold btn-sm">Add subject</summary>
+                <div class="inline-panel">
+                    <form method="POST" action="{{ route('subjects.store') }}">
+                        @csrf
+                        <div class="inline-grid">
+                            <input name="code" placeholder="Code (e.g., ENG11)" required>
+                            <input name="title" placeholder="Title (e.g., Oral Communication)" required>
+                            <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </details>
+
             <form method="GET" action="{{ route('subjects.index') }}" class="records-filters">
                 <div class="records-filter-row">
                     <div class="records-filter records-filter--search" style="flex: 1 1 380px;">
@@ -69,6 +89,7 @@
                         <tr>
                             <th style="width: 160px;">Code</th>
                             <th>Title</th>
+                            <th style="width: 240px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -76,10 +97,35 @@
                             <tr>
                                 <td style="font-family: 'JetBrains Mono', monospace; font-weight: 800;">{{ $subject->code }}</td>
                                 <td style="font-weight: 800;">{{ $subject->title }}</td>
+                                <td>
+                                    <div class="admin-actions">
+                                        <details class="inline-details">
+                                            <summary class="btn btn-outline btn-sm">Edit</summary>
+                                            <div class="inline-panel">
+                                                <form method="POST" action="{{ route('subjects.update', $subject) }}">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="inline-grid">
+                                                        <input name="code" value="{{ $subject->code }}" required>
+                                                        <input name="title" value="{{ $subject->title }}" required>
+                                                        <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </details>
+
+                                        <form method="POST" action="{{ route('subjects.destroy', $subject) }}"
+                                            onsubmit="return confirm('Delete this subject?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-outline btn-sm" type="submit">Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="2" class="muted">No subjects found.</td>
+                                <td colspan="3" class="muted">No subjects found.</td>
                             </tr>
                         @endforelse
                     </tbody>
