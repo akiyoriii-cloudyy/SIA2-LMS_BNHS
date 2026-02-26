@@ -16,7 +16,7 @@
             <div class="header">
                 <div class="badge"><span class="dot"></span> BNHS LMS</div>
                 <h1 class="title">School LMS Login</h1>
-                <p class="subtitle">Admin / Teacher / Student access</p>
+                <p class="subtitle">Admin / Teacher access</p>
             </div>
 
             @if ($errors->any())

@@ -53,13 +53,17 @@ Route::middleware(['auth'])->group(function (): void {
     });
 
     Route::middleware('role:admin,teacher')->group(function (): void {
-        Route::get('/system/tables', [DashboardController::class, 'systemTables'])->name('system.tables');
         Route::get('/sms-logs', [SmsLogController::class, 'index'])->name('sms-logs.index');
         Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+        Route::post('/students', [StudentController::class, 'store'])->name('students.store');
+        Route::put('/students/{student}', [StudentController::class, 'update'])->name('students.update');
+        Route::delete('/students/{student}', [StudentController::class, 'destroy'])->name('students.destroy');
+        Route::post('/students/{id}/restore', [StudentController::class, 'restore'])->name('students.restore');
         Route::get('/subjects', [SubjectController::class, 'index'])->name('subjects.index');
         Route::post('/subjects', [SubjectController::class, 'store'])->name('subjects.store');
         Route::put('/subjects/{subject}', [SubjectController::class, 'update'])->name('subjects.update');
         Route::delete('/subjects/{subject}', [SubjectController::class, 'destroy'])->name('subjects.destroy');
+        Route::post('/subjects/{id}/restore', [SubjectController::class, 'restore'])->name('subjects.restore');
         Route::view('/mobile-app', 'mobile-app')->name('mobile.app');
 
         Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook.index');

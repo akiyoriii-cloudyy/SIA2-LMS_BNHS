@@ -195,13 +195,36 @@ body.lms::before {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.sidebar-footer .btn{
+.sidebar-footer-link{
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 9px 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    transition: all 0.2s;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+
+.sidebar-footer-link:hover { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.9); }
+
+.sidebar-footer-link.active {
+    background: var(--gold);
+    color: var(--navy);
+    font-weight: 700;
+}
+
+.sidebar-footer form .btn{
     width: 100%;
     background: var(--gold);
     color: var(--navy);
 }
 
-.sidebar-footer .btn:hover{ background: var(--gold-light); }
+.sidebar-footer form .btn:hover{ background: var(--gold-light); }
 
 .teacher-card {
     display: flex;

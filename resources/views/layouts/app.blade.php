@@ -46,18 +46,12 @@
                         <a href="{{ route('admin.settings') }}" class="{{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
                             Settings
                         </a>
-                        <a href="{{ route('system.tables') }}" class="{{ request()->routeIs('system.tables') ? 'active' : '' }}">
-                            Database Tables
-                        </a>
                         <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
                             SMS Logs
                         </a>
                     @else
                         <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                             Dashboard
-                        </a>
-                        <a href="{{ route('settings') }}" class="{{ request()->routeIs('settings*') ? 'active' : '' }}">
-                            Settings
                         </a>
                     @endif
 
@@ -67,9 +61,6 @@
                         </a>
                         <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
                             DepEd Report Card
-                        </a>
-                        <a href="{{ route('system.tables') }}" class="{{ request()->routeIs('system.tables') ? 'active' : '' }}">
-                            Database Tables
                         </a>
 
                         <div class="group">Records</div>
@@ -87,6 +78,18 @@
                 </nav>
 
                 <div class="sidebar-footer">
+                    @if (auth()->user()->hasRole('admin'))
+                        <a class="sidebar-footer-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}"
+                            href="{{ route('admin.settings') }}">
+                            Settings
+                        </a>
+                    @elseif (auth()->user()->hasRole('teacher'))
+                        <a class="sidebar-footer-link {{ request()->routeIs('settings*') ? 'active' : '' }}"
+                            href="{{ route('settings') }}">
+                            Settings
+                        </a>
+                    @endif
+
                     <div class="teacher-card">
                         <div class="teacher-avatar">{{ mb_substr((string) auth()->user()->name, 0, 1) }}</div>
                         <div class="teacher-info">

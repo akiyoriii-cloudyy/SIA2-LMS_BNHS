@@ -295,13 +295,15 @@
                             <div class="qa-sub">All students</div>
                         </span>
                     </a>
-                    <a class="qa-btn" href="{{ route('system.tables') }}">
+                    {{--
+                    <a class="qa-btn" href="#">
                         <span class="qa-icon">🗄️</span>
                         <span>
                             <div class="qa-label">Database</div>
                             <div class="qa-sub">View DB tables</div>
                         </span>
                     </a>
+                    --}}
                     <a class="qa-btn is-disabled" href="#" aria-disabled="true" onclick="return false;">
                         <span class="qa-icon">📦</span>
                         <span>
@@ -340,4 +342,3 @@
         </div>
     </div>
 @endsection
-

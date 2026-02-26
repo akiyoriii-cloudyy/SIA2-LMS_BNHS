@@ -6,6 +6,9 @@
         $total = (int) ($s['total'] ?? 0);
         $filtered = (int) ($s['filtered'] ?? $subjects->count());
         $q = (string) ($search ?? '');
+        $status = (string) ($status ?? 'active');
+        $activeCount = (int) ($activeCount ?? 0);
+        $deletedCount = (int) ($deletedCount ?? 0);
     @endphp
 
     <div class="dash-topbar">
@@ -52,6 +55,17 @@
             </div>
         </div>
         <div class="dash-panel-body">
+            <div class="pill-row" style="margin-bottom: 12px;">
+                <a class="pill pill-link {{ $status === 'active' ? 'pill-link--active' : '' }}"
+                    href="{{ route('subjects.index', ['status' => 'active', 'q' => $q]) }}">
+                    Active ({{ $activeCount }})
+                </a>
+                <a class="pill pill-link {{ $status === 'deleted' ? 'pill-link--active' : '' }}"
+                    href="{{ route('subjects.index', ['status' => 'deleted', 'q' => $q]) }}">
+                    Deleted ({{ $deletedCount }})
+                </a>
+            </div>
+
             <details class="inline-details" style="margin-bottom: 12px;">
                 <summary class="btn btn-gold btn-sm">Add subject</summary>
                 <div class="inline-panel">
@@ -67,6 +81,7 @@
             </details>
 
             <form method="GET" action="{{ route('subjects.index') }}" class="records-filters">
+                <input type="hidden" name="status" value="{{ $status }}">
                 <div class="records-filter-row">
                     <div class="records-filter records-filter--search" style="flex: 1 1 380px;">
                         <label class="records-label">Search</label>
@@ -98,29 +113,36 @@
                                 <td style="font-family: 'JetBrains Mono', monospace; font-weight: 800;">{{ $subject->code }}</td>
                                 <td style="font-weight: 800;">{{ $subject->title }}</td>
                                 <td>
-                                    <div class="admin-actions">
-                                        <details class="inline-details">
-                                            <summary class="btn btn-outline btn-sm">Edit</summary>
-                                            <div class="inline-panel">
-                                                <form method="POST" action="{{ route('subjects.update', $subject) }}">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <div class="inline-grid">
-                                                        <input name="code" value="{{ $subject->code }}" required>
-                                                        <input name="title" value="{{ $subject->title }}" required>
-                                                        <button class="btn btn-primary btn-sm" type="submit">Save</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </details>
-
-                                        <form method="POST" action="{{ route('subjects.destroy', $subject) }}"
-                                            onsubmit="return confirm('Delete this subject?');">
+                                    @if ($status === 'deleted')
+                                        <form method="POST" action="{{ route('subjects.restore', $subject->id) }}">
                                             @csrf
-                                            @method('DELETE')
-                                            <button class="btn btn-outline btn-sm" type="submit">Delete</button>
+                                            <button class="btn btn-gold btn-sm" type="submit">Restore</button>
                                         </form>
-                                    </div>
+                                    @else
+                                        <div class="admin-actions">
+                                            <details class="inline-details">
+                                                <summary class="btn btn-outline btn-sm">Edit</summary>
+                                                <div class="inline-panel">
+                                                    <form method="POST" action="{{ route('subjects.update', $subject) }}">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <div class="inline-grid">
+                                                            <input name="code" value="{{ $subject->code }}" required>
+                                                            <input name="title" value="{{ $subject->title }}" required>
+                                                            <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </details>
+
+                                            <form method="POST" action="{{ route('subjects.destroy', $subject) }}"
+                                                onsubmit="return confirm('Delete this subject?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="btn btn-outline btn-sm" type="submit">Delete</button>
+                                            </form>
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -134,4 +156,3 @@
         </div>
     </div>
 @endsection
-

@@ -467,7 +467,6 @@ class DashboardController extends Controller
                 ['label' => 'Gradebook', 'route' => 'gradebook.index'],
                 ['label' => 'Attendance', 'route' => 'attendance.index'],
                 ['label' => 'Report Cards', 'route' => 'report-cards.index'],
-                ['label' => 'Database Tables', 'route' => 'system.tables'],
             ]);
         }
 

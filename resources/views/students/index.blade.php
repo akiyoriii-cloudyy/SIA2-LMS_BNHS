@@ -13,6 +13,10 @@
         $selectedSec = $sections->firstWhere('id', $selectedSection);
         $scopeLabel = $selectedSec ? ('Grade '.$selectedSec->grade_level.' — '.$selectedSec->name) : '—';
         $syLabel = $selectedSY?->name ?? '—';
+
+        $status = (string) ($status ?? 'active');
+        $activeCount = (int) ($activeCount ?? 0);
+        $deletedCount = (int) ($deletedCount ?? 0);
     @endphp
 
     <div class="dash-topbar">
@@ -23,43 +27,49 @@
         </div>
 
         <div class="dash-topbar-actions">
-            <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">Report Card</a>
-            <a class="btn btn-gold btn-sm" href="{{ route('gradebook.index') }}">Compute All</a>
             <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print</button>
         </div>
     </div>
 
+    @if (session('status'))
+        <div class="alert">{{ session('status') }}</div>
+    @endif
+
+    @if ($errors->any())
+        <div class="error">{{ $errors->first() }}</div>
+    @endif
+
     <div class="dash-kpi-grid dash-kpi-grid--5">
         <div class="dash-kpi kpi-gold">
-            <div class="dash-kpi-top"><div class="dash-kpi-icon">👩‍🎓</div></div>
+            <div class="dash-kpi-top"><div class="dash-kpi-icon">ST</div></div>
             <div class="dash-kpi-value">{{ number_format($totalStudents) }}</div>
             <div class="dash-kpi-label">TOTAL STUDENTS</div>
             <div class="dash-kpi-sub">{{ $scopeLabel }}</div>
         </div>
 
         <div class="dash-kpi kpi-navy">
-            <div class="dash-kpi-top"><div class="dash-kpi-icon">🧾</div></div>
+            <div class="dash-kpi-top"><div class="dash-kpi-icon">EN</div></div>
             <div class="dash-kpi-value">{{ number_format($totalEnrollments) }}</div>
             <div class="dash-kpi-label">ENROLLMENTS</div>
             <div class="dash-kpi-sub">SY. {{ $syLabel }}</div>
         </div>
 
         <div class="dash-kpi kpi-sage">
-            <div class="dash-kpi-top"><div class="dash-kpi-icon">👦</div></div>
+            <div class="dash-kpi-top"><div class="dash-kpi-icon">M</div></div>
             <div class="dash-kpi-value">{{ number_format($maleCount) }}</div>
             <div class="dash-kpi-label">MALE</div>
             <div class="dash-kpi-sub">Distinct learners</div>
         </div>
 
         <div class="dash-kpi kpi-sage">
-            <div class="dash-kpi-top"><div class="dash-kpi-icon">👧</div></div>
+            <div class="dash-kpi-top"><div class="dash-kpi-icon">F</div></div>
             <div class="dash-kpi-value">{{ number_format($femaleCount) }}</div>
             <div class="dash-kpi-label">FEMALE</div>
             <div class="dash-kpi-sub">Distinct learners</div>
         </div>
 
         <div class="dash-kpi kpi-red">
-            <div class="dash-kpi-top"><div class="dash-kpi-icon">👪</div></div>
+            <div class="dash-kpi-top"><div class="dash-kpi-icon">GU</div></div>
             <div class="dash-kpi-value">{{ number_format($guardiansTotal) }}</div>
             <div class="dash-kpi-label">GUARDIANS</div>
             <div class="dash-kpi-sub">Linked contacts</div>
@@ -70,11 +80,50 @@
         <div class="dash-panel-hd">
             <div>
                 <div class="dash-panel-title">Enrollment List</div>
-                <div class="dash-panel-sub">Records aligned to school year + section</div>
+                <div class="dash-panel-sub">Search, filter, add, edit, and delete student records</div>
             </div>
         </div>
         <div class="dash-panel-body">
+            <div class="pill-row" style="margin-bottom: 12px;">
+                <a class="pill pill-link {{ $status === 'active' ? 'pill-link--active' : '' }}"
+                    href="{{ route('students.index', ['status' => 'active', 'school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'q' => $search]) }}">
+                    Active ({{ $activeCount }})
+                </a>
+                <a class="pill pill-link {{ $status === 'deleted' ? 'pill-link--active' : '' }}"
+                    href="{{ route('students.index', ['status' => 'deleted', 'school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'q' => $search]) }}">
+                    Deleted ({{ $deletedCount }})
+                </a>
+            </div>
+
+            <details class="inline-details" style="margin-bottom: 12px;">
+                <summary class="btn btn-gold btn-sm">Add student</summary>
+                <div class="inline-panel">
+                    <form method="POST" action="{{ route('students.store') }}">
+                        @csrf
+                        <input type="hidden" name="school_year_id" value="{{ (int) $selectedSchoolYear }}">
+                        <input type="hidden" name="section_id" value="{{ (int) $selectedSection }}">
+                        <div class="inline-grid" style="grid-template-columns: 160px 1fr 1fr auto;">
+                            <input name="lrn" placeholder="LRN (optional)" value="{{ old('lrn') }}">
+                            <input name="first_name" placeholder="First name" value="{{ old('first_name') }}" required>
+                            <input name="last_name" placeholder="Last name" value="{{ old('last_name') }}" required>
+                            <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                        </div>
+                        <div class="inline-grid" style="grid-template-columns: 1fr 1fr 160px 160px; margin-top: 10px;">
+                            <input name="middle_name" placeholder="Middle name (optional)" value="{{ old('middle_name') }}">
+                            <input name="suffix" placeholder="Suffix (optional)" value="{{ old('suffix') }}">
+                            <select name="sex">
+                                <option value="" @selected(old('sex') === '')>Sex (optional)</option>
+                                <option value="Male" @selected(old('sex') === 'Male')>Male</option>
+                                <option value="Female" @selected(old('sex') === 'Female')>Female</option>
+                            </select>
+                            <input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}">
+                        </div>
+                    </form>
+                </div>
+            </details>
+
             <form method="GET" action="{{ route('students.index') }}" class="records-filters">
+                <input type="hidden" name="status" value="{{ $status }}">
                 <div class="records-filter-row">
                     <div class="records-filter">
                         <label class="records-label">School Year</label>
@@ -114,23 +163,70 @@
                             <th>Section</th>
                             <th>Status</th>
                             <th>Guardians</th>
+                            <th style="width: 240px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($enrollments as $enrollment)
-                            <tr>
+                            @php $student = $enrollment->student; @endphp
+                            <tr class="{{ $student && $student->trashed() ? 'row-deleted' : '' }}">
                                 <td style="font-family: 'JetBrains Mono', monospace; font-weight: 800;">
-                                    {{ $enrollment->student?->lrn ?? '—' }}
+                                    {{ $student?->lrn ?? '—' }}
                                 </td>
-                                <td style="font-weight: 800;">{{ $enrollment->student?->full_name ?? '—' }}</td>
-                                <td>{{ $enrollment->student?->sex ?? '—' }}</td>
+                                <td style="font-weight: 800;">{{ $student?->full_name ?? '—' }}</td>
+                                <td>{{ $student?->sex ?? '—' }}</td>
                                 <td>Grade {{ $enrollment->section?->grade_level }} — {{ $enrollment->section?->name }}</td>
                                 <td><span class="chip">{{ $enrollment->status }}</span></td>
-                                <td>{{ number_format((int) ($enrollment->student?->guardians_count ?? 0)) }}</td>
+                                <td>{{ number_format((int) ($student?->guardians_count ?? 0)) }}</td>
+                                <td>
+                                    @if ($student)
+                                        @if ($status === 'deleted')
+                                            <form method="POST" action="{{ route('students.restore', $student->id) }}">
+                                                @csrf
+                                                <button class="btn btn-gold btn-sm" type="submit">Restore</button>
+                                            </form>
+                                        @else
+                                            <div class="admin-actions">
+                                                <details class="inline-details">
+                                                    <summary class="btn btn-outline btn-sm">Edit</summary>
+                                                    <div class="inline-panel">
+                                                        <form method="POST" action="{{ route('students.update', $student) }}">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <div class="inline-grid" style="grid-template-columns: 160px 1fr 1fr auto;">
+                                                                <input name="lrn" placeholder="LRN" value="{{ $student->lrn }}">
+                                                                <input name="first_name" value="{{ $student->first_name }}" required>
+                                                                <input name="last_name" value="{{ $student->last_name }}" required>
+                                                                <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                                                            </div>
+                                                            <div class="inline-grid" style="grid-template-columns: 1fr 1fr 160px 160px; margin-top: 10px;">
+                                                                <input name="middle_name" placeholder="Middle name" value="{{ $student->middle_name }}">
+                                                                <input name="suffix" placeholder="Suffix" value="{{ $student->suffix }}">
+                                                                <select name="sex">
+                                                                    <option value="" @selected(($student->sex ?? '') === '')>Sex (optional)</option>
+                                                                    <option value="Male" @selected(($student->sex ?? '') === 'Male')>Male</option>
+                                                                    <option value="Female" @selected(($student->sex ?? '') === 'Female')>Female</option>
+                                                                </select>
+                                                                <input type="date" name="date_of_birth" value="{{ optional($student->date_of_birth)->format('Y-m-d') }}">
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </details>
+
+                                                <form method="POST" action="{{ route('students.destroy', $student) }}"
+                                                    onsubmit="return confirm('Delete this student?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button class="btn btn-outline btn-sm" type="submit">Delete</button>
+                                                </form>
+                                            </div>
+                                        @endif
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="muted">No enrollments found.</td>
+                                <td colspan="7" class="muted">No enrollments found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -139,4 +235,3 @@
         </div>
     </div>
 @endsection
-
