@@ -38,11 +38,15 @@
 
                     <form method="POST" action="{{ route('login.submit') }}">
                         @csrf
-                        <label>Email</label>
-                        <input type="email" name="email" value="{{ old('email') }}" required>
+                        <div class="auth-field">
+                            <label for="email">Email</label>
+                            <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username">
+                        </div>
 
-                        <label>Password</label>
-                        <input type="password" name="password" required>
+                        <div class="auth-field">
+                            <label for="password">Password</label>
+                            <input id="password" type="password" name="password" required autocomplete="current-password">
+                        </div>
 
                         <button class="btn" type="submit" style="width:100%;">Sign In</button>
                     </form>

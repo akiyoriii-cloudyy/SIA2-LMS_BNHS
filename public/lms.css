@@ -52,7 +52,31 @@ body.lms {
     background: var(--cream);
 }
 
-/* Login background logo (expects /public/bnhs-logo.png) */
+/* Admin theme: green + white (school color) */
+body.lms-auth.lms-role-admin {
+    --navy: #0b3b1a;
+    --navy-light: #104820;
+    --navy-mid: #145a27;
+
+    --gold: #2f9e44;
+    --gold-light: #69db7c;
+
+    --cream: #f7faf7;
+    --cream-dark: #edf3ee;
+
+    --sage: #1f7a34;
+    --sage-light: #74c69d;
+
+    --text: #0f2416;
+    --text-muted: #416a4d;
+    --border: #d7e5db;
+
+    --lms-accent: var(--gold);
+    --lms-accent-2: var(--sage-light);
+    --lms-accent-ink: #082012;
+}
+
+/* Login split layout and branding */
 body.lms.lms-login {
     --lms-login-left: #2f5b1b;
     --lms-login-left-2: #1f3f11;
@@ -565,18 +589,29 @@ body.lms.lms-login .auth-wrap--split {
 
 body.lms.lms-login .auth-card {
     width: 100%;
-    max-width: 560px;
+    max-width: 640px;
     margin: 0;
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid rgba(221, 216, 204, 0.95);
     box-shadow: 0 18px 50px rgba(10, 22, 40, 0.10);
-    padding: 26px 28px;
+    padding: 34px 36px;
+    font-size: 16px;
+}
+
+body.lms.lms-login .auth-card form {
+    display: grid;
+    gap: 18px;
+}
+
+body.lms.lms-login .auth-field {
+    display: grid;
+    gap: 8px;
 }
 
 body.lms.lms-login .auth-card label {
     display: block;
-    margin: 10px 0 6px;
-    font-size: 11px;
+    margin: 0;
+    font-size: 13px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -584,30 +619,37 @@ body.lms.lms-login .auth-card label {
 }
 
 body.lms.lms-login .auth-card input {
-    margin-bottom: 6px;
-    padding: 12px 12px;
-    border-radius: 10px;
+    margin: 0;
+    padding: 14px 14px;
+    border-radius: 12px;
+    font-size: clamp(16px, 1.1vw, 18px);
+    border-width: 2px;
+}
+
+body.lms.lms-login .auth-card input:focus {
+    box-shadow: 0 0 0 4px rgba(232, 184, 75, 0.28);
 }
 
 body.lms.lms-login .auth-card .title {
-    font-size: 34px;
+    font-size: clamp(38px, 3.2vw, 46px);
     letter-spacing: -0.8px;
 }
 
 body.lms.lms-login .auth-card .subtitle {
-    font-size: 13px;
+    font-size: 16px;
 }
 
 body.lms.lms-login .auth-card .btn {
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 14px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: 0.02em;
 }
 
 body.lms.lms-login .auth-meta {
     justify-content: flex-end;
+    font-size: 14px;
 }
 
 @supports ((-webkit-backdrop-filter: blur(6px)) or (backdrop-filter: blur(6px))) {

@@ -14,7 +14,7 @@
     </script>
     <script src="{{ asset('lms-theme.js') }}?v={{ @filemtime(public_path('lms-theme.js')) }}" defer></script>
 </head>
-<body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }}">
+<body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }} {{ auth()->check() ? (auth()->user()->hasRole('admin') ? 'lms-role-admin' : (auth()->user()->hasRole('teacher') ? 'lms-role-teacher' : 'lms-role-user')) : '' }}">
     @if (auth()->check())
         <input class="nav-toggle" type="checkbox" id="nav-toggle">
 
