@@ -10,34 +10,48 @@
     </script>
     <script src="{{ asset('lms-theme.js') }}?v={{ @filemtime(public_path('lms-theme.js')) }}" defer></script>
 </head>
-<body class="lms">
-    <div class="auth-wrap">
-        <div class="card auth-card">
-            <div class="header">
-                <div class="badge"><span class="dot"></span> BNHS LMS</div>
-                <h1 class="title">School LMS Login</h1>
-                <p class="subtitle">Admin / Teacher access</p>
-            </div>
+<body class="lms lms-guest lms-login">
+    <div class="auth-wrap auth-wrap--split">
+        <div class="auth-split">
+            <section class="auth-side" aria-label="School branding">
+                <div class="auth-side-inner">
+                    <div class="auth-logo-card" aria-hidden="true">
+                        <img class="auth-side-logo" src="{{ asset('bnhs-logo.jpg') }}" alt="">
+                    </div>
+                    <div class="auth-side-text">
+                        <div class="auth-side-school">Bawing National High School</div>
+                        <div class="auth-side-sub">Learning Management System</div>
+                    </div>
+                </div>
+            </section>
 
-            @if ($errors->any())
-                <div class="error">{{ $errors->first() }}</div>
-            @endif
+            <main class="auth-main">
+                <div class="card auth-card">
+                    <div class="header">
+                        <h1 class="title">Welcome</h1>
+                        <p class="subtitle">Sign in to continue</p>
+                    </div>
 
-            <form method="POST" action="{{ route('login.submit') }}">
-                @csrf
-                <label>Email</label>
-                <input type="email" name="email" value="{{ old('email') }}" required>
+                    @if ($errors->any())
+                        <div class="error">{{ $errors->first() }}</div>
+                    @endif
 
-                <label>Password</label>
-                <input type="password" name="password" required>
+                    <form method="POST" action="{{ route('login.submit') }}">
+                        @csrf
+                        <label>Email</label>
+                        <input type="email" name="email" value="{{ old('email') }}" required>
 
-                <button class="btn" type="submit" style="width:100%;">Sign In</button>
-            </form>
+                        <label>Password</label>
+                        <input type="password" name="password" required>
 
-            <div class="auth-meta">
-                <a class="muted" href="{{ route('password.request') }}">Forgot password?</a>
-                <span class="muted">Theme adapts per user</span>
-            </div>
+                        <button class="btn" type="submit" style="width:100%;">Sign In</button>
+                    </form>
+
+                    <div class="auth-meta">
+                        <a class="muted" href="{{ route('password.request') }}">Forgot password?</a>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 </body>
