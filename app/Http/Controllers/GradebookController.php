@@ -18,11 +18,30 @@ class GradebookController extends Controller
     public function index(Request $request): View
     {
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
-        $sections = Section::query()->orderedForDropdown()->get();
+        $gradeLevels = Section::query()
+            ->select('grade_level')
+            ->distinct()
+            ->orderBy('grade_level')
+            ->pluck('grade_level')
+            ->map(fn ($level) => (int) $level)
+            ->values();
+
+        $selectedGradeLevel = (int) ($request->integer('grade_level') ?: ((int) ($gradeLevels->first() ?? 0)));
+        if (! $gradeLevels->contains($selectedGradeLevel)) {
+            $selectedGradeLevel = (int) ($gradeLevels->first() ?? 0);
+        }
+
+        $sections = Section::query()
+            ->orderedForDropdown()
+            ->when($selectedGradeLevel > 0, fn ($q) => $q->where('grade_level', $selectedGradeLevel))
+            ->get();
         $subjects = Subject::query()->orderedForDropdown()->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id') ?: ($schoolYears->first()?->id ?? 0));
-        $selectedSection = (int) ($request->integer('section_id') ?: ($sections->first()?->id ?? 0));
+        $requestedSection = (int) $request->integer('section_id');
+        $selectedSection = $sections->contains('id', $requestedSection)
+            ? $requestedSection
+            : (int) ($sections->first()?->id ?? 0);
         $selectedSubject = (int) ($request->integer('subject_id') ?: ($subjects->first()?->id ?? 0));
         $quarter = max(1, min(4, (int) $request->integer('quarter', 1)));
         $search = trim((string) $request->query('q', ''));
@@ -98,6 +117,8 @@ class GradebookController extends Controller
 
         return view('gradebook.index', [
             'schoolYears' => $schoolYears,
+            'gradeLevels' => $gradeLevels,
+            'selectedGradeLevel' => $selectedGradeLevel,
             'sections' => $sections,
             'subjects' => $subjects,
             'selectedSchoolYear' => $selectedSchoolYear,
@@ -126,6 +147,7 @@ class GradebookController extends Controller
         $validated = $request->validate([
             'school_year_id' => ['required', 'exists:school_years,id'],
             'section_id' => ['required', 'exists:sections,id'],
+            'grade_level' => ['nullable', 'integer', 'min:1', 'max:12'],
             'subject_id' => ['required', 'exists:subjects,id'],
             'quarter' => ['required', 'integer', 'min:1', 'max:4'],
             'grades' => ['nullable', 'array'],
@@ -168,9 +190,15 @@ class GradebookController extends Controller
             );
         }
 
+        $gradeLevel = (int) ($validated['grade_level'] ?? 0);
+        if ($gradeLevel <= 0) {
+            $gradeLevel = (int) (Section::query()->whereKey((int) $validated['section_id'])->value('grade_level') ?? 0);
+        }
+
         return redirect()
             ->route('gradebook.index', [
                 'school_year_id' => $validated['school_year_id'],
+                'grade_level' => $gradeLevel,
                 'section_id' => $validated['section_id'],
                 'subject_id' => $validated['subject_id'],
                 'quarter' => $quarter,

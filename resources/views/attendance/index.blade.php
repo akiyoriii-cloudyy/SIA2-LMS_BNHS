@@ -18,11 +18,21 @@
                     </select>
                 </div>
                 <div>
+                    <label>Level</label>
+                    <select name="grade_level" onchange="this.form.submit()">
+                        @foreach ($gradeLevels as $gradeLevel)
+                            <option value="{{ $gradeLevel }}" @selected($selectedGradeLevel === (int) $gradeLevel)>
+                                Grade {{ $gradeLevel }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
                     <label>Section</label>
                     <select name="section_id">
                         @foreach ($sections as $section)
                             <option value="{{ $section->id }}" @selected($selectedSection === $section->id)>
-                                Grade {{ $section->grade_level }} - {{ $section->name }}
+                                {{ $section->name }}
                             </option>
                         @endforeach
                     </select>
@@ -45,6 +55,7 @@
         <form method="POST" action="{{ route('attendance.store') }}">
             @csrf
             <input type="hidden" name="school_year_id" value="{{ $selectedSchoolYear }}">
+            <input type="hidden" name="grade_level" value="{{ $selectedGradeLevel }}">
             <input type="hidden" name="section_id" value="{{ $selectedSection }}">
             <input type="hidden" name="attendance_date" value="{{ $attendanceDate }}">
 

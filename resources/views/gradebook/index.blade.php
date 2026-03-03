@@ -139,6 +139,15 @@
 
                 <div class="ge-filter-row">
                     <div class="ge-filter">
+                        <select name="grade_level" aria-label="Grade level" onchange="this.form.submit()">
+                            @foreach ($gradeLevels as $gradeLevel)
+                                <option value="{{ $gradeLevel }}" @selected($selectedGradeLevel === (int) $gradeLevel)>
+                                    Grade {{ $gradeLevel }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="ge-filter">
                         <select name="subject_id" aria-label="Subject">
                             @foreach ($subjects as $subject)
                                 <option value="{{ $subject->id }}" @selected($selectedSubject === $subject->id)>
@@ -152,7 +161,7 @@
                         <select name="section_id" aria-label="Section">
                             @foreach ($sections as $section)
                                 <option value="{{ $section->id }}" @selected($selectedSection === $section->id)>
-                                    Grade {{ $section->grade_level }} — {{ $section->name }}
+                                    {{ $section->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -180,7 +189,7 @@
                 <div class="ge-quarter-pills">
                     @for ($q = 1; $q <= 4; $q++)
                         <a class="pill pill-link {{ $quarter === $q ? 'pill-link--active' : '' }}"
-                           href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'subject_id' => $selectedSubject, 'quarter' => $q, 'q' => $search]) }}">
+                           href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'subject_id' => $selectedSubject, 'quarter' => $q, 'q' => $search]) }}">
                             Q{{ $q }}
                         </a>
                     @endfor
@@ -190,6 +199,7 @@
             <form method="POST" action="{{ route('gradebook.store') }}" id="grade-entry-form">
                 @csrf
                 <input type="hidden" name="school_year_id" value="{{ $selectedSchoolYear }}">
+                <input type="hidden" name="grade_level" value="{{ $selectedGradeLevel }}">
                 <input type="hidden" name="section_id" value="{{ $selectedSection }}">
                 <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
                 <input type="hidden" name="quarter" value="{{ $quarter }}">

@@ -28,7 +28,7 @@
 
     <div class="card">
         <form method="GET" action="{{ route('report-cards.index') }}">
-            <div class="grid-3" style="align-items: end;">
+            <div class="grid-4" style="align-items: end;">
                 <div>
                     <label class="muted" style="font-size: 12px; font-weight: 800;">School Year</label>
                     <select name="school_year_id">
@@ -40,11 +40,21 @@
                     </select>
                 </div>
                 <div>
+                    <label class="muted" style="font-size: 12px; font-weight: 800;">Level</label>
+                    <select name="grade_level" onchange="this.form.submit()">
+                        @foreach ($gradeLevels as $gradeLevel)
+                            <option value="{{ $gradeLevel }}" @selected($selectedGradeLevel === (int) $gradeLevel)>
+                                Grade {{ $gradeLevel }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
                     <label class="muted" style="font-size: 12px; font-weight: 800;">Section</label>
                     <select name="section_id">
                         @foreach ($sections as $section)
                             <option value="{{ $section->id }}" @selected($selectedSection === $section->id)>
-                                Grade {{ $section->grade_level }} - {{ $section->name }}
+                                {{ $section->name }}
                             </option>
                         @endforeach
                     </select>

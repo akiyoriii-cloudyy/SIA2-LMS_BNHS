@@ -46,7 +46,7 @@ class GradingDemoSeeder extends Seeder
         );
 
         $section = Section::updateOrCreate(
-            ['name' => 'HUMSS Section A', 'grade_level' => 11],
+            ['name' => 'HUMSS', 'grade_level' => 11],
             ['track' => 'Academic', 'strand' => 'HUMSS']
         );
 

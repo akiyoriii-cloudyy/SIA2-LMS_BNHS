@@ -25,13 +25,19 @@ class Section extends Model
         return $query
             ->orderBy('grade_level')
             ->orderByRaw("
-                CASE strand
-                    WHEN 'HUMSS' THEN 1
-                    WHEN 'ABM' THEN 2
-                    WHEN 'STEM' THEN 3
-                    WHEN 'GAS' THEN 4
-                    WHEN 'TVL' THEN 5
-                    WHEN 'SPORTS' THEN 6
+                CASE
+                    WHEN grade_level = 11 AND strand = 'HUMSS' THEN 1
+                    WHEN grade_level = 11 AND strand = 'ABM' THEN 2
+                    WHEN grade_level = 11 AND strand = 'COOKERY/BPP' THEN 3
+                    WHEN grade_level = 11 AND strand = 'SMAW' THEN 4
+                    WHEN grade_level = 11 AND strand = 'FOP' THEN 5
+                    WHEN grade_level = 11 AND strand = 'CSS' THEN 6
+                    WHEN grade_level = 12 AND strand = 'CSS' THEN 1
+                    WHEN grade_level = 12 AND strand = 'ABM' THEN 2
+                    WHEN grade_level = 12 AND strand = 'SMAW' THEN 3
+                    WHEN grade_level = 12 AND strand = 'FBS' THEN 4
+                    WHEN grade_level = 12 AND strand = 'HUMS' THEN 5
+                    WHEN grade_level = 12 AND strand = 'FOP' THEN 6
                     ELSE 99
                 END
             ")

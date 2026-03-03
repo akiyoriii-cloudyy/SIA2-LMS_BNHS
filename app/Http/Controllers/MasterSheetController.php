@@ -17,24 +17,44 @@ class MasterSheetController extends Controller
     public function index(Request $request): View|StreamedResponse
     {
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
-        $sections = Section::query()->orderedForDropdown()->get();
+        $gradeLevels = Section::query()
+            ->select('grade_level')
+            ->distinct()
+            ->orderBy('grade_level')
+            ->pluck('grade_level')
+            ->map(fn ($level) => (int) $level)
+            ->values();
+
+        $selectedGradeLevel = (int) ($request->integer('grade_level') ?: ((int) ($gradeLevels->first() ?? 0)));
+        if (! $gradeLevels->contains($selectedGradeLevel)) {
+            $selectedGradeLevel = (int) ($gradeLevels->first() ?? 0);
+        }
+
+        $sections = Section::query()
+            ->orderedForDropdown()
+            ->when($selectedGradeLevel > 0, fn ($q) => $q->where('grade_level', $selectedGradeLevel))
+            ->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id')
             ?: ($schoolYears->firstWhere('is_active', true)?->id ?? $schoolYears->first()?->id ?? 0));
-        $selectedSection = (int) ($request->integer('section_id') ?: ($sections->first()?->id ?? 0));
+        $selectedSection = (int) $request->integer('section_id', 0);
+        if ($selectedSection !== 0 && ! $sections->contains('id', $selectedSection)) {
+            $selectedSection = 0;
+        }
         $quarter = max(1, min(4, (int) $request->integer('quarter', 1)));
         $selectedStrand = trim((string) $request->query('strand', 'ALL'));
         $selectedStrand = $selectedStrand !== '' ? $selectedStrand : 'ALL';
         $search = trim((string) $request->query('q', ''));
 
-        $strandOptions = collect(['HUMSS', 'ABM', 'STEM', 'GAS', 'TVL', 'SPORTS'])
+        $strandOptions = collect(['HUMSS', 'ABM', 'COOKERY/BPP', 'SMAW', 'FOP', 'CSS', 'FBS', 'HUMS'])
             ->merge(
                 Section::query()
-            ->whereNotNull('strand')
-            ->where('strand', '<>', '')
-            ->distinct()
-            ->orderBy('strand')
-            ->pluck('strand')
+                    ->whereNotNull('strand')
+                    ->where('strand', '<>', '')
+                    ->when($selectedGradeLevel > 0, fn ($q) => $q->where('grade_level', $selectedGradeLevel))
+                    ->distinct()
+                    ->orderBy('strand')
+                    ->pluck('strand')
             )
             ->filter(fn ($strand) => is_string($strand) && trim($strand) !== '')
             ->map(fn ($strand) => trim((string) $strand))
@@ -44,6 +64,10 @@ class MasterSheetController extends Controller
         $enrollmentQuery = Enrollment::query()
             ->with(['student', 'section'])
             ->when($selectedSchoolYear > 0, fn ($q) => $q->where('school_year_id', $selectedSchoolYear))
+            ->when(
+                $selectedGradeLevel > 0,
+                fn ($q) => $q->whereHas('section', fn ($sq) => $sq->where('grade_level', $selectedGradeLevel))
+            )
             ->when($selectedSection > 0, fn ($q) => $q->where('section_id', $selectedSection))
             ->when($selectedStrand !== 'ALL', fn ($q) => $q->whereHas('section', fn ($sq) => $sq->where('strand', $selectedStrand)))
             ->when($search !== '', function ($q) use ($search): void {
@@ -63,6 +87,10 @@ class MasterSheetController extends Controller
         $subjects = SubjectAssignment::query()
             ->with('subject:id,code,title')
             ->where('school_year_id', $selectedSchoolYear)
+            ->when(
+                $selectedGradeLevel > 0,
+                fn ($q) => $q->whereHas('section', fn ($sq) => $sq->where('grade_level', $selectedGradeLevel))
+            )
             ->when($selectedSection > 0, fn ($q) => $q->where('section_id', $selectedSection))
             ->when($selectedStrand !== 'ALL', fn ($q) => $q->whereHas('section', fn ($sq) => $sq->where('strand', $selectedStrand)))
             ->get()
@@ -134,6 +162,8 @@ class MasterSheetController extends Controller
 
         return view('master-sheet.index', [
             'schoolYears' => $schoolYears,
+            'gradeLevels' => $gradeLevels,
+            'selectedGradeLevel' => $selectedGradeLevel,
             'sections' => $sections,
             'strandOptions' => $strandOptions,
             'selectedSchoolYear' => $selectedSchoolYear,

@@ -19,14 +19,37 @@ class StudentController extends Controller
         $status = in_array($status, ['active', 'deleted'], true) ? $status : 'active';
 
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
-        $sections = Section::query()->orderedForDropdown()->get();
+        $gradeLevels = Section::query()
+            ->select('grade_level')
+            ->distinct()
+            ->orderBy('grade_level')
+            ->pluck('grade_level')
+            ->map(fn ($level) => (int) $level)
+            ->values();
+
+        $selectedGradeLevel = (int) ($request->integer('grade_level') ?: ((int) ($gradeLevels->first() ?? 0)));
+        if (! $gradeLevels->contains($selectedGradeLevel)) {
+            $selectedGradeLevel = (int) ($gradeLevels->first() ?? 0);
+        }
+
+        $sections = Section::query()
+            ->orderedForDropdown()
+            ->when($selectedGradeLevel > 0, fn ($q) => $q->where('grade_level', $selectedGradeLevel))
+            ->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id') ?: ($schoolYears->firstWhere('is_active', true)?->id ?? $schoolYears->first()?->id ?? 0));
-        $selectedSection = (int) ($request->integer('section_id') ?: ($sections->first()?->id ?? 0));
+        $requestedSection = (int) $request->integer('section_id');
+        $selectedSection = $sections->contains('id', $requestedSection)
+            ? $requestedSection
+            : (int) ($sections->first()?->id ?? 0);
         $search = trim((string) $request->query('q', ''));
 
         $baseQuery = Enrollment::query()
             ->when($selectedSchoolYear > 0, fn ($q) => $q->where('school_year_id', $selectedSchoolYear))
+            ->when(
+                $selectedGradeLevel > 0,
+                fn ($q) => $q->whereHas('section', fn ($sq) => $sq->where('grade_level', $selectedGradeLevel))
+            )
             ->when($selectedSection > 0, fn ($q) => $q->where('section_id', $selectedSection));
 
         $totalEnrollments = (clone $baseQuery)->count();
@@ -67,6 +90,8 @@ class StudentController extends Controller
 
         return view('students.index', [
             'schoolYears' => $schoolYears,
+            'gradeLevels' => $gradeLevels,
+            'selectedGradeLevel' => $selectedGradeLevel,
             'sections' => $sections,
             'selectedSchoolYear' => $selectedSchoolYear,
             'selectedSection' => $selectedSection,
@@ -90,6 +115,7 @@ class StudentController extends Controller
         $validated = $request->validate([
             'school_year_id' => ['required', 'integer', 'exists:school_years,id'],
             'section_id' => ['required', 'integer', 'exists:sections,id'],
+            'grade_level' => ['nullable', 'integer', 'min:1', 'max:12'],
             'lrn' => ['nullable', 'string', 'max:255', 'unique:students,lrn'],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
@@ -121,8 +147,14 @@ class StudentController extends Controller
             ],
         );
 
+        $gradeLevel = (int) ($validated['grade_level'] ?? 0);
+        if ($gradeLevel <= 0) {
+            $gradeLevel = (int) (Section::query()->whereKey((int) $validated['section_id'])->value('grade_level') ?? 0);
+        }
+
         return redirect()->route('students.index', [
             'school_year_id' => (int) $validated['school_year_id'],
+            'grade_level' => $gradeLevel,
             'section_id' => (int) $validated['section_id'],
         ])->with('status', 'Student added.');
     }

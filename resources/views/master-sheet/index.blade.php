@@ -79,11 +79,21 @@
                     </div>
 
                     <div class="ge-filter">
+                        <select name="grade_level" aria-label="Grade level" onchange="this.form.submit()">
+                            @foreach ($gradeLevels as $gradeLevel)
+                                <option value="{{ $gradeLevel }}" @selected($selectedGradeLevel === (int) $gradeLevel)>
+                                    Grade {{ $gradeLevel }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="ge-filter">
                         <select name="section_id" aria-label="Section">
                             <option value="0" @selected($selectedSection === 0)>All sections</option>
                             @foreach ($sections as $section)
                                 <option value="{{ $section->id }}" @selected($selectedSection === $section->id)>
-                                    Grade {{ $section->grade_level }} - {{ $section->name }}
+                                    {{ $section->name }}
                                 </option>
                             @endforeach
                         </select>

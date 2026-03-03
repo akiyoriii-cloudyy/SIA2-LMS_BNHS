@@ -21,10 +21,29 @@ class ReportCardController extends Controller
     public function index(Request $request, GradingService $gradingService): View
     {
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
-        $sections = Section::query()->orderedForDropdown()->get();
+        $gradeLevels = Section::query()
+            ->select('grade_level')
+            ->distinct()
+            ->orderBy('grade_level')
+            ->pluck('grade_level')
+            ->map(fn ($level) => (int) $level)
+            ->values();
+
+        $selectedGradeLevel = (int) ($request->integer('grade_level') ?: ((int) ($gradeLevels->first() ?? 0)));
+        if (! $gradeLevels->contains($selectedGradeLevel)) {
+            $selectedGradeLevel = (int) ($gradeLevels->first() ?? 0);
+        }
+
+        $sections = Section::query()
+            ->orderedForDropdown()
+            ->when($selectedGradeLevel > 0, fn ($q) => $q->where('grade_level', $selectedGradeLevel))
+            ->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id') ?: ($schoolYears->first()?->id ?? 0));
-        $selectedSection = (int) ($request->integer('section_id') ?: ($sections->first()?->id ?? 0));
+        $requestedSection = (int) $request->integer('section_id');
+        $selectedSection = $sections->contains('id', $requestedSection)
+            ? $requestedSection
+            : (int) ($sections->first()?->id ?? 0);
 
         $enrollments = Enrollment::query()
             ->with(['student', 'reportCard'])
@@ -41,6 +60,8 @@ class ReportCardController extends Controller
 
         return view('report-cards.index', [
             'schoolYears' => $schoolYears,
+            'gradeLevels' => $gradeLevels,
+            'selectedGradeLevel' => $selectedGradeLevel,
             'sections' => $sections,
             'selectedSchoolYear' => $selectedSchoolYear,
             'selectedSection' => $selectedSection,

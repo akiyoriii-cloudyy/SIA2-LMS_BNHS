@@ -86,11 +86,11 @@
         <div class="dash-panel-body">
             <div class="pill-row" style="margin-bottom: 12px;">
                 <a class="pill pill-link {{ $status === 'active' ? 'pill-link--active' : '' }}"
-                    href="{{ route('students.index', ['status' => 'active', 'school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'q' => $search]) }}">
+                    href="{{ route('students.index', ['status' => 'active', 'school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'q' => $search]) }}">
                     Active ({{ $activeCount }})
                 </a>
                 <a class="pill pill-link {{ $status === 'deleted' ? 'pill-link--active' : '' }}"
-                    href="{{ route('students.index', ['status' => 'deleted', 'school_year_id' => $selectedSchoolYear, 'section_id' => $selectedSection, 'q' => $search]) }}">
+                    href="{{ route('students.index', ['status' => 'deleted', 'school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'q' => $search]) }}">
                     Deleted ({{ $deletedCount }})
                 </a>
             </div>
@@ -101,6 +101,7 @@
                     <form method="POST" action="{{ route('students.store') }}">
                         @csrf
                         <input type="hidden" name="school_year_id" value="{{ (int) $selectedSchoolYear }}">
+                        <input type="hidden" name="grade_level" value="{{ (int) $selectedGradeLevel }}">
                         <input type="hidden" name="section_id" value="{{ (int) $selectedSection }}">
                         <div class="inline-grid" style="grid-template-columns: 160px 1fr 1fr auto;">
                             <input name="lrn" placeholder="LRN (optional)" value="{{ old('lrn') }}">
@@ -134,11 +135,21 @@
                         </select>
                     </div>
                     <div class="records-filter">
+                        <label class="records-label">Level</label>
+                        <select name="grade_level" onchange="this.form.submit()">
+                            @foreach ($gradeLevels as $gradeLevel)
+                                <option value="{{ $gradeLevel }}" @selected($selectedGradeLevel === (int) $gradeLevel)>
+                                    Grade {{ $gradeLevel }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="records-filter">
                         <label class="records-label">Section</label>
                         <select name="section_id">
                             @foreach ($sections as $sec)
                                 <option value="{{ $sec->id }}" @selected($selectedSection === $sec->id)>
-                                    Grade {{ $sec->grade_level }} — {{ $sec->name }}
+                                    {{ $sec->name }}
                                 </option>
                             @endforeach
                         </select>
