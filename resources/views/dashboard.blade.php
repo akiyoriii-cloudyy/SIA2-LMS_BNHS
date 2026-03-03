@@ -322,9 +322,9 @@
                             <div class="status-val">{{ (int) ($submissionStatus['quiz'] ?? 0) }}%</div>
                         </div>
                         <div class="status-row">
-                            <div class="status-label">Assignments (Q{{ $quarter }})</div>
-                            <div class="status-track"><div class="status-fill status-fill--sage" style="width:{{ (int) ($submissionStatus['assignment'] ?? 0) }}%"></div></div>
-                            <div class="status-val">{{ (int) ($submissionStatus['assignment'] ?? 0) }}%</div>
+                            <div class="status-label">Performance Task (Q{{ $quarter }})</div>
+                            <div class="status-track"><div class="status-fill status-fill--sage" style="width:{{ (int) ($submissionStatus['performance_task'] ?? 0) }}%"></div></div>
+                            <div class="status-val">{{ (int) ($submissionStatus['performance_task'] ?? 0) }}%</div>
                         </div>
                         <div class="status-row">
                             <div class="status-label">Exams (Q{{ $quarter }})</div>

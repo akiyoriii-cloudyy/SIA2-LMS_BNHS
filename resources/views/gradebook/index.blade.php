@@ -74,7 +74,7 @@
                 </div>
                 <div class="ge-step ge-step--dark">
                     <div class="ge-step-icon">📌</div>
-                    <div class="ge-step-label">Assign.</div>
+                    <div class="ge-step-label">Perf. Task</div>
                     <div class="ge-step-sub">30%</div>
                 </div>
                 <div class="ge-step ge-step--dark">
@@ -186,6 +186,14 @@
                     </div>
                 </div>
 
+                <div class="ge-filter-row" style="margin-top: 8px; align-items: center;">
+                    <label class="teacher-autosave-toggle" for="autosave-toggle" style="display: inline-flex;">
+                        <input type="checkbox" id="autosave-toggle">
+                        Auto-save to database (optional)
+                    </label>
+                    <span id="autosave-status" class="muted" style="margin-left: 8px;">Auto-save is off</span>
+                </div>
+
                 <div class="ge-quarter-pills">
                     @for ($q = 1; $q <= 4; $q++)
                         <a class="pill pill-link {{ $quarter === $q ? 'pill-link--active' : '' }}"
@@ -212,7 +220,7 @@
                                 <th>NO.</th>
                                 <th>STUDENT NAME</th>
                                 <th>QUIZZES (30%)</th>
-                                <th>ASSIGNMENT (30%)</th>
+                                <th>PERFORMANCE TASK (30%)</th>
                                 <th>EXAM (40%)</th>
                                 <th>QTRLY AVG</th>
                                 <th>STATUS</th>
@@ -229,7 +237,7 @@
                                         <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][quiz]" value="{{ old("grades.{$enrollment->id}.quiz", $grade?->quiz) }}">
                                     </td>
                                     <td>
-                                        <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][assignment]" value="{{ old("grades.{$enrollment->id}.assignment", $grade?->assignment) }}">
+                                        <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][performance_task]" value="{{ old("grades.{$enrollment->id}.performance_task", $grade?->performance_task ?? $grade?->assignment) }}">
                                     </td>
                                     <td>
                                         <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][exam]" value="{{ old("grades.{$enrollment->id}.exam", $grade?->exam) }}">
@@ -263,6 +271,7 @@
                 <div class="actions">
                     <button class="btn" type="submit">Save All Grades</button>
                     <button class="btn btn--ghost" type="reset">Reset</button>
+                    <span id="autosave-status-footer" class="muted" style="align-self:center;"></span>
                     <span class="muted" style="align-self:center; font-style: italic;">
                         Grades auto-transfer to Report Card. No re-entry needed.
                     </span>
@@ -273,7 +282,7 @@
 
     <div class="card card--dash-note">
         <div style="font-size: 13px;">
-            Formula: <strong>Quarter Avg</strong> = (Quiz × 0.30) + (Assignment × 0.30) + (Exam × 0.40)<br>
+            Formula: <strong>Quarter Avg</strong> = (Quiz × 0.30) + (Performance Task × 0.30) + (Exam × 0.40)<br>
             General Average is computed automatically when all 4 quarters are complete.
         </div>
     </div>
@@ -281,7 +290,29 @@
     <script>
         (function () {
             const rows = Array.from(document.querySelectorAll('tr[data-row="grade"]'));
-            if (!rows.length) return;
+            const form = document.getElementById('grade-entry-form');
+            if (!rows.length || !form) return;
+
+            const autosaveToggle = document.getElementById('autosave-toggle');
+            const autosaveStatus = document.getElementById('autosave-status');
+            const autosaveStatusFooter = document.getElementById('autosave-status-footer');
+            const autosaveKey = 'lms.gradebook.autosave';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            let saveTimer = null;
+            let isSaving = false;
+            let pendingSave = false;
+
+            const setAutosaveStatus = (text, isError = false) => {
+                if (autosaveStatus) {
+                    autosaveStatus.textContent = text;
+                    autosaveStatus.style.color = isError ? '#b42318' : '';
+                }
+
+                if (autosaveStatusFooter) {
+                    autosaveStatusFooter.textContent = text;
+                    autosaveStatusFooter.style.color = isError ? '#b42318' : '';
+                }
+            };
 
             const toNumber = (value) => {
                 if (value === null || value === undefined) return null;
@@ -293,7 +324,7 @@
 
             const compute = (row) => {
                 const quiz = toNumber(row.querySelector('input[name*="[quiz]"]')?.value);
-                const assign = toNumber(row.querySelector('input[name*="[assignment]"]')?.value);
+                const performanceTask = toNumber(row.querySelector('input[name*="[performance_task]"]')?.value);
                 const exam = toNumber(row.querySelector('input[name*="[exam]"]')?.value);
 
                 const avgEl = row.querySelector('.js-avg');
@@ -301,14 +332,14 @@
 
                 if (!avgEl || !remarkEl) return;
 
-                if (quiz === null || assign === null || exam === null) {
+                if (quiz === null || performanceTask === null || exam === null) {
                     avgEl.textContent = '—';
                     remarkEl.textContent = '—';
                     remarkEl.classList.remove('status-pass', 'status-fail');
                     return;
                 }
 
-                const avg = (quiz * 0.30) + (assign * 0.30) + (exam * 0.40);
+                const avg = (quiz * 0.30) + (performanceTask * 0.30) + (exam * 0.40);
                 const rounded = Math.round(avg * 10) / 10;
 
                 avgEl.textContent = rounded.toFixed(1);
@@ -326,9 +357,79 @@
 
             const computeAll = () => rows.forEach((row) => compute(row));
 
+            const autosave = async () => {
+                if (!autosaveToggle?.checked) {
+                    return;
+                }
+
+                if (isSaving) {
+                    pendingSave = true;
+                    return;
+                }
+
+                isSaving = true;
+                setAutosaveStatus('Auto-saving...');
+
+                try {
+                    const payload = new FormData(form);
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: payload,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Autosave failed.');
+                    }
+
+                    setAutosaveStatus(`Auto-saved at ${new Date().toLocaleTimeString()}`);
+                } catch (error) {
+                    setAutosaveStatus('Autosave failed. Click "Save All Grades".', true);
+                } finally {
+                    isSaving = false;
+                    if (pendingSave) {
+                        pendingSave = false;
+                        autosave();
+                    }
+                }
+            };
+
+            const scheduleAutosave = () => {
+                if (!autosaveToggle?.checked) return;
+                if (saveTimer) clearTimeout(saveTimer);
+                saveTimer = setTimeout(autosave, 1200);
+            };
+
+            if (autosaveToggle) {
+                try {
+                    autosaveToggle.checked = localStorage.getItem(autosaveKey) === '1';
+                } catch (error) {
+                    autosaveToggle.checked = false;
+                }
+
+                setAutosaveStatus(autosaveToggle.checked ? 'Auto-save is on' : 'Auto-save is off');
+
+                autosaveToggle.addEventListener('change', () => {
+                    try {
+                        localStorage.setItem(autosaveKey, autosaveToggle.checked ? '1' : '0');
+                    } catch (error) {
+                        // Ignore storage errors.
+                    }
+
+                    setAutosaveStatus(autosaveToggle.checked ? 'Auto-save is on' : 'Auto-save is off');
+                });
+            }
+
             rows.forEach((row) => {
                 row.querySelectorAll('input.grade-input').forEach((input) => {
-                    input.addEventListener('input', () => compute(row));
+                    input.addEventListener('input', () => {
+                        compute(row);
+                        scheduleAutosave();
+                    });
                 });
                 compute(row);
             });

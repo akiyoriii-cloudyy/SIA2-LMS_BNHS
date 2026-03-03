@@ -147,6 +147,7 @@ class ReportCardController extends Controller
             (array) ($enrollment->reportCard?->observed_values ?? []),
             $observedValueRows
         );
+        $ageAtCutoff = $enrollment->student?->ageAt($syStart);
 
         return view('report-cards.show', [
             'enrollment' => $enrollment,
@@ -160,6 +161,8 @@ class ReportCardController extends Controller
             'observedValues' => $observedValues,
             'observedValueScale' => self::OBSERVED_VALUE_SCALE,
             'missingObservedValuesCount' => $this->countMissingObservedValues($observedValues),
+            'ageAtCutoff' => $ageAtCutoff,
+            'ageCutoffDate' => $syStart,
         ]);
     }
 

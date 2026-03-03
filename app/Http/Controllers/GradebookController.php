@@ -8,6 +8,7 @@ use App\Models\SchoolYear;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\SubjectAssignment;
+use Illuminate\Http\JsonResponse;
 use App\Services\GradingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -105,7 +106,7 @@ class GradebookController extends Controller
 
                     return ! $grade
                         || $grade->quiz === null
-                        || $grade->assignment === null
+                        || ($grade->performance_task ?? $grade->assignment) === null
                         || $grade->exam === null;
                 })
                 ->count();
@@ -142,7 +143,7 @@ class GradebookController extends Controller
         ]);
     }
 
-    public function store(Request $request, GradingService $gradingService): RedirectResponse
+    public function store(Request $request, GradingService $gradingService): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'school_year_id' => ['required', 'exists:school_years,id'],
@@ -152,7 +153,8 @@ class GradebookController extends Controller
             'quarter' => ['required', 'integer', 'min:1', 'max:4'],
             'grades' => ['nullable', 'array'],
             'grades.*.quiz' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'grades.*.assignment' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'grades.*.performance_task' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'grades.*.assignment' => ['nullable', 'numeric', 'min:0', 'max:100'], // legacy fallback
             'grades.*.exam' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
@@ -185,7 +187,7 @@ class GradebookController extends Controller
                 $subjectAssignment,
                 $quarter,
                 $this->normalizeScore($row['quiz'] ?? null),
-                $this->normalizeScore($row['assignment'] ?? null),
+                $this->normalizeScore($row['performance_task'] ?? $row['assignment'] ?? null),
                 $this->normalizeScore($row['exam'] ?? null)
             );
         }
@@ -195,14 +197,25 @@ class GradebookController extends Controller
             $gradeLevel = (int) (Section::query()->whereKey((int) $validated['section_id'])->value('grade_level') ?? 0);
         }
 
-        return redirect()
-            ->route('gradebook.index', [
-                'school_year_id' => $validated['school_year_id'],
-                'grade_level' => $gradeLevel,
-                'section_id' => $validated['section_id'],
-                'subject_id' => $validated['subject_id'],
-                'quarter' => $quarter,
-            ])
+        $redirectUrl = route('gradebook.index', [
+            'school_year_id' => $validated['school_year_id'],
+            'grade_level' => $gradeLevel,
+            'section_id' => $validated['section_id'],
+            'subject_id' => $validated['subject_id'],
+            'quarter' => $quarter,
+            'q' => $request->input('q'),
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Grades auto-saved.',
+                'saved_rows' => count($gradeRows),
+                'redirect' => $redirectUrl,
+            ]);
+        }
+
+        return redirect($redirectUrl)
             ->with('success', 'Grades saved. Subject averages and report cards were updated automatically.');
     }
 

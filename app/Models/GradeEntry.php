@@ -12,6 +12,7 @@ class GradeEntry extends Model
         'subject_assignment_id',
         'quarter',
         'quiz',
+        'performance_task',
         'assignment',
         'exam',
         'quarter_grade',
@@ -27,4 +28,3 @@ class GradeEntry extends Model
         return $this->belongsTo(SubjectAssignment::class);
     }
 }
-

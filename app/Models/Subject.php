@@ -10,9 +10,12 @@ class Subject extends Model
 {
     use SoftDeletes;
 
+    public const CATEGORIES = ['core', 'applied', 'specialized'];
+
     protected $fillable = [
         'code',
         'title',
+        'category',
     ];
 
     public function scopeOrderedForDropdown(Builder $query): Builder

@@ -164,7 +164,7 @@
                     </div>
                     <div class="teacher-formula">
                         Formula:
-                        <strong>Average = (Quiz x 0.30) + (Assignment x 0.30) + (Exam x 0.40)</strong>
+                        <strong>Average = (Quiz x 0.30) + (Performance Task x 0.30) + (Exam x 0.40)</strong>
                     </div>
                     <div class="muted">Subject: {{ $selectedAssignment->subject?->title }} ({{ $selectedAssignment->subject?->code }})</div>
                     <div class="muted">

@@ -81,7 +81,10 @@ class SidebarMetrics
             ->where('quarter', $quarter)
             ->whereIn('subject_assignment_id', $assignmentIds)
             ->whereNotNull('quiz')
-            ->whereNotNull('assignment')
+            ->where(function ($q): void {
+                $q->whereNotNull('performance_task')
+                    ->orWhereNotNull('assignment');
+            })
             ->whereNotNull('exam')
             ->whereNotNull('quarter_grade')
             ->count();

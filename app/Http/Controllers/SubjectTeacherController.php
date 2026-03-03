@@ -69,7 +69,7 @@ class SubjectTeacherController extends Controller
                 $grade = $gradeEntries->get($enrollment->id);
                 $isComplete = $grade
                     && $grade->quiz !== null
-                    && $grade->assignment !== null
+                    && ($grade->performance_task ?? $grade->assignment) !== null
                     && $grade->exam !== null
                     && $grade->quarter_grade !== null;
 
@@ -116,6 +116,7 @@ class SubjectTeacherController extends Controller
 
             $openGradebookUrl = route('gradebook.index', [
                 'school_year_id' => $selectedAssignment->school_year_id,
+                'grade_level' => (int) ($selectedAssignment->section?->grade_level ?? 0),
                 'section_id' => $selectedAssignment->section_id,
                 'subject_id' => $selectedAssignment->subject_id,
                 'quarter' => $quarter,

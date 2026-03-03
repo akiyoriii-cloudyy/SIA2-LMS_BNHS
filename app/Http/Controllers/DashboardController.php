@@ -405,11 +405,11 @@ class DashboardController extends Controller
             ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('ge.enrollment_id', $enrollmentIds))
             ->count();
 
-        $assignmentFilled = (int) DB::table('grade_entries as ge')
+        $performanceTaskFilled = (int) DB::table('grade_entries as ge')
             ->join('enrollments as e', 'ge.enrollment_id', '=', 'e.id')
             ->join('subject_assignments as sa', 'ge.subject_assignment_id', '=', 'sa.id')
             ->where('ge.quarter', $quarter)
-            ->whereNotNull('ge.assignment')
+            ->whereNotNull('ge.performance_task')
             ->whereColumn('sa.section_id', 'e.section_id')
             ->whereColumn('sa.school_year_id', 'e.school_year_id')
             ->when($schoolYearId, fn ($q) => $q->where('e.school_year_id', $schoolYearId))
@@ -440,7 +440,7 @@ class DashboardController extends Controller
 
         $submissionStatus = [
             'quiz' => $expectedGradeEntries > 0 ? (int) round(($quizFilled / $expectedGradeEntries) * 100) : 0,
-            'assignment' => $expectedGradeEntries > 0 ? (int) round(($assignmentFilled / $expectedGradeEntries) * 100) : 0,
+            'performance_task' => $expectedGradeEntries > 0 ? (int) round(($performanceTaskFilled / $expectedGradeEntries) * 100) : 0,
             'exam' => $expectedGradeEntries > 0 ? (int) round(($examFilled / $expectedGradeEntries) * 100) : 0,
             'report_cards' => $enrollmentCount > 0 ? (int) round(($reportCardCompleted / $enrollmentCount) * 100) : 0,
         ];
@@ -564,7 +564,7 @@ class DashboardController extends Controller
             ],
             [
                 'table' => 'grade_entries',
-                'purpose' => 'Quarter component grades (quiz/assignment/exam).',
+                'purpose' => 'Quarter component grades (quiz/performance task/exam).',
                 'used_in' => 'Gradebook',
             ],
             [
@@ -627,7 +627,7 @@ class DashboardController extends Controller
                     ['tag' => null, 'name' => 'grade_level', 'type' => 'INT (11 or 12)'],
                     ['tag' => null, 'name' => 'semester', 'type' => 'INT (1 or 2)'],
                     ['tag' => null, 'name' => 'quiz_weight', 'type' => 'DECIMAL(4,2)'],
-                    ['tag' => null, 'name' => 'assign_weight', 'type' => 'DECIMAL(4,2)'],
+                    ['tag' => null, 'name' => 'performance_task_weight', 'type' => 'DECIMAL(4,2)'],
                     ['tag' => null, 'name' => 'exam_weight', 'type' => 'DECIMAL(4,2)'],
                 ],
             ],
@@ -640,7 +640,7 @@ class DashboardController extends Controller
                     ['tag' => 'FK', 'name' => 'subject_id', 'type' => '→ subjects'],
                     ['tag' => null, 'name' => 'quarter', 'type' => 'INT (1–4)'],
                     ['tag' => null, 'name' => 'quiz_score', 'type' => 'DECIMAL(5,2)'],
-                    ['tag' => null, 'name' => 'assignment_score', 'type' => 'DECIMAL(5,2)'],
+                    ['tag' => null, 'name' => 'performance_task_score', 'type' => 'DECIMAL(5,2)'],
                     ['tag' => null, 'name' => 'exam_score', 'type' => 'DECIMAL(5,2)'],
                     ['tag' => null, 'name' => 'quarterly_avg', 'type' => 'DECIMAL(5,2) [AUTO]'],
                     ['tag' => null, 'name' => 'is_passing', 'type' => 'TINYINT(1) [AUTO]'],

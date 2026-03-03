@@ -9,6 +9,8 @@
         $subjectsCount = (int) ($s['subjects'] ?? 0);
         $maleCount = (int) ($s['male'] ?? 0);
         $femaleCount = (int) ($s['female'] ?? 0);
+        $blaanCount = (int) ($s['blaan'] ?? 0);
+        $islamCount = (int) ($s['islam'] ?? 0);
         $missingCells = (int) ($s['missing'] ?? 0);
 
         $exportQuery = request()->query();
@@ -48,7 +50,7 @@
         <div class="dash-kpi kpi-sage">
             <div class="dash-kpi-value">{{ number_format($maleCount) }} / {{ number_format($femaleCount) }}</div>
             <div class="dash-kpi-label">MALE / FEMALE</div>
-            <div class="dash-kpi-sub">Student count</div>
+            <div class="dash-kpi-sub">Blaan: {{ number_format($blaanCount) }} | Islam: {{ number_format($islamCount) }}</div>
         </div>
         <div class="dash-kpi kpi-red">
             <div class="dash-kpi-value">{{ number_format($missingCells) }}</div>
@@ -195,9 +197,83 @@
                 </table>
             </div>
 
+            <div class="dash-row-2" style="margin-top: 14px;">
+                <div class="dash-panel">
+                    <div class="dash-panel-hd">
+                        <div>
+                            <div class="dash-panel-title">Strand Computation Summary</div>
+                            <div class="dash-panel-sub">Automatic averages and completion per strand</div>
+                        </div>
+                    </div>
+                    <div class="dash-panel-body">
+                        <table class="subj-avg-table">
+                            <thead>
+                                <tr>
+                                    <th>Strand</th>
+                                    <th>Students</th>
+                                    <th>Completion</th>
+                                    <th>Average</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse (($strandSummary ?? []) as $row)
+                                    <tr>
+                                        <td>{{ $row['strand'] }}</td>
+                                        <td>{{ number_format((int) ($row['students'] ?? 0)) }}</td>
+                                        <td>{{ (int) ($row['completion_pct'] ?? 0) }}%</td>
+                                        <td>{{ ($row['avg'] ?? null) === null ? '-' : number_format((float) $row['avg'], 1) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="muted">No strand summary available.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="dash-panel">
+                    <div class="dash-panel-hd">
+                        <div>
+                            <div class="dash-panel-title">Ethnicity per Section</div>
+                            <div class="dash-panel-sub">Automatic count for Blaan and Islam</div>
+                        </div>
+                    </div>
+                    <div class="dash-panel-body">
+                        <table class="subj-avg-table">
+                            <thead>
+                                <tr>
+                                    <th>Section</th>
+                                    <th>Blaan</th>
+                                    <th>Islam</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse (($ethnicityBySection ?? []) as $row)
+                                    <tr>
+                                        <td>{{ $row['section'] }}</td>
+                                        <td>{{ number_format((int) ($row['blaan'] ?? 0)) }}</td>
+                                        <td>{{ number_format((int) ($row['islam'] ?? 0)) }}</td>
+                                        <td>{{ number_format((int) ($row['total'] ?? 0)) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="muted">No section data available.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div class="master-counts">
                 <span class="grade-pill-sm gp-pass">Male: {{ number_format($maleCount) }}</span>
                 <span class="grade-pill-sm gp-pass">Female: {{ number_format($femaleCount) }}</span>
+                <span class="grade-pill-sm gp-pass">Blaan: {{ number_format($blaanCount) }}</span>
+                <span class="grade-pill-sm gp-pass">Islam: {{ number_format($islamCount) }}</span>
                 <span class="grade-pill-sm gp-pass">Total: {{ number_format($studentsShown) }}</span>
             </div>
         </div>

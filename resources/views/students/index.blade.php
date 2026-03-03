@@ -7,7 +7,10 @@
         $totalEnrollments = (int) ($s['total_enrollments'] ?? 0);
         $maleCount = (int) ($s['male'] ?? 0);
         $femaleCount = (int) ($s['female'] ?? 0);
+        $blaanCount = (int) ($s['blaan'] ?? 0);
+        $islamCount = (int) ($s['islam'] ?? 0);
         $guardiansTotal = (int) ($s['guardians'] ?? 0);
+        $cutoffDate = $ageCutoffDate ?? null;
 
         $selectedSY = $schoolYears->firstWhere('id', $selectedSchoolYear);
         $selectedSec = $sections->firstWhere('id', $selectedSection);
@@ -72,7 +75,7 @@
             <div class="dash-kpi-top"><div class="dash-kpi-icon">GU</div></div>
             <div class="dash-kpi-value">{{ number_format($guardiansTotal) }}</div>
             <div class="dash-kpi-label">GUARDIANS</div>
-            <div class="dash-kpi-sub">Linked contacts</div>
+            <div class="dash-kpi-sub">Blaan: {{ number_format($blaanCount) }} | Islam: {{ number_format($islamCount) }}</div>
         </div>
     </div>
 
@@ -119,6 +122,10 @@
                             </select>
                             <input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}">
                         </div>
+                        <div class="inline-grid" style="grid-template-columns: 220px 1fr; margin-top: 10px;">
+                            <input name="ethnicity" placeholder="Ethnicity (e.g., Blaan/Islam)" value="{{ old('ethnicity') }}">
+                            <input name="address" placeholder="Address (optional)" value="{{ old('address') }}">
+                        </div>
                     </form>
                 </div>
             </details>
@@ -164,6 +171,12 @@
                 </div>
             </form>
 
+            @if ($cutoffDate)
+                <div class="muted" style="margin-top: 8px; font-size: 12px;">
+                    Age is automatically computed from birthday as of {{ $cutoffDate->format('M d, Y') }} cutoff.
+                </div>
+            @endif
+
             <div class="table-wrap" style="margin-top: 12px;">
                 <table class="table">
                     <thead>
@@ -171,6 +184,9 @@
                             <th>LRN</th>
                             <th>Student</th>
                             <th>Sex</th>
+                            <th>Age</th>
+                            <th>Ethnicity</th>
+                            <th>Address</th>
                             <th>Section</th>
                             <th>Status</th>
                             <th>Guardians</th>
@@ -186,6 +202,15 @@
                                 </td>
                                 <td style="font-weight: 800;">{{ $student?->full_name ?? '—' }}</td>
                                 <td>{{ $student?->sex ?? '—' }}</td>
+                                <td>
+                                    @if ($student?->date_of_birth)
+                                        {{ $cutoffDate ? $student->ageAt($cutoffDate) : $student->ageAt() }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td>{{ $student?->ethnicity ?? '—' }}</td>
+                                <td>{{ $student?->address ?? '—' }}</td>
                                 <td>Grade {{ $enrollment->section?->grade_level }} — {{ $enrollment->section?->name }}</td>
                                 <td><span class="chip">{{ $enrollment->status }}</span></td>
                                 <td>{{ number_format((int) ($student?->guardians_count ?? 0)) }}</td>
@@ -220,6 +245,10 @@
                                                                 </select>
                                                                 <input type="date" name="date_of_birth" value="{{ optional($student->date_of_birth)->format('Y-m-d') }}">
                                                             </div>
+                                                            <div class="inline-grid" style="grid-template-columns: 220px 1fr; margin-top: 10px;">
+                                                                <input name="ethnicity" placeholder="Ethnicity" value="{{ $student->ethnicity }}">
+                                                                <input name="address" placeholder="Address" value="{{ $student->address }}">
+                                                            </div>
                                                         </form>
                                                     </div>
                                                 </details>
@@ -237,7 +266,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="muted">No enrollments found.</td>
+                                <td colspan="10" class="muted">No enrollments found.</td>
                             </tr>
                         @endforelse
                     </tbody>

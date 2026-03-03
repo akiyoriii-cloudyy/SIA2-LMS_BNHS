@@ -20,7 +20,10 @@
         $generalAverage = $reportCard?->general_average;
         $fmtQ = fn ($v) => $v === null ? '-' : number_format((float) $v, 0);
 
-        $age = $student?->date_of_birth ? $student->date_of_birth->age : null;
+        $age = $ageAtCutoff ?? ($student?->date_of_birth ? $student->date_of_birth->age : null);
+        $ageCutoffLabel = isset($ageCutoffDate) && $ageCutoffDate
+            ? $ageCutoffDate->format('M d, Y')
+            : null;
         $sex = $student?->sex ? ucfirst((string) $student->sex) : null;
 
         $months = $attendanceMonths ?? ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
@@ -261,7 +264,7 @@
                             <div><strong>Sex:</strong> {{ $sex ?? '-' }}</div>
                         </div>
                         <div class="rc-meta-row">
-                            <div><strong>Age:</strong> {{ $age ?? '-' }}</div>
+                            <div><strong>Age{{ $ageCutoffLabel ? ' (as of '.$ageCutoffLabel.')' : '' }}:</strong> {{ $age ?? '-' }}</div>
                             <div><strong>Section:</strong> {{ $section ? $section->name : '-' }}</div>
                         </div>
                         <div class="rc-meta-row">

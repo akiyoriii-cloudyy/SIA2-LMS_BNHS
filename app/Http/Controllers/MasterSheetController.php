@@ -9,6 +9,7 @@ use App\Models\Section;
 use App\Models\SubjectAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -46,7 +47,7 @@ class MasterSheetController extends Controller
         $selectedStrand = $selectedStrand !== '' ? $selectedStrand : 'ALL';
         $search = trim((string) $request->query('q', ''));
 
-        $strandOptions = collect(['HUMSS', 'ABM', 'COOKERY/BPP', 'SMAW', 'FOP', 'CSS', 'FBS', 'HUMS'])
+        $strandOptions = collect(['HUMSS', 'ABM', 'COOKERY/BPP', 'SMAW', 'FOP', 'CSS'])
             ->merge(
                 Section::query()
                     ->whereNotNull('strand')
@@ -109,6 +110,7 @@ class MasterSheetController extends Controller
                     'grade_entries.enrollment_id',
                     'subject_assignments.subject_id',
                     'grade_entries.quiz',
+                    'grade_entries.performance_task',
                     'grade_entries.assignment',
                     'grade_entries.exam',
                     'grade_entries.quarter_grade',
@@ -126,7 +128,7 @@ class MasterSheetController extends Controller
                 $gradesByEnrollment[(int) $row->enrollment_id][(int) $row->subject_id] = [
                     'quarter_grade' => $row->quarter_grade !== null ? (float) $row->quarter_grade : null,
                     'complete' => $row->quiz !== null
-                        && $row->assignment !== null
+                        && (($row->performance_task ?? $row->assignment) !== null)
                         && $row->exam !== null
                         && $row->quarter_grade !== null,
                     'date' => $row->updated_at?->format('Y-m-d'),
@@ -150,15 +152,103 @@ class MasterSheetController extends Controller
             return in_array($sex, ['f', 'female'], true);
         })->count();
 
+        $blaanCount = (int) $enrollments->filter(function ($enrollment): bool {
+            $ethnicity = Str::lower(trim((string) ($enrollment->student?->ethnicity ?? '')));
+
+            return $ethnicity === 'blaan';
+        })->count();
+
+        $islamCount = (int) $enrollments->filter(function ($enrollment): bool {
+            $ethnicity = Str::lower(trim((string) ($enrollment->student?->ethnicity ?? '')));
+
+            return in_array($ethnicity, ['islam', 'muslim'], true);
+        })->count();
+
         $missingCells = 0;
+        $strandSummary = [];
         foreach ($enrollments as $enrollment) {
+            $strand = trim((string) ($enrollment->section?->strand ?? 'Unspecified'));
+            $strand = $strand !== '' ? $strand : 'Unspecified';
+
+            if (! isset($strandSummary[$strand])) {
+                $strandSummary[$strand] = [
+                    'strand' => $strand,
+                    'students' => 0,
+                    'cells_total' => 0,
+                    'cells_complete' => 0,
+                    'grade_sum' => 0.0,
+                    'grade_count' => 0,
+                ];
+            }
+
+            $strandSummary[$strand]['students']++;
+            $strandSummary[$strand]['cells_total'] += (int) $subjects->count();
+
             foreach ($subjects as $subject) {
                 $cell = data_get($gradesByEnrollment, "{$enrollment->id}.{$subject->id}");
                 if (! ($cell['complete'] ?? false)) {
                     $missingCells++;
+                    continue;
+                }
+
+                $strandSummary[$strand]['cells_complete']++;
+
+                if (($cell['quarter_grade'] ?? null) !== null) {
+                    $strandSummary[$strand]['grade_sum'] += (float) $cell['quarter_grade'];
+                    $strandSummary[$strand]['grade_count']++;
                 }
             }
         }
+
+        $strandSummary = collect($strandSummary)
+            ->map(function (array $row): array {
+                $completionPct = $row['cells_total'] > 0
+                    ? (int) round(($row['cells_complete'] / $row['cells_total']) * 100)
+                    : 0;
+
+                return [
+                    'strand' => (string) $row['strand'],
+                    'students' => (int) $row['students'],
+                    'completion_pct' => max(0, min(100, $completionPct)),
+                    'avg' => $row['grade_count'] > 0
+                        ? round($row['grade_sum'] / $row['grade_count'], 1)
+                        : null,
+                ];
+            })
+            ->sortBy('strand')
+            ->values()
+            ->all();
+
+        $ethnicityBySection = $enrollments
+            ->groupBy('section_id')
+            ->map(function (Collection $rows): array {
+                $first = $rows->first();
+                $section = $first?->section
+                    ? ('Grade '.$first->section->grade_level.' - '.$first->section->name)
+                    : '-';
+
+                $blaan = (int) $rows->filter(function ($enrollment): bool {
+                    $ethnicity = Str::lower(trim((string) ($enrollment->student?->ethnicity ?? '')));
+
+                    return $ethnicity === 'blaan';
+                })->count();
+
+                $islam = (int) $rows->filter(function ($enrollment): bool {
+                    $ethnicity = Str::lower(trim((string) ($enrollment->student?->ethnicity ?? '')));
+
+                    return in_array($ethnicity, ['islam', 'muslim'], true);
+                })->count();
+
+                return [
+                    'section' => $section,
+                    'blaan' => $blaan,
+                    'islam' => $islam,
+                    'total' => (int) $rows->count(),
+                ];
+            })
+            ->sortBy('section')
+            ->values()
+            ->all();
 
         return view('master-sheet.index', [
             'schoolYears' => $schoolYears,
@@ -174,11 +264,15 @@ class MasterSheetController extends Controller
             'enrollments' => $enrollments,
             'subjects' => $subjects,
             'gradesByEnrollment' => $gradesByEnrollment,
+            'strandSummary' => $strandSummary,
+            'ethnicityBySection' => $ethnicityBySection,
             'stats' => [
                 'students' => (int) $enrollments->count(),
                 'subjects' => (int) $subjects->count(),
                 'male' => $maleCount,
                 'female' => $femaleCount,
+                'blaan' => $blaanCount,
+                'islam' => $islamCount,
                 'missing' => $missingCells,
             ],
         ]);

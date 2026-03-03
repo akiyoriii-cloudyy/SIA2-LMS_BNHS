@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
 class GradingService
 {
     private const QUIZ_WEIGHT = 0.30;
-    private const ASSIGNMENT_WEIGHT = 0.30;
+    private const PERFORMANCE_TASK_WEIGHT = 0.30;
     private const EXAM_WEIGHT = 0.40;
 
     public function upsertQuarterGrade(
@@ -22,11 +22,11 @@ class GradingService
         SubjectAssignment $assignment,
         int $quarter,
         ?float $quiz,
-        ?float $assignmentScore,
+        ?float $performanceTask,
         ?float $exam
     ): void {
-        DB::transaction(function () use ($enrollment, $assignment, $quarter, $quiz, $assignmentScore, $exam): void {
-            $quarterGrade = $this->computeQuarterGrade($quiz, $assignmentScore, $exam);
+        DB::transaction(function () use ($enrollment, $assignment, $quarter, $quiz, $performanceTask, $exam): void {
+            $quarterGrade = $this->computeQuarterGrade($quiz, $performanceTask, $exam);
 
             GradeEntry::updateOrCreate(
                 [
@@ -36,7 +36,9 @@ class GradingService
                 ],
                 [
                     'quiz' => $quiz,
-                    'assignment' => $assignmentScore,
+                    'performance_task' => $performanceTask,
+                    // Keep assignment in sync for legacy rows/views that still read this column.
+                    'assignment' => $performanceTask,
                     'exam' => $exam,
                     'quarter_grade' => $quarterGrade,
                 ]
@@ -133,14 +135,14 @@ class GradingService
         );
     }
 
-    private function computeQuarterGrade(?float $quiz, ?float $assignment, ?float $exam): ?float
+    private function computeQuarterGrade(?float $quiz, ?float $performanceTask, ?float $exam): ?float
     {
-        if ($quiz === null || $assignment === null || $exam === null) {
+        if ($quiz === null || $performanceTask === null || $exam === null) {
             return null;
         }
 
         return round(
-            ($quiz * self::QUIZ_WEIGHT) + ($assignment * self::ASSIGNMENT_WEIGHT) + ($exam * self::EXAM_WEIGHT),
+            ($quiz * self::QUIZ_WEIGHT) + ($performanceTask * self::PERFORMANCE_TASK_WEIGHT) + ($exam * self::EXAM_WEIGHT),
             2
         );
     }

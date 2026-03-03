@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -21,6 +22,8 @@ class Student extends Model
         'suffix',
         'sex',
         'date_of_birth',
+        'address',
+        'ethnicity',
     ];
 
     protected $casts = [
@@ -52,5 +55,16 @@ class Student extends Model
             $this->middle_name,
             $this->suffix,
         ])));
+    }
+
+    public function ageAt(?CarbonInterface $cutoffDate = null): ?int
+    {
+        if (! $this->date_of_birth) {
+            return null;
+        }
+
+        $asOf = $cutoffDate ?: now();
+
+        return $this->date_of_birth->diffInYears($asOf);
     }
 }

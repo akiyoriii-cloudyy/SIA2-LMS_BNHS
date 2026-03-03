@@ -8,6 +8,7 @@ use App\Models\Section;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -38,11 +39,13 @@ class StudentController extends Controller
             ->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id') ?: ($schoolYears->firstWhere('is_active', true)?->id ?? $schoolYears->first()?->id ?? 0));
+        $selectedSchoolYearModel = $schoolYears->firstWhere('id', $selectedSchoolYear);
         $requestedSection = (int) $request->integer('section_id');
         $selectedSection = $sections->contains('id', $requestedSection)
             ? $requestedSection
             : (int) ($sections->first()?->id ?? 0);
         $search = trim((string) $request->query('q', ''));
+        $ageCutoffDate = $this->resolveSchoolYearCutoffDate((string) ($selectedSchoolYearModel?->name ?? ''));
 
         $baseQuery = Enrollment::query()
             ->when($selectedSchoolYear > 0, fn ($q) => $q->where('school_year_id', $selectedSchoolYear))
@@ -64,6 +67,16 @@ class StudentController extends Controller
 
         $femaleCount = (clone $baseQuery)
             ->whereHas('student', fn ($q) => $q->whereIn('sex', ['F', 'f', 'Female', 'female']))
+            ->distinct('student_id')
+            ->count('student_id');
+
+        $blaanCount = (clone $baseQuery)
+            ->whereHas('student', fn ($q) => $q->whereRaw("LOWER(TRIM(COALESCE(ethnicity, ''))) = ?", ['blaan']))
+            ->distinct('student_id')
+            ->count('student_id');
+
+        $islamCount = (clone $baseQuery)
+            ->whereHas('student', fn ($q) => $q->whereRaw("LOWER(TRIM(COALESCE(ethnicity, ''))) in (?, ?)", ['islam', 'muslim']))
             ->distinct('student_id')
             ->count('student_id');
 
@@ -94,6 +107,7 @@ class StudentController extends Controller
             'selectedGradeLevel' => $selectedGradeLevel,
             'sections' => $sections,
             'selectedSchoolYear' => $selectedSchoolYear,
+            'ageCutoffDate' => $ageCutoffDate,
             'selectedSection' => $selectedSection,
             'enrollments' => $query,
             'search' => $search,
@@ -105,6 +119,8 @@ class StudentController extends Controller
                 'total_students' => $totalStudents,
                 'male' => $maleCount,
                 'female' => $femaleCount,
+                'blaan' => $blaanCount,
+                'islam' => $islamCount,
                 'guardians' => $guardiansTotal,
             ],
         ]);
@@ -123,6 +139,8 @@ class StudentController extends Controller
             'suffix' => ['nullable', 'string', 'max:255'],
             'sex' => ['nullable', 'string', Rule::in(['Male', 'Female', 'M', 'F'])],
             'date_of_birth' => ['nullable', 'date'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'ethnicity' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['active', 'inactive'])],
         ]);
 
@@ -134,6 +152,8 @@ class StudentController extends Controller
             'suffix' => $validated['suffix'] ?? null,
             'sex' => $validated['sex'] ?? null,
             'date_of_birth' => $validated['date_of_birth'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'ethnicity' => $validated['ethnicity'] ?? null,
         ]);
 
         Enrollment::query()->updateOrCreate(
@@ -169,6 +189,8 @@ class StudentController extends Controller
             'suffix' => ['nullable', 'string', 'max:255'],
             'sex' => ['nullable', 'string', Rule::in(['Male', 'Female', 'M', 'F'])],
             'date_of_birth' => ['nullable', 'date'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'ethnicity' => ['nullable', 'string', 'max:100'],
         ]);
 
         $student->update([
@@ -179,6 +201,8 @@ class StudentController extends Controller
             'suffix' => $validated['suffix'] ?? null,
             'sex' => $validated['sex'] ?? null,
             'date_of_birth' => $validated['date_of_birth'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'ethnicity' => $validated['ethnicity'] ?? null,
         ]);
 
         return back()->with('status', 'Student updated.');
@@ -197,5 +221,16 @@ class StudentController extends Controller
         $student->restore();
 
         return back()->with('status', 'Student restored.');
+    }
+
+    private function resolveSchoolYearCutoffDate(string $schoolYearName): Carbon
+    {
+        $startYear = (int) (explode('-', $schoolYearName)[0] ?? 0);
+
+        if ($startYear > 0) {
+            return Carbon::create($startYear, 6, 1)->startOfDay();
+        }
+
+        return now()->startOfYear();
     }
 }
