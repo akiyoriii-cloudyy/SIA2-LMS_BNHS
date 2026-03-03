@@ -12,6 +12,11 @@ class ReportCard extends Model
         'enrollment_id',
         'general_average',
         'remarks',
+        'observed_values',
+    ];
+
+    protected $casts = [
+        'observed_values' => 'array',
     ];
 
     public function enrollment(): BelongsTo
@@ -24,4 +29,3 @@ class ReportCard extends Model
         return $this->hasMany(ReportCardItem::class);
     }
 }
-

@@ -16,6 +16,17 @@
 </head>
 <body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }} {{ auth()->check() ? (auth()->user()->hasRole('admin') ? 'lms-role-admin' : (auth()->user()->hasRole('teacher') ? 'lms-role-teacher' : 'lms-role-user')) : '' }}">
     @if (auth()->check())
+        @php
+            $sidebarMissingGrades = 0;
+            $sidebarPrintableReports = 0;
+
+            if (auth()->user()->hasRole('teacher')) {
+                $sidebarQuarter = max(1, min(4, (int) request()->integer('quarter', \App\Support\SidebarMetrics::currentQuarter())));
+                $sidebarMissingGrades = \App\Support\SidebarMetrics::teacherMissingGradesCount(auth()->user(), $sidebarQuarter);
+                $sidebarPrintableReports = \App\Support\SidebarMetrics::printableReportCardsCount(auth()->user());
+            }
+        @endphp
+
         <input class="nav-toggle" type="checkbox" id="nav-toggle">
 
         <div class="shell">
@@ -39,40 +50,66 @@
                     <div class="group">Main</div>
                     @if (auth()->user()->hasRole('admin'))
                         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="icon">&#128100;</span>
                             User Management
                         </a>
 
                         <div class="group">Admin</div>
                         <a href="{{ route('admin.settings') }}" class="{{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
+                            <span class="icon">&#9881;</span>
                             Settings
                         </a>
                         <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
+                            <span class="icon">&#9993;</span>
                             SMS Logs
                         </a>
                     @else
                         <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="icon">&#128200;</span>
                             Dashboard
                         </a>
                     @endif
 
                     @if (auth()->user()->hasRole('teacher'))
                         <a href="{{ route('gradebook.index') }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
+                            <span class="icon">&#9999;</span>
                             Grade Entry
                         </a>
-                        <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
+
+                        <a href="{{ route('master-sheet.index') }}" class="{{ request()->routeIs('master-sheet.*') ? 'active' : '' }}">
+                            <span class="icon">&#128196;</span>
+                            Master Sheet
+                        </a>
+
+                        <a href="{{ route('subject-teacher.index') }}" class="{{ request()->routeIs('subject-teacher.*') ? 'active' : '' }}">
+                            <span class="icon">&#127891;</span>
+                            Subject Teacher
+                            @if ($sidebarMissingGrades > 0)
+                                <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
+                            @endif
+                        </a>
+
+                        <a href="{{ route('report-cards.index') }}"
+                            class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
+                            <span class="icon">&#128221;</span>
                             DepEd Report Card
                         </a>
 
                         <div class="group">Records</div>
                         <a href="{{ route('students.index') }}" class="{{ request()->routeIs('students.*') ? 'active' : '' }}">
+                            <span class="icon">&#128101;</span>
                             Students
                         </a>
                         <a href="{{ route('subjects.index') }}" class="{{ request()->routeIs('subjects.*') ? 'active' : '' }}">
+                            <span class="icon">&#128218;</span>
                             Subjects
                         </a>
                         <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
+                            <span class="icon">&#128424;</span>
                             Print Reports
-                            <span class="nav-badge">3</span>
+                            @if ($sidebarPrintableReports > 0)
+                                <span class="nav-badge">{{ $sidebarPrintableReports }}</span>
+                            @endif
                         </a>
                     @endif
                 </nav>

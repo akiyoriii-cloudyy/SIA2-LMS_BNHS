@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $focusValues = request()->query('focus') === 'values';
+    @endphp
+
     <div class="dash-topbar">
         <div class="dash-topbar-left">
             <span class="dash-topbar-title">EduGrade Pro</span>
@@ -52,6 +56,10 @@
         </form>
     </div>
 
+    @if ($focusValues)
+        <div class="alert">Open a student and use the Observed Values tab to encode AO/SO/RO/NO ratings.</div>
+    @endif
+
     <div class="card">
         <div class="table-wrap">
             <table class="table">
@@ -70,7 +78,10 @@
                             <td>{{ $enrollment->student->full_name }}</td>
                             <td>{{ $enrollment->reportCard?->general_average !== null ? number_format($enrollment->reportCard->general_average, 2) : 'Incomplete' }}</td>
                             <td>
-                                <a class="btn" href="{{ route('report-cards.show', [$enrollment->id, 'page' => 'outside']) }}">Open</a>
+                                <div style="display: inline-flex; gap: 8px; flex-wrap: wrap;">
+                                    <a class="btn" href="{{ route('report-cards.show', [$enrollment->id, 'page' => 'outside']) }}">Open</a>
+                                    <a class="btn {{ $focusValues ? 'btn-primary' : 'btn-outline' }}" href="{{ route('report-cards.show', [$enrollment->id, 'page' => 'values']) }}">Observed Values</a>
+                                </div>
                             </td>
                         </tr>
                     @empty

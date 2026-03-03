@@ -9,8 +9,10 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\Admin\UsersController as AdminUsersController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MasterSheetController;
 use App\Http\Controllers\SmsLogController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\SubjectTeacherController;
 use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -68,11 +70,15 @@ Route::middleware(['auth'])->group(function (): void {
 
         Route::get('/gradebook', [GradebookController::class, 'index'])->name('gradebook.index');
         Route::post('/gradebook', [GradebookController::class, 'store'])->name('gradebook.store');
+        Route::get('/master-sheet', [MasterSheetController::class, 'index'])->name('master-sheet.index');
+        Route::get('/subject-teacher', [SubjectTeacherController::class, 'index'])->name('subject-teacher.index');
 
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
 
         Route::get('/report-cards', [ReportCardController::class, 'index'])->name('report-cards.index');
         Route::get('/report-cards/{enrollment}', [ReportCardController::class, 'show'])->name('report-cards.show');
+        Route::post('/report-cards/{enrollment}/observed-values', [ReportCardController::class, 'updateObservedValues'])
+            ->name('report-cards.observed-values.update');
     });
 });

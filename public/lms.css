@@ -1636,6 +1636,12 @@ body.lms.lms-login .auth-meta {
     color: var(--passed);
 }
 
+.rc-badge--warn{
+    border-color: rgba(153,27,27,0.28);
+    background: rgba(153,27,27,0.10);
+    color: #7f1d1d;
+}
+
 .rc-pro-right{
     display:flex;
     gap: 10px;
@@ -1682,6 +1688,55 @@ body.lms.lms-login .auth-meta {
     color: var(--navy);
     font-size: 11px;
     font-weight: 700;
+}
+
+.rc-values-entry{
+    margin-bottom: 14px;
+}
+
+.rc-values-entry-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.rc-values-entry-title{
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: -0.2px;
+}
+
+.rc-values-entry-sub{
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.rc-values-entry-table td{
+    vertical-align: middle;
+}
+
+.rc-values-entry-core{
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.rc-values-entry-foot{
+    margin-top: 12px;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.compact-select--xs{
+    min-width: 58px;
+    width: 100%;
 }
 
 .rc-pro-preview{
@@ -2726,3 +2781,85 @@ body.lms.lms-login .auth-meta {
 }
 .mobile-ref-nav .active{ color: #333; font-weight: 700; }
 .mobile-ref-label{ font-size: 9px; margin-top: 1rem; font-weight: 600; color: #333; text-align: center; }
+
+/* --- Master Sheet --- */
+.master-filters{ margin-bottom: 14px; }
+
+.master-sheet-wrap{
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+
+.master-sheet-table th{
+    vertical-align: bottom;
+    white-space: nowrap;
+}
+
+.master-head-sub{
+    font-size: 9px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-top: 2px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.master-grade-cell{
+    text-align: center;
+    min-width: 96px;
+}
+
+.master-date{
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: "JetBrains Mono", monospace;
+}
+
+.master-counts{
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* --- Subject Teacher --- */
+.teacher-filter-form .ge-filter-row{
+    align-items: center;
+}
+
+.teacher-autosave-toggle{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
+.teacher-autosave-toggle input{
+    width: auto;
+    margin: 0;
+}
+
+.teacher-weight-chips{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.teacher-formula{
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    color: var(--text);
+}
+
+@media (max-width: 760px){
+    .teacher-autosave-toggle{
+        width: 100%;
+        margin-left: 0;
+        margin-top: 2px;
+    }
+}

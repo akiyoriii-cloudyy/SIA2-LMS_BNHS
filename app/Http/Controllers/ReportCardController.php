@@ -7,14 +7,17 @@ use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\Section;
 use App\Models\SubjectAssignment;
-use App\Models\Teacher;
 use App\Services\GradingService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class ReportCardController extends Controller
 {
+    private const OBSERVED_VALUE_SCALE = ['AO', 'SO', 'RO', 'NO'];
+    private const OBSERVED_VALUE_QUARTERS = ['q1', 'q2', 'q3', 'q4'];
+
     public function index(Request $request, GradingService $gradingService): View
     {
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
@@ -45,7 +48,7 @@ class ReportCardController extends Controller
         ]);
     }
 
-    public function show(Enrollment $enrollment, GradingService $gradingService): View
+    public function show(Request $request, Enrollment $enrollment, GradingService $gradingService): View
     {
         $enrollment->load(['student', 'section', 'schoolYear']);
         $gradingService->syncEnrollmentReportCard($enrollment);
@@ -113,6 +116,17 @@ class ReportCardController extends Controller
             ];
         })->all();
 
+        $page = (string) $request->query('page', 'outside');
+        if (! in_array($page, ['outside', 'inside', 'values'], true)) {
+            $page = 'outside';
+        }
+
+        $observedValueRows = $this->observedValueRows();
+        $observedValues = $this->normalizeObservedValues(
+            (array) ($enrollment->reportCard?->observed_values ?? []),
+            $observedValueRows
+        );
+
         return view('report-cards.show', [
             'enrollment' => $enrollment,
             'reportCard' => $enrollment->reportCard,
@@ -120,6 +134,157 @@ class ReportCardController extends Controller
             'adviserTeacher' => $adviserTeacher,
             'attendanceMonths' => array_column($months, 'key'),
             'attendanceSummary' => $attendanceSummary,
+            'page' => $page,
+            'observedValueRows' => $observedValueRows,
+            'observedValues' => $observedValues,
+            'observedValueScale' => self::OBSERVED_VALUE_SCALE,
+            'missingObservedValuesCount' => $this->countMissingObservedValues($observedValues),
         ]);
+    }
+
+    public function updateObservedValues(
+        Request $request,
+        Enrollment $enrollment,
+        GradingService $gradingService
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'page' => ['nullable', 'string'],
+            'observed_values' => ['nullable', 'array'],
+            'observed_values.*' => ['nullable', 'array'],
+            'observed_values.*.q1' => ['nullable', 'string', 'in:AO,SO,RO,NO'],
+            'observed_values.*.q2' => ['nullable', 'string', 'in:AO,SO,RO,NO'],
+            'observed_values.*.q3' => ['nullable', 'string', 'in:AO,SO,RO,NO'],
+            'observed_values.*.q4' => ['nullable', 'string', 'in:AO,SO,RO,NO'],
+        ]);
+
+        $gradingService->syncEnrollmentReportCard($enrollment);
+        $enrollment->load('reportCard');
+
+        if (! $enrollment->reportCard) {
+            return redirect()
+                ->route('report-cards.show', [$enrollment->id, 'page' => 'values'])
+                ->with('success', 'Unable to save learner observed values. Report card was not found.');
+        }
+
+        $normalizedObservedValues = $this->normalizeObservedValues(
+            (array) ($validated['observed_values'] ?? []),
+            $this->observedValueRows()
+        );
+
+        $enrollment->reportCard->update([
+            'observed_values' => $normalizedObservedValues,
+        ]);
+
+        $page = (string) ($validated['page'] ?? 'values');
+        if (! in_array($page, ['outside', 'inside', 'values'], true)) {
+            $page = 'values';
+        }
+
+        return redirect()
+            ->route('report-cards.show', [$enrollment->id, 'page' => $page])
+            ->with('success', 'Learner observed values were saved to the report card.');
+    }
+
+    /**
+     * @return array<int, array{label: string, rows: array<int, array{key: string, statement: string}>}>
+     */
+    private function observedValueRows(): array
+    {
+        return [
+            [
+                'label' => '1. Maka-Diyos',
+                'rows' => [
+                    [
+                        'key' => 'maka_diyos_1',
+                        'statement' => 'Expresses one\'s spiritual beliefs while respecting the spiritual beliefs of others',
+                    ],
+                    [
+                        'key' => 'maka_diyos_2',
+                        'statement' => 'Shows adherence to ethical principles by upholding truth',
+                    ],
+                ],
+            ],
+            [
+                'label' => '2. Makatao',
+                'rows' => [
+                    [
+                        'key' => 'makatao_1',
+                        'statement' => 'Is sensitive to individual, social, and cultural differences',
+                    ],
+                    [
+                        'key' => 'makatao_2',
+                        'statement' => 'Demonstrates contributions towards solidarity',
+                    ],
+                ],
+            ],
+            [
+                'label' => '3. Maka-kalikasan',
+                'rows' => [
+                    [
+                        'key' => 'maka_kalikasan_1',
+                        'statement' => 'Cares for the environment and utilizes resources wisely, judiciously, and economically',
+                    ],
+                    [
+                        'key' => 'maka_kalikasan_2',
+                        'statement' => 'Demonstrates appropriate behavior in carrying out activities in school, community, and country',
+                    ],
+                ],
+            ],
+            [
+                'label' => '4. Makabansa',
+                'rows' => [
+                    [
+                        'key' => 'makabansa_1',
+                        'statement' => 'Demonstrates pride in being a Filipino; exercises the rights and responsibilities of a Filipino citizen',
+                    ],
+                    [
+                        'key' => 'makabansa_2',
+                        'statement' => 'Demonstrates appropriate behavior in carrying out activities in the school, community, and country',
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  array<int, array{label: string, rows: array<int, array{key: string, statement: string}>}>  $observedValueRows
+     * @return array<string, array<string, string|null>>
+     */
+    private function normalizeObservedValues(array $input, array $observedValueRows): array
+    {
+        $normalized = [];
+
+        foreach ($observedValueRows as $group) {
+            foreach ($group['rows'] as $row) {
+                $key = (string) $row['key'];
+                $normalized[$key] = [];
+
+                foreach (self::OBSERVED_VALUE_QUARTERS as $quarter) {
+                    $raw = strtoupper(trim((string) ($input[$key][$quarter] ?? '')));
+                    $normalized[$key][$quarter] = in_array($raw, self::OBSERVED_VALUE_SCALE, true) ? $raw : null;
+                }
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<string, array<string, string|null>>  $observedValues
+     */
+    private function countMissingObservedValues(array $observedValues): int
+    {
+        $missing = 0;
+
+        foreach ($observedValues as $row) {
+            foreach (self::OBSERVED_VALUE_QUARTERS as $quarter) {
+                if (($row[$quarter] ?? null) === null) {
+                    $missing++;
+                }
+            }
+        }
+
+        return $missing;
     }
 }
