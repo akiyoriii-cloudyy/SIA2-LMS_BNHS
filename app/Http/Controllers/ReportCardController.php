@@ -21,7 +21,7 @@ class ReportCardController extends Controller
     public function index(Request $request, GradingService $gradingService): View
     {
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
-        $sections = Section::query()->orderBy('grade_level')->orderBy('name')->get();
+        $sections = Section::query()->orderedForDropdown()->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id') ?: ($schoolYears->first()?->id ?? 0));
         $selectedSection = (int) ($request->integer('section_id') ?: ($sections->first()?->id ?? 0));

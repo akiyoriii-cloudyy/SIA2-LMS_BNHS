@@ -91,7 +91,7 @@
 
                     <div class="ge-filter">
                         <select name="strand" aria-label="Strand">
-                            <option value="ALL" @selected($selectedStrand === 'ALL')>All strands</option>
+                            <option value="ALL" @selected($selectedStrand === 'ALL')>All Strands</option>
                             @foreach ($strandOptions as $strand)
                                 <option value="{{ $strand }}" @selected($selectedStrand === $strand)>{{ $strand }}</option>
                             @endforeach

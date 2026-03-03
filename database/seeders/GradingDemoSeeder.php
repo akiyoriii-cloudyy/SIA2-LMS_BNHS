@@ -45,15 +45,20 @@ class GradingDemoSeeder extends Seeder
             ['is_active' => true]
         );
 
-        $section = Section::firstOrCreate(
-            ['name' => 'HUMSS-A', 'grade_level' => 11],
+        $section = Section::updateOrCreate(
+            ['name' => 'HUMSS Section A', 'grade_level' => 11],
             ['track' => 'Academic', 'strand' => 'HUMSS']
         );
 
         $subjects = [
-            ['code' => 'ENG11', 'title' => 'Oral Communication'],
-            ['code' => 'MATH11', 'title' => 'General Mathematics'],
-            ['code' => 'SCI11', 'title' => 'Earth and Life Science'],
+            ['code' => 'ORALCOMM', 'title' => 'Oral Communication in Context'],
+            ['code' => 'KOMPAN', 'title' => 'Komunikasyon at Pananaliksik'],
+            ['code' => '21CLIT', 'title' => '21st Century Literature'],
+            ['code' => 'CPAR', 'title' => 'Contemporary Philippine Arts'],
+            ['code' => 'MIL', 'title' => 'Media and Information Literacy'],
+            ['code' => 'PERDEV', 'title' => 'Personal Development'],
+            ['code' => 'ELS', 'title' => 'Earth and Life Science'],
+            ['code' => 'PEH', 'title' => 'Physical Education and Health'],
         ];
 
         foreach ($subjects as $subjectData) {

@@ -17,7 +17,7 @@ class MasterSheetController extends Controller
     public function index(Request $request): View|StreamedResponse
     {
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
-        $sections = Section::query()->orderBy('grade_level')->orderBy('name')->get();
+        $sections = Section::query()->orderedForDropdown()->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id')
             ?: ($schoolYears->firstWhere('is_active', true)?->id ?? $schoolYears->first()?->id ?? 0));
@@ -27,12 +27,18 @@ class MasterSheetController extends Controller
         $selectedStrand = $selectedStrand !== '' ? $selectedStrand : 'ALL';
         $search = trim((string) $request->query('q', ''));
 
-        $strandOptions = Section::query()
+        $strandOptions = collect(['HUMSS', 'ABM', 'STEM', 'GAS', 'TVL', 'SPORTS'])
+            ->merge(
+                Section::query()
             ->whereNotNull('strand')
             ->where('strand', '<>', '')
             ->distinct()
             ->orderBy('strand')
             ->pluck('strand')
+            )
+            ->filter(fn ($strand) => is_string($strand) && trim($strand) !== '')
+            ->map(fn ($strand) => trim((string) $strand))
+            ->unique()
             ->values();
 
         $enrollmentQuery = Enrollment::query()
