@@ -75,7 +75,6 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th>#</th>
                         <th>Student</th>
                         <th>General Average</th>
                         <th>Action</th>
@@ -84,7 +83,6 @@
                 <tbody>
                     @forelse ($enrollments as $index => $enrollment)
                         <tr>
-                            <td>{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
                             <td>{{ $enrollment->student->full_name }}</td>
                             <td>{{ $enrollment->reportCard?->general_average !== null ? number_format($enrollment->reportCard->general_average, 2) : 'Incomplete' }}</td>
                             <td>
@@ -96,7 +94,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4">No students found.</td>
+                            <td colspan="3">No students found.</td>
                         </tr>
                     @endforelse
                 </tbody>

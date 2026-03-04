@@ -10,6 +10,10 @@
         $schoolYearName = (string) ($stats['school_year'] ?? '—');
         $sectionLabel = (string) ($stats['section_label'] ?? '—');
         $subjectTitle = (string) ($stats['subject_title'] ?? ($subjects->firstWhere('id', $selectedSubject)?->title ?? 'Subject'));
+        $selectedSubjectCategory = (string) ($selectedSubjectCategory ?? 'core');
+        $subjectCategoryLabel = ucfirst($selectedSubjectCategory).' subjects';
+        $subjectCategoryCounts = (array) ($subjectCategoryCounts ?? []);
+        $rosterNumbers = (array) ($rosterNumbers ?? []);
     @endphp
 
     <div class="dash-topbar">
@@ -42,7 +46,7 @@
             </div>
             <div class="dash-kpi-value">{{ number_format($totalSubjects ?: (int) $subjects->count()) }}</div>
             <div class="dash-kpi-label">SUBJECTS</div>
-            <div class="dash-kpi-sub">Core + Specialized</div>
+            <div class="dash-kpi-sub">{{ $subjectCategoryLabel }}</div>
         </div>
 
         <div class="dash-kpi kpi-navy">
@@ -122,6 +126,15 @@
         </div>
     @endif
 
+    <div class="pill-row ge-category-pills" style="margin-bottom: 12px;">
+        @foreach (['core', 'applied', 'specialized'] as $categoryItem)
+            <a class="pill pill-link ge-category-pill {{ $selectedSubjectCategory === $categoryItem ? 'pill-link--active' : '' }}"
+               href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'subject_category' => $categoryItem, 'quarter' => $quarter, 'q' => $search]) }}">
+                {{ ucfirst($categoryItem) }} ({{ (int) ($subjectCategoryCounts[$categoryItem] ?? 0) }})
+            </a>
+        @endforeach
+    </div>
+
     <div class="dash-panel ge-table">
         <div class="dash-panel-hd">
             <div>
@@ -135,7 +148,8 @@
 
         <div class="dash-panel-body">
             <form method="GET" action="{{ route('gradebook.index') }}" class="ge-filters">
-                <input type="hidden" name="quarter" value="{{ $quarter }}">
+                <input type="hidden" name="current_quarter" value="{{ $quarter }}">
+                <input type="hidden" name="subject_category" value="{{ $selectedSubjectCategory }}">
 
                 <div class="ge-filter-row">
                     <div class="ge-filter">
@@ -149,11 +163,15 @@
                     </div>
                     <div class="ge-filter">
                         <select name="subject_id" aria-label="Subject">
-                            @foreach ($subjects as $subject)
-                                <option value="{{ $subject->id }}" @selected($selectedSubject === $subject->id)>
-                                    {{ $subject->title }}
-                                </option>
-                            @endforeach
+                            @if ($subjects->isEmpty())
+                                <option value="">No subjects in this category</option>
+                            @else
+                                @foreach ($subjects as $subject)
+                                    <option value="{{ $subject->id }}" @selected($selectedSubject === $subject->id)>
+                                        {{ $subject->title }}
+                                    </option>
+                                @endforeach
+                            @endif
                         </select>
                     </div>
 
@@ -196,20 +214,24 @@
 
                 <div class="ge-quarter-pills">
                     @for ($q = 1; $q <= 4; $q++)
-                        <a class="pill pill-link {{ $quarter === $q ? 'pill-link--active' : '' }}"
-                           href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'subject_id' => $selectedSubject, 'quarter' => $q, 'q' => $search]) }}">
-                            Q{{ $q }}
-                        </a>
+                        <button class="pill ge-quarter-pill {{ $quarter === $q ? 'pill-link--active' : '' }}"
+                                type="submit"
+                                name="quarter"
+                                value="{{ $q }}">
+                            Quarter {{ $q }}
+                        </button>
                     @endfor
                 </div>
             </form>
 
+            @if ($selectedSubject > 0)
             <form method="POST" action="{{ route('gradebook.store') }}" id="grade-entry-form">
                 @csrf
                 <input type="hidden" name="school_year_id" value="{{ $selectedSchoolYear }}">
                 <input type="hidden" name="grade_level" value="{{ $selectedGradeLevel }}">
                 <input type="hidden" name="section_id" value="{{ $selectedSection }}">
                 <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
+                <input type="hidden" name="subject_category" value="{{ $selectedSubjectCategory }}">
                 <input type="hidden" name="quarter" value="{{ $quarter }}">
                 <input type="hidden" name="q" value="{{ $search ?? '' }}">
 
@@ -231,7 +253,7 @@
                             @forelse ($enrollments as $index => $enrollment)
                                 @php $grade = $existingGrades->get($enrollment->id); @endphp
                                 <tr data-row="grade">
-                                    <td>{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
+                                    <td>{{ str_pad((string) ((int) $quarter), 2, '0', STR_PAD_LEFT) }}</td>
                                     <td class="student-cell">{{ $enrollment->student->full_name }}</td>
                                     <td>
                                         <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][quiz]" value="{{ old("grades.{$enrollment->id}.quiz", $grade?->quiz) }}">
@@ -277,6 +299,14 @@
                     </span>
                 </div>
             </form>
+            @else
+                <div class="card" style="margin-top: 0;">
+                    <strong>No {{ ucfirst($selectedSubjectCategory) }} subjects found.</strong>
+                    <p style="margin: 6px 0 0;">
+                        Add subjects under <a href="{{ route('subjects.index') }}">Subjects</a> or choose another category using the buttons above.
+                    </p>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -340,9 +370,9 @@
                 }
 
                 const avg = (quiz * 0.30) + (performanceTask * 0.30) + (exam * 0.40);
-                const rounded = Math.round(avg * 10) / 10;
+                const rounded = Math.round(avg * 100) / 100;
 
-                avgEl.textContent = rounded.toFixed(1);
+                avgEl.textContent = rounded.toFixed(2);
 
                 if (rounded >= 75) {
                     remarkEl.textContent = 'PASSED';

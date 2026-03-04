@@ -42,7 +42,8 @@ class MasterSheetController extends Controller
         if ($selectedSection !== 0 && ! $sections->contains('id', $selectedSection)) {
             $selectedSection = 0;
         }
-        $quarter = max(1, min(4, (int) $request->integer('quarter', 1)));
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 1));
+        $quarter = max(1, min(4, $quarterInput));
         $selectedStrand = trim((string) $request->query('strand', 'ALL'));
         $selectedStrand = $selectedStrand !== '' ? $selectedStrand : 'ALL';
         $search = trim((string) $request->query('q', ''));
@@ -286,7 +287,7 @@ class MasterSheetController extends Controller
     ): StreamedResponse {
         $filename = sprintf('master-sheet-q%d-%s.csv', $quarter, now()->format('Ymd-His'));
 
-        return response()->streamDownload(function () use ($enrollments, $subjects, $gradesByEnrollment): void {
+        return response()->streamDownload(function () use ($enrollments, $subjects, $gradesByEnrollment, $quarter): void {
             $stream = fopen('php://output', 'wb');
             if (! $stream) {
                 return;
@@ -303,7 +304,7 @@ class MasterSheetController extends Controller
 
             foreach ($enrollments as $index => $enrollment) {
                 $row = [
-                    (int) $index + 1,
+                    str_pad((string) $quarter, 2, '0', STR_PAD_LEFT),
                     (string) ($enrollment->student?->lrn ?? ''),
                     (string) ($enrollment->student?->full_name ?? ''),
                     (string) ($enrollment->section?->strand ?? ''),

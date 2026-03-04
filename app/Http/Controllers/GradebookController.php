@@ -32,19 +32,31 @@ class GradebookController extends Controller
             $selectedGradeLevel = (int) ($gradeLevels->first() ?? 0);
         }
 
+        $selectedSubjectCategory = $this->normalizeSubjectCategory((string) $request->query('subject_category', 'core'));
+        $subjectCategoryCounts = collect(Subject::CATEGORIES)
+            ->mapWithKeys(fn (string $category): array => [$category => (int) Subject::query()->where('category', $category)->count()])
+            ->all();
+
         $sections = Section::query()
             ->orderedForDropdown()
             ->when($selectedGradeLevel > 0, fn ($q) => $q->where('grade_level', $selectedGradeLevel))
             ->get();
-        $subjects = Subject::query()->orderedForDropdown()->get();
+        $subjects = Subject::query()
+            ->where('category', $selectedSubjectCategory)
+            ->orderedForDropdown()
+            ->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id') ?: ($schoolYears->first()?->id ?? 0));
         $requestedSection = (int) $request->integer('section_id');
+        $requestedSubject = (int) $request->integer('subject_id');
         $selectedSection = $sections->contains('id', $requestedSection)
             ? $requestedSection
             : (int) ($sections->first()?->id ?? 0);
-        $selectedSubject = (int) ($request->integer('subject_id') ?: ($subjects->first()?->id ?? 0));
-        $quarter = max(1, min(4, (int) $request->integer('quarter', 1)));
+        $selectedSubject = $subjects->contains('id', $requestedSubject)
+            ? $requestedSubject
+            : (int) ($subjects->first()?->id ?? 0);
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 1));
+        $quarter = max(1, min(4, $quarterInput));
         $search = trim((string) $request->query('q', ''));
 
         $subjectAssignment = SubjectAssignment::query()
@@ -56,6 +68,7 @@ class GradebookController extends Controller
         $enrollments = collect();
         $existingGrades = collect();
         $sectionEnrollmentIds = collect();
+        $rosterNumbers = [];
         $sectionTotalStudents = 0;
         $sectionSubjectsCount = 0;
         $pendingGradesCount = 0;
@@ -66,7 +79,15 @@ class GradebookController extends Controller
                 ->where('school_year_id', $selectedSchoolYear)
                 ->where('section_id', $selectedSection);
 
-            $sectionEnrollmentIds = (clone $baseEnrollmentQuery)->pluck('id');
+            $sectionEnrollmentIds = (clone $baseEnrollmentQuery)
+                ->orderBy('id')
+                ->pluck('id')
+                ->values();
+
+            $rosterNumbers = $sectionEnrollmentIds
+                ->values()
+                ->mapWithKeys(fn (int $enrollmentId, int $index): array => [$enrollmentId => $index + 1])
+                ->all();
 
             $sectionTotalStudents = (clone $baseEnrollmentQuery)
                 ->distinct('student_id')
@@ -84,9 +105,13 @@ class GradebookController extends Controller
                 ->orderBy('id')
                 ->get();
 
-            $sectionSubjectsCount = SubjectAssignment::query()
+            $sectionSubjectsQuery = SubjectAssignment::query()
                 ->where('school_year_id', $selectedSchoolYear)
-                ->where('section_id', $selectedSection)
+                ->where('section_id', $selectedSection);
+
+            $sectionSubjectsQuery->whereHas('subject', fn ($q) => $q->where('category', $selectedSubjectCategory));
+
+            $sectionSubjectsCount = $sectionSubjectsQuery
                 ->distinct('subject_id')
                 ->count('subject_id');
         }
@@ -125,7 +150,10 @@ class GradebookController extends Controller
             'selectedSchoolYear' => $selectedSchoolYear,
             'selectedSection' => $selectedSection,
             'selectedSubject' => $selectedSubject,
+            'selectedSubjectCategory' => $selectedSubjectCategory,
+            'subjectCategoryCounts' => $subjectCategoryCounts,
             'quarter' => $quarter,
+            'rosterNumbers' => $rosterNumbers,
             'enrollments' => $enrollments,
             'existingGrades' => $existingGrades,
             'subjectAssignment' => $subjectAssignment,
@@ -197,11 +225,14 @@ class GradebookController extends Controller
             $gradeLevel = (int) (Section::query()->whereKey((int) $validated['section_id'])->value('grade_level') ?? 0);
         }
 
+        $subjectCategory = $this->normalizeSubjectCategory((string) $request->input('subject_category', 'core'));
+
         $redirectUrl = route('gradebook.index', [
             'school_year_id' => $validated['school_year_id'],
             'grade_level' => $gradeLevel,
             'section_id' => $validated['section_id'],
             'subject_id' => $validated['subject_id'],
+            'subject_category' => $subjectCategory,
             'quarter' => $quarter,
             'q' => $request->input('q'),
         ]);
@@ -226,5 +257,13 @@ class GradebookController extends Controller
         }
 
         return (float) $value;
+    }
+
+    private function normalizeSubjectCategory(string $value): string
+    {
+        $category = strtolower(trim($value));
+        $allowed = Subject::CATEGORIES;
+
+        return in_array($category, $allowed, true) ? $category : 'core';
     }
 }

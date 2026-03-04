@@ -71,7 +71,7 @@
             <form method="GET" action="{{ route('master-sheet.index') }}" class="ge-filters master-filters">
                 <div class="ge-filter-row">
                     <div class="ge-filter ge-filter--sy">
-                        <select name="school_year_id" aria-label="School year">
+                        <select name="school_year_id" aria-label="School year" onchange="this.form.submit()">
                             @foreach ($schoolYears as $schoolYear)
                                 <option value="{{ $schoolYear->id }}" @selected($selectedSchoolYear === $schoolYear->id)>
                                     {{ $schoolYear->name }}{{ $schoolYear->is_active ? ' (Active)' : '' }}
@@ -91,7 +91,7 @@
                     </div>
 
                     <div class="ge-filter">
-                        <select name="section_id" aria-label="Section">
+                        <select name="section_id" aria-label="Section" onchange="this.form.submit()">
                             <option value="0" @selected($selectedSection === 0)>All sections</option>
                             @foreach ($sections as $section)
                                 <option value="{{ $section->id }}" @selected($selectedSection === $section->id)>
@@ -102,7 +102,7 @@
                     </div>
 
                     <div class="ge-filter">
-                        <select name="strand" aria-label="Strand">
+                        <select name="strand" aria-label="Strand" onchange="this.form.submit()">
                             <option value="ALL" @selected($selectedStrand === 'ALL')>All Strands</option>
                             @foreach ($strandOptions as $strand)
                                 <option value="{{ $strand }}" @selected($selectedStrand === $strand)>{{ $strand }}</option>
@@ -111,7 +111,7 @@
                     </div>
 
                     <div class="ge-filter">
-                        <select name="quarter" aria-label="Quarter">
+                        <select name="current_quarter" aria-label="Quarter" onchange="this.form.submit()">
                             @for ($q = 1; $q <= 4; $q++)
                                 <option value="{{ $q }}" @selected($quarter === $q)>Quarter {{ $q }}</option>
                             @endfor
@@ -129,6 +129,17 @@
                     <div class="ge-filter ge-filter--btn">
                         <a class="btn btn--ghost btn-sm" href="{{ route('master-sheet.index') }}">Clear</a>
                     </div>
+                </div>
+
+                <div class="ge-quarter-pills" style="margin-top: 8px;">
+                    @for ($q = 1; $q <= 4; $q++)
+                        <button class="pill ge-quarter-pill {{ $quarter === $q ? 'pill-link--active' : '' }}"
+                                type="submit"
+                                name="quarter"
+                                value="{{ $q }}">
+                            Quarter {{ $q }}
+                        </button>
+                    @endfor
                 </div>
             </form>
 
@@ -153,7 +164,7 @@
                     <tbody>
                         @forelse ($enrollments as $index => $enrollment)
                             <tr>
-                                <td>{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
+                                <td>{{ str_pad((string) ((int) $quarter), 2, '0', STR_PAD_LEFT) }}</td>
                                 <td>
                                     <div style="font-weight:700;">{{ $enrollment->student?->full_name ?? 'N/A' }}</div>
                                     <div class="master-date">{{ $enrollment->student?->lrn ?? 'No LRN' }}</div>

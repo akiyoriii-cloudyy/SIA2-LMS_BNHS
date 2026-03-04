@@ -1355,6 +1355,23 @@ body.lms.lms-login .auth-meta {
     margin-left:auto;
 }
 
+.ge-quarter-pills .ge-quarter-pill{
+    min-width: 96px;
+    justify-content: center;
+}
+
+.ge-category-pills .ge-category-pill{
+    border-color: var(--border);
+    background: #fff;
+    color: var(--navy);
+}
+
+.ge-category-pills .ge-category-pill.pill-link--active{
+    background: var(--cream-dark);
+    border-color: rgba(10, 22, 40, 0.35);
+    color: var(--navy);
+}
+
 .gradebook-table--pro th{
     font-size: 10px;
     letter-spacing: .07em;

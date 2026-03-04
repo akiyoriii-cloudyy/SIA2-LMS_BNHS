@@ -71,7 +71,7 @@
                     @endif
 
                     @if (auth()->user()->hasRole('teacher'))
-                        <a href="{{ route('gradebook.index') }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
+                        <a href="{{ route('gradebook.index', ['subject_category' => 'core']) }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
                             <span class="icon">&#9999;</span>
                             Grade Entry
                         </a>
