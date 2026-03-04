@@ -8,7 +8,6 @@ use App\Models\Section;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -39,13 +38,11 @@ class StudentController extends Controller
             ->get();
 
         $selectedSchoolYear = (int) ($request->integer('school_year_id') ?: ($schoolYears->firstWhere('is_active', true)?->id ?? $schoolYears->first()?->id ?? 0));
-        $selectedSchoolYearModel = $schoolYears->firstWhere('id', $selectedSchoolYear);
         $requestedSection = (int) $request->integer('section_id');
         $selectedSection = $sections->contains('id', $requestedSection)
             ? $requestedSection
             : (int) ($sections->first()?->id ?? 0);
         $search = trim((string) $request->query('q', ''));
-        $ageCutoffDate = $this->resolveSchoolYearCutoffDate((string) ($selectedSchoolYearModel?->name ?? ''));
 
         $baseQuery = Enrollment::query()
             ->when($selectedSchoolYear > 0, fn ($q) => $q->where('school_year_id', $selectedSchoolYear))
@@ -107,7 +104,6 @@ class StudentController extends Controller
             'selectedGradeLevel' => $selectedGradeLevel,
             'sections' => $sections,
             'selectedSchoolYear' => $selectedSchoolYear,
-            'ageCutoffDate' => $ageCutoffDate,
             'selectedSection' => $selectedSection,
             'enrollments' => $query,
             'search' => $search,
@@ -138,6 +134,7 @@ class StudentController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:255'],
             'sex' => ['nullable', 'string', Rule::in(['Male', 'Female', 'M', 'F'])],
+            'age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'date_of_birth' => ['nullable', 'date'],
             'address' => ['nullable', 'string', 'max:255'],
             'ethnicity' => ['nullable', 'string', 'max:100'],
@@ -151,6 +148,7 @@ class StudentController extends Controller
             'last_name' => trim($validated['last_name']),
             'suffix' => $validated['suffix'] ?? null,
             'sex' => $validated['sex'] ?? null,
+            'age' => $validated['age'] ?? null,
             'date_of_birth' => $validated['date_of_birth'] ?? null,
             'address' => $validated['address'] ?? null,
             'ethnicity' => $validated['ethnicity'] ?? null,
@@ -188,6 +186,7 @@ class StudentController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:255'],
             'sex' => ['nullable', 'string', Rule::in(['Male', 'Female', 'M', 'F'])],
+            'age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'date_of_birth' => ['nullable', 'date'],
             'address' => ['nullable', 'string', 'max:255'],
             'ethnicity' => ['nullable', 'string', 'max:100'],
@@ -200,12 +199,17 @@ class StudentController extends Controller
             'last_name' => trim($validated['last_name']),
             'suffix' => $validated['suffix'] ?? null,
             'sex' => $validated['sex'] ?? null,
+            'age' => $validated['age'] ?? null,
             'date_of_birth' => $validated['date_of_birth'] ?? null,
             'address' => $validated['address'] ?? null,
             'ethnicity' => $validated['ethnicity'] ?? null,
         ]);
 
-        return back()->with('status', 'Student updated.');
+        $student->refresh();
+        $ethnicityLabel = $student->ethnicity ?: 'not set';
+        $addressLabel = $student->address ?: 'not set';
+
+        return back()->with('status', "Student updated. Ethnicity: {$ethnicityLabel}; Address: {$addressLabel}.");
     }
 
     public function destroy(Student $student): RedirectResponse
@@ -223,14 +227,4 @@ class StudentController extends Controller
         return back()->with('status', 'Student restored.');
     }
 
-    private function resolveSchoolYearCutoffDate(string $schoolYearName): Carbon
-    {
-        $startYear = (int) (explode('-', $schoolYearName)[0] ?? 0);
-
-        if ($startYear > 0) {
-            return Carbon::create($startYear, 6, 1)->startOfDay();
-        }
-
-        return now()->startOfYear();
-    }
 }

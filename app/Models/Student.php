@@ -21,12 +21,14 @@ class Student extends Model
         'last_name',
         'suffix',
         'sex',
+        'age',
         'date_of_birth',
         'address',
         'ethnicity',
     ];
 
     protected $casts = [
+        'age' => 'integer',
         'date_of_birth' => 'date',
     ];
 

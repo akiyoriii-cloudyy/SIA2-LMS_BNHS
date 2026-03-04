@@ -10,12 +10,11 @@
         $blaanCount = (int) ($s['blaan'] ?? 0);
         $islamCount = (int) ($s['islam'] ?? 0);
         $guardiansTotal = (int) ($s['guardians'] ?? 0);
-        $cutoffDate = $ageCutoffDate ?? null;
 
         $selectedSY = $schoolYears->firstWhere('id', $selectedSchoolYear);
         $selectedSec = $sections->firstWhere('id', $selectedSection);
-        $scopeLabel = $selectedSec ? ('Grade '.$selectedSec->grade_level.' — '.$selectedSec->name) : '—';
-        $syLabel = $selectedSY?->name ?? '—';
+        $scopeLabel = $selectedSec ? ('Grade '.$selectedSec->grade_level.' - '.$selectedSec->name) : '-';
+        $syLabel = $selectedSY?->name ?? '-';
 
         $status = (string) ($status ?? 'active');
         $activeCount = (int) ($activeCount ?? 0);
@@ -79,7 +78,7 @@
         </div>
     </div>
 
-    <div class="dash-panel">
+    <div class="dash-panel dash-panel--students">
         <div class="dash-panel-hd">
             <div>
                 <div class="dash-panel-title">Enrollment List</div>
@@ -112,7 +111,7 @@
                             <input name="last_name" placeholder="Last name" value="{{ old('last_name') }}" required>
                             <button class="btn btn-primary btn-sm" type="submit">Save</button>
                         </div>
-                        <div class="inline-grid" style="grid-template-columns: 1fr 1fr 160px 160px; margin-top: 10px;">
+                        <div class="inline-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 10px;">
                             <input name="middle_name" placeholder="Middle name (optional)" value="{{ old('middle_name') }}">
                             <input name="suffix" placeholder="Suffix (optional)" value="{{ old('suffix') }}">
                             <select name="sex">
@@ -121,6 +120,7 @@
                                 <option value="Female" @selected(old('sex') === 'Female')>Female</option>
                             </select>
                             <input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}">
+                            <input type="number" name="age" min="0" max="120" step="1" placeholder="Age" value="{{ old('age') }}">
                         </div>
                         <div class="inline-grid" style="grid-template-columns: 220px 1fr; margin-top: 10px;">
                             <input name="ethnicity" placeholder="Ethnicity (e.g., Blaan/Islam)" value="{{ old('ethnicity') }}">
@@ -171,14 +171,8 @@
                 </div>
             </form>
 
-            @if ($cutoffDate)
-                <div class="muted" style="margin-top: 8px; font-size: 12px;">
-                    Age is automatically computed from birthday as of {{ $cutoffDate->format('M d, Y') }} cutoff.
-                </div>
-            @endif
-
-            <div class="table-wrap" style="margin-top: 12px;">
-                <table class="table">
+            <div class="table-wrap students-table-wrap" style="margin-top: 12px;">
+                <table class="table students-table">
                     <thead>
                         <tr>
                             <th>LRN</th>
@@ -198,20 +192,14 @@
                             @php $student = $enrollment->student; @endphp
                             <tr class="{{ $student && $student->trashed() ? 'row-deleted' : '' }}">
                                 <td style="font-family: 'JetBrains Mono', monospace; font-weight: 800;">
-                                    {{ $student?->lrn ?? '—' }}
+                                    {{ $student?->lrn ?? '-' }}
                                 </td>
-                                <td style="font-weight: 800;">{{ $student?->full_name ?? '—' }}</td>
-                                <td>{{ $student?->sex ?? '—' }}</td>
-                                <td>
-                                    @if ($student?->date_of_birth)
-                                        {{ $cutoffDate ? $student->ageAt($cutoffDate) : $student->ageAt() }}
-                                    @else
-                                        —
-                                    @endif
-                                </td>
-                                <td>{{ $student?->ethnicity ?? '—' }}</td>
-                                <td>{{ $student?->address ?? '—' }}</td>
-                                <td>Grade {{ $enrollment->section?->grade_level }} — {{ $enrollment->section?->name }}</td>
+                                <td style="font-weight: 800;">{{ $student?->full_name ?? '-' }}</td>
+                                <td>{{ $student?->sex ?? '-' }}</td>
+                                <td>{{ $student?->age ?? '-' }}</td>
+                                <td>{{ $student?->ethnicity ?? '-' }}</td>
+                                <td>{{ $student?->address ?? '-' }}</td>
+                                <td>Grade {{ $enrollment->section?->grade_level }} - {{ $enrollment->section?->name }}</td>
                                 <td><span class="chip">{{ $enrollment->status }}</span></td>
                                 <td>{{ number_format((int) ($student?->guardians_count ?? 0)) }}</td>
                                 <td>
@@ -223,7 +211,7 @@
                                             </form>
                                         @else
                                             <div class="admin-actions">
-                                                <details class="inline-details">
+                                                <details class="inline-details students-edit-details">
                                                     <summary class="btn btn-outline btn-sm">Edit</summary>
                                                     <div class="inline-panel">
                                                         <form method="POST" action="{{ route('students.update', $student) }}">
@@ -235,7 +223,7 @@
                                                                 <input name="last_name" value="{{ $student->last_name }}" required>
                                                                 <button class="btn btn-primary btn-sm" type="submit">Save</button>
                                                             </div>
-                                                            <div class="inline-grid" style="grid-template-columns: 1fr 1fr 160px 160px; margin-top: 10px;">
+                                                            <div class="inline-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 10px;">
                                                                 <input name="middle_name" placeholder="Middle name" value="{{ $student->middle_name }}">
                                                                 <input name="suffix" placeholder="Suffix" value="{{ $student->suffix }}">
                                                                 <select name="sex">
@@ -244,10 +232,11 @@
                                                                     <option value="Female" @selected(($student->sex ?? '') === 'Female')>Female</option>
                                                                 </select>
                                                                 <input type="date" name="date_of_birth" value="{{ optional($student->date_of_birth)->format('Y-m-d') }}">
+                                                                <input type="number" name="age" min="0" max="120" step="1" placeholder="Age" value="{{ old('age', $student->age) }}">
                                                             </div>
                                                             <div class="inline-grid" style="grid-template-columns: 220px 1fr; margin-top: 10px;">
-                                                                <input name="ethnicity" placeholder="Ethnicity" value="{{ $student->ethnicity }}">
-                                                                <input name="address" placeholder="Address" value="{{ $student->address }}">
+                                                                <input name="ethnicity" placeholder="Ethnicity (e.g., Blaan/Islam)" value="{{ old('ethnicity', $student->ethnicity) }}">
+                                                                <input name="address" placeholder="Address (optional)" value="{{ old('address', $student->address) }}">
                                                             </div>
                                                         </form>
                                                     </div>

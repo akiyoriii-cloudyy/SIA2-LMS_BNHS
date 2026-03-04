@@ -924,6 +924,33 @@ body.lms.lms-login .auth-meta {
     align-items:center;
 }
 
+/* Students table edit popup: open downward and keep full form visible. */
+.students-edit-details .inline-panel{
+    position: static;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    width: min(620px, 92vw);
+    margin-top: 10px;
+    z-index: 20;
+}
+
+.dash-panel--students{
+    overflow: visible;
+}
+
+.dash-panel--students .dash-panel-body{
+    overflow: visible;
+}
+
+.students-table-wrap{
+    overflow: visible;
+}
+
+.students-table{
+    overflow: visible !important;
+}
+
 .pw-details{ position: relative; }
 .pw-details > summary{ list-style:none; cursor:pointer; }
 .pw-details > summary::-webkit-details-marker{ display:none; }
