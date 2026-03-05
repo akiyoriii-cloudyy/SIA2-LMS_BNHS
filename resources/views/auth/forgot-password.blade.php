@@ -21,9 +21,6 @@
 
             @if (session('status'))
                 <div class="alert">{{ session('status') }}</div>
-                <div class="muted" style="font-size:12px;">
-                    Note: This project uses <code>MAIL_MAILER=log</code> by default, so the reset link will appear in <code>storage/logs/laravel.log</code>.
-                </div>
             @endif
 
             @if ($errors->any())
@@ -45,4 +42,3 @@
     </div>
 </body>
 </html>
-

@@ -41,4 +41,14 @@ return [
         'from' => env('TWILIO_FROM_NUMBER'),
     ],
 
+    'phpmailer' => [
+        'host' => env('PHPM_MAIL_HOST', 'smtp.gmail.com'),
+        'port' => (int) env('PHPM_MAIL_PORT', 587),
+        'username' => env('PHPM_MAIL_USERNAME'),
+        'password' => env('PHPM_MAIL_PASSWORD'),
+        'encryption' => env('PHPM_MAIL_ENCRYPTION', 'tls'),
+        'from_address' => env('PHPM_MAIL_FROM_ADDRESS', env('PHPM_MAIL_USERNAME')),
+        'from_name' => env('PHPM_MAIL_FROM_NAME', env('APP_NAME', 'BNHS LMS')),
+    ],
+
 ];
