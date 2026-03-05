@@ -59,10 +59,6 @@
                             <span class="icon">&#9881;</span>
                             Settings
                         </a>
-                        <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
-                            <span class="icon">&#9993;</span>
-                            SMS Logs
-                        </a>
                     @else
                         <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                             <span class="icon">&#128200;</span>

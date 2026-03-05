@@ -79,4 +79,18 @@ class User extends Authenticatable
 
         return $this->roles()->whereIn('name', $roles)->exists();
     }
+
+    public function hasPermission(string ...$permissions): bool
+    {
+        if ($this->relationLoaded('roles') && $this->roles->every(fn ($role) => $role->relationLoaded('permissions'))) {
+            return $this->roles
+                ->flatMap(fn ($role) => $role->permissions)
+                ->whereIn('name', $permissions)
+                ->isNotEmpty();
+        }
+
+        return $this->roles()
+            ->whereHas('permissions', fn ($q) => $q->whereIn('name', $permissions))
+            ->exists();
+    }
 }

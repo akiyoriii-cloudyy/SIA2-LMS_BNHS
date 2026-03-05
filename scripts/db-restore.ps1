@@ -1,0 +1,55 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string] $SqlFile,
+    [string] $EnvPath = ".env"
+)
+
+$ErrorActionPreference = "Stop"
+
+function Get-EnvValue([string] $Key, [hashtable] $Map) {
+    if (-not $Map.ContainsKey($Key)) { return "" }
+    return [string] $Map[$Key]
+}
+
+if (-not (Test-Path $SqlFile)) {
+    throw "Missing SQL file: $SqlFile"
+}
+
+if (-not (Test-Path $EnvPath)) {
+    throw "Missing $EnvPath. Run the app setup first."
+}
+
+$envMap = @{}
+Get-Content $EnvPath | ForEach-Object {
+    $line = $_.Trim()
+    if ($line -eq "" -or $line.StartsWith("#")) { return }
+    $idx = $line.IndexOf("=")
+    if ($idx -lt 1) { return }
+    $k = $line.Substring(0, $idx).Trim()
+    $v = $line.Substring($idx + 1).Trim().Trim('"')
+    $envMap[$k] = $v
+}
+
+$dbHost = Get-EnvValue "DB_HOST" $envMap
+$dbPort = Get-EnvValue "DB_PORT" $envMap
+$dbName = Get-EnvValue "DB_DATABASE" $envMap
+$dbUser = Get-EnvValue "DB_USERNAME" $envMap
+$dbPass = Get-EnvValue "DB_PASSWORD" $envMap
+
+if ($dbHost -eq "" -or $dbName -eq "" -or $dbUser -eq "") {
+    throw "DB config missing in $EnvPath (need DB_HOST, DB_DATABASE, DB_USERNAME)."
+}
+
+$mysql = "mysql"
+$xamppMysql = "C:\\xampp\\mysql\\bin\\mysql.exe"
+if (Test-Path $xamppMysql) { $mysql = $xamppMysql }
+
+$args = @("--host=$dbHost", "--user=$dbUser")
+if ($dbPort -ne "") { $args += "--port=$dbPort" }
+if ($dbPass -ne "") { $args += "--password=$dbPass" }
+$args += $dbName
+
+Get-Content $SqlFile -Raw | & $mysql @args
+
+Write-Host "Restore completed from: $SqlFile"
+

@@ -42,7 +42,8 @@
                         </div>
                         <div>
                             <label>Email</label>
-                            <input type="email" name="email" value="{{ old('email', $user?->email) }}" required>
+                            <input type="email" value="{{ $user?->email }}" readonly disabled>
+                            <div class="muted" style="font-size:12px; margin-top:6px;">Email changes are managed by the admin.</div>
                         </div>
                         <div>
                             <label>Phone (optional)</label>
@@ -55,38 +56,5 @@
                 </form>
             </div>
         </div>
-
-        <div class="dash-panel">
-            <div class="dash-panel-hd">
-                <div>
-                    <div class="dash-panel-title">Password</div>
-                    <div class="dash-panel-sub">Change your password</div>
-                </div>
-            </div>
-            <div class="dash-panel-body">
-                <form method="POST" action="{{ route('settings.password.update') }}">
-                    @csrf
-                    @method('PUT')
-                    <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
-                        <div>
-                            <label>Current password</label>
-                            <input type="password" name="current_password" required>
-                        </div>
-                        <div>
-                            <label>New password</label>
-                            <input type="password" name="password" required>
-                        </div>
-                        <div>
-                            <label>Confirm new password</label>
-                            <input type="password" name="password_confirmation" required>
-                        </div>
-                        <div style="display:flex; align-items:flex-end;">
-                            <button class="btn btn-gold" type="submit" style="width:100%;">Update password</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 @endsection
-

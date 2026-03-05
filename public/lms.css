@@ -54,12 +54,36 @@ body.lms {
 
 /* Admin theme: green + white (school color) */
 body.lms-auth.lms-role-admin {
-    --navy: #0b3b1a;
-    --navy-light: #104820;
-    --navy-mid: #145a27;
+    --navy: #0f5a2a;
+    --navy-light: #137036;
+    --navy-mid: #188341;
 
-    --gold: #2f9e44;
-    --gold-light: #69db7c;
+    --gold: #2fb344;
+    --gold-light: #8ce99a;
+
+    --cream: #f7faf7;
+    --cream-dark: #edf3ee;
+
+    --sage: #1f7a34;
+    --sage-light: #74c69d;
+
+    --text: #0f2416;
+    --text-muted: #416a4d;
+    --border: #d7e5db;
+
+    --lms-accent: var(--gold);
+    --lms-accent-2: var(--sage-light);
+    --lms-accent-ink: #082012;
+}
+
+/* Teacher theme: match admin dashboard colors */
+body.lms-auth.lms-role-teacher {
+    --navy: #0f5a2a;
+    --navy-light: #137036;
+    --navy-mid: #188341;
+
+    --gold: #2fb344;
+    --gold-light: #8ce99a;
 
     --cream: #f7faf7;
     --cream-dark: #edf3ee;
@@ -596,6 +620,10 @@ body.lms.lms-login .auth-card {
     box-shadow: 0 18px 50px rgba(10, 22, 40, 0.10);
     padding: 34px 36px;
     font-size: 16px;
+}
+
+body.lms.lms-login .auth-card .header {
+    text-align: center;
 }
 
 body.lms.lms-login .auth-card form {

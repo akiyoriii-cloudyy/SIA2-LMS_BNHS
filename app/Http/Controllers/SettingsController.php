@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
@@ -26,7 +25,6 @@ class SettingsController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:50'],
         ]);
 
@@ -37,20 +35,6 @@ class SettingsController extends Controller
 
     public function updatePassword(Request $request): RedirectResponse
     {
-        $user = $request->user();
-
-        if (! $user) {
-            abort(401, 'Unauthenticated.');
-        }
-
-        $validated = $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
-        $user->update(['password' => $validated['password']]);
-
-        return back()->with('status', 'Password updated.');
+        abort(403, 'Password updates for teachers are disabled. Please contact an administrator.');
     }
 }
-
