@@ -21,7 +21,19 @@
             $sidebarPrintableReports = 0;
 
             if (auth()->user()->hasRole('teacher')) {
-                $sidebarQuarter = max(1, min(4, (int) request()->integer('quarter', \App\Support\SidebarMetrics::currentQuarter())));
+                $sidebarSemesterInput = (int) request()->integer('semester', 0);
+                $sidebarQuarterInput = (int) request()->integer('quarter', request()->integer('current_quarter', 0));
+
+                if (in_array($sidebarSemesterInput, [1, 2], true)) {
+                    $sidebarSemester = $sidebarSemesterInput;
+                    $sidebarQuarterInSemester = max(1, min(2, $sidebarQuarterInput > 0 ? $sidebarQuarterInput : 1));
+                    $sidebarQuarter = $sidebarSemester === 1 ? $sidebarQuarterInSemester : $sidebarQuarterInSemester + 2;
+                } else {
+                    $sidebarQuarter = max(1, min(4, (int) request()->integer('quarter', \App\Support\SidebarMetrics::currentQuarter())));
+                    $sidebarSemester = $sidebarQuarter <= 2 ? 1 : 2;
+                    $sidebarQuarterInSemester = $sidebarQuarter <= 2 ? $sidebarQuarter : $sidebarQuarter - 2;
+                }
+
                 $sidebarMissingGrades = \App\Support\SidebarMetrics::teacherMissingGradesCount(auth()->user(), $sidebarQuarter);
                 $sidebarPrintableReports = \App\Support\SidebarMetrics::printableReportCardsCount(auth()->user());
             }
@@ -60,24 +72,25 @@
                             Settings
                         </a>
                     @else
-                        <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                        <a href="{{ auth()->user()->hasRole('teacher') ? route('dashboard', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) : route('dashboard') }}"
+                            class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                             <span class="icon">&#128200;</span>
                             Dashboard
                         </a>
                     @endif
 
                     @if (auth()->user()->hasRole('teacher'))
-                        <a href="{{ route('gradebook.index', ['subject_category' => 'core']) }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
+                        <a href="{{ route('gradebook.index', ['subject_category' => 'core', 'semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
                             <span class="icon">&#9999;</span>
                             Grade Entry
                         </a>
 
-                        <a href="{{ route('master-sheet.index') }}" class="{{ request()->routeIs('master-sheet.*') ? 'active' : '' }}">
+                        <a href="{{ route('master-sheet.index', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('master-sheet.*') ? 'active' : '' }}">
                             <span class="icon">&#128196;</span>
                             Master Sheet
                         </a>
 
-                        <a href="{{ route('subject-teacher.index') }}" class="{{ request()->routeIs('subject-teacher.*') ? 'active' : '' }}">
+                        <a href="{{ route('subject-teacher.index', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('subject-teacher.*') ? 'active' : '' }}">
                             <span class="icon">&#127891;</span>
                             Subject Teacher
                             @if ($sidebarMissingGrades > 0)

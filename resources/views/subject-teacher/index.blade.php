@@ -10,6 +10,8 @@
         $classAvg = $s['class_avg'] ?? null;
         $studentsCount = (int) ($s['students'] ?? 0);
         $lastUpdated = $s['last_updated'] ?? null;
+        $semester = (int) ($semester ?? (($quarter ?? 1) <= 2 ? 1 : 2));
+        $quarterInSemester = (int) ($quarterInSemester ?? (($quarter ?? 1) <= 2 ? ($quarter ?? 1) : (($quarter ?? 1) - 2)));
     @endphp
 
     <div class="dash-topbar">
@@ -20,7 +22,7 @@
         </div>
 
         <div class="dash-topbar-actions">
-            <a class="btn btn-outline btn-sm" href="{{ route('master-sheet.index') }}">Master Sheet</a>
+            <a class="btn btn-outline btn-sm" href="{{ route('master-sheet.index', ['school_year_id' => $selectedSchoolYear, 'semester' => $semester, 'quarter' => $quarterInSemester]) }}">Master Sheet</a>
             <a class="btn btn-gold btn-sm" href="{{ $openGradebookUrl }}">Open Grade Entry</a>
             <a class="btn btn-primary btn-sm" href="{{ route('report-cards.index') }}">Report Cards</a>
         </div>
@@ -55,9 +57,16 @@
                     </div>
 
                     <div class="ge-filter">
+                        <select name="semester" aria-label="Semester">
+                            <option value="1" @selected($semester === 1)>1st Semester</option>
+                            <option value="2" @selected($semester === 2)>2nd Semester</option>
+                        </select>
+                    </div>
+
+                    <div class="ge-filter">
                         <select name="quarter" aria-label="Quarter">
-                            @for ($q = 1; $q <= 4; $q++)
-                                <option value="{{ $q }}" @selected($quarter === $q)>Quarter {{ $q }}</option>
+                            @for ($q = 1; $q <= 2; $q++)
+                                <option value="{{ $q }}" @selected($quarterInSemester === $q)>Quarter {{ $q }}</option>
                             @endfor
                         </select>
                     </div>
@@ -115,7 +124,7 @@
                 <div class="dash-panel-hd">
                     <div>
                         <div class="dash-panel-title">Missing Grade Alerts</div>
-                        <div class="dash-panel-sub">Quarter {{ $quarter }} status for {{ $selectedAssignment->subject?->title }}</div>
+                        <div class="dash-panel-sub">Semester {{ $semester }} - Quarter {{ $quarterInSemester }} status for {{ $selectedAssignment->subject?->title }}</div>
                     </div>
                     <a class="btn btn-outline btn-sm" href="{{ $openGradebookUrl }}" style="margin-left:auto;">Open Grade Entry</a>
                 </div>
@@ -129,14 +138,14 @@
                                         <strong>Missing:</strong> {{ $item['name'] }}
                                         <span class="muted">({{ $item['section'] }} - {{ $item['strand'] }})</span>
                                     </div>
-                                    <div class="activity-time">Quarter {{ $quarter }} not fully saved</div>
+                                    <div class="activity-time">Semester {{ $semester }} - Quarter {{ $quarterInSemester }} not fully saved</div>
                                 </div>
                             </div>
                         @empty
                             <div class="activity-item">
                                 <span class="activity-dot ad-sage"></span>
                                 <div>
-                                    <div class="activity-text"><strong>All set.</strong> No missing grades for this subject and quarter.</div>
+                                    <div class="activity-text"><strong>All set.</strong> No missing grades for this subject in Semester {{ $semester }} - Quarter {{ $quarterInSemester }}.</div>
                                     <div class="activity-time">Everything is complete</div>
                                 </div>
                             </div>
@@ -182,7 +191,7 @@
             <div class="dash-panel-hd">
                 <div>
                     <div class="dash-panel-title">Recent Grade Updates</div>
-                    <div class="dash-panel-sub">Latest saved rows for this subject and quarter</div>
+                    <div class="dash-panel-sub">Latest saved rows for Semester {{ $semester }} - Quarter {{ $quarterInSemester }}</div>
                 </div>
             </div>
             <div class="dash-panel-body">

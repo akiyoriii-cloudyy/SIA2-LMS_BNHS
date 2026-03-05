@@ -14,6 +14,8 @@
         $subjectCategoryLabel = ucfirst($selectedSubjectCategory).' subjects';
         $subjectCategoryCounts = (array) ($subjectCategoryCounts ?? []);
         $rosterNumbers = (array) ($rosterNumbers ?? []);
+        $semester = (int) ($semester ?? (($quarter ?? 1) <= 2 ? 1 : 2));
+        $quarterInSemester = (int) ($quarterInSemester ?? (($quarter ?? 1) <= 2 ? ($quarter ?? 1) : (($quarter ?? 1) - 2)));
     @endphp
 
     <div class="dash-topbar">
@@ -53,8 +55,8 @@
             <div class="dash-kpi-top">
                 <div class="dash-kpi-icon">🗓️</div>
             </div>
-            <div class="dash-kpi-value">Q{{ $quarter }}</div>
-            <div class="dash-kpi-label">QUARTER</div>
+            <div class="dash-kpi-value">S{{ $semester }} - Q{{ $quarterInSemester }}</div>
+            <div class="dash-kpi-label">SEMESTER / QUARTER</div>
             <div class="dash-kpi-sub">SY. {{ $schoolYearName }}</div>
         </div>
 
@@ -94,7 +96,7 @@
                 <div class="ge-step ge-step--gold">
                     <div class="ge-step-icon">📊</div>
                     <div class="ge-step-label">Qtrly</div>
-                    <div class="ge-step-sub">Q1–Q4</div>
+                    <div class="ge-step-sub">Per semester Q1-Q2</div>
                 </div>
                 <div class="ge-step ge-step--sage">
                     <div class="ge-step-icon">🧾</div>
@@ -129,7 +131,7 @@
     <div class="pill-row ge-category-pills" style="margin-bottom: 12px;">
         @foreach (['core', 'applied', 'specialized'] as $categoryItem)
             <a class="pill pill-link ge-category-pill {{ $selectedSubjectCategory === $categoryItem ? 'pill-link--active' : '' }}"
-               href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'subject_category' => $categoryItem, 'quarter' => $quarter, 'q' => $search]) }}">
+               href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'subject_category' => $categoryItem, 'semester' => $semester, 'quarter' => $quarterInSemester, 'q' => $search]) }}">
                 {{ ucfirst($categoryItem) }} ({{ (int) ($subjectCategoryCounts[$categoryItem] ?? 0) }})
             </a>
         @endforeach
@@ -139,7 +141,7 @@
         <div class="dash-panel-hd">
             <div>
                 <div class="dash-panel-title">{{ $subjectTitle }}</div>
-                <div class="dash-panel-sub">{{ $sectionLabel }} • Quarter {{ $quarter }} | Grades auto-transfer to Form 138 Report Card</div>
+                <div class="dash-panel-sub">{{ $sectionLabel }} • Semester {{ $semester }} - Quarter {{ $quarterInSemester }} | Grades auto-transfer to Form 138 Report Card</div>
             </div>
             <div class="dash-topbar-actions" style="margin-left:auto;">
                 <button class="btn btn-gold btn-sm" type="button" id="auto-compute-all">⚡ Auto-Compute All</button>
@@ -148,7 +150,7 @@
 
         <div class="dash-panel-body">
             <form method="GET" action="{{ route('gradebook.index') }}" class="ge-filters">
-                <input type="hidden" name="current_quarter" value="{{ $quarter }}">
+                <input type="hidden" name="current_quarter" value="{{ $quarterInSemester }}">
                 <input type="hidden" name="subject_category" value="{{ $selectedSubjectCategory }}">
 
                 <div class="ge-filter-row">
@@ -195,6 +197,13 @@
                         </select>
                     </div>
 
+                    <div class="ge-filter">
+                        <select name="semester" aria-label="Semester">
+                            <option value="1" @selected($semester === 1)>1st Semester</option>
+                            <option value="2" @selected($semester === 2)>2nd Semester</option>
+                        </select>
+                    </div>
+
                     <div class="ge-filter ge-filter--search">
                         <input type="text" name="q" placeholder="Search student..." value="{{ $search ?? '' }}">
                     </div>
@@ -213,8 +222,8 @@
                 </div>
 
                 <div class="ge-quarter-pills">
-                    @for ($q = 1; $q <= 4; $q++)
-                        <button class="pill ge-quarter-pill {{ $quarter === $q ? 'pill-link--active' : '' }}"
+                    @for ($q = 1; $q <= 2; $q++)
+                        <button class="pill ge-quarter-pill {{ $quarterInSemester === $q ? 'pill-link--active' : '' }}"
                                 type="submit"
                                 name="quarter"
                                 value="{{ $q }}">
@@ -232,6 +241,7 @@
                 <input type="hidden" name="section_id" value="{{ $selectedSection }}">
                 <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
                 <input type="hidden" name="subject_category" value="{{ $selectedSubjectCategory }}">
+                <input type="hidden" name="semester" value="{{ $semester }}">
                 <input type="hidden" name="quarter" value="{{ $quarter }}">
                 <input type="hidden" name="q" value="{{ $search ?? '' }}">
 
@@ -253,7 +263,7 @@
                             @forelse ($enrollments as $index => $enrollment)
                                 @php $grade = $existingGrades->get($enrollment->id); @endphp
                                 <tr data-row="grade">
-                                    <td>{{ str_pad((string) ((int) $quarter), 2, '0', STR_PAD_LEFT) }}</td>
+                                    <td>{{ $rosterNumbers[$enrollment->id] ?? ($index + 1) }}</td>
                                     <td class="student-cell">{{ $enrollment->student->full_name }}</td>
                                     <td>
                                         <input class="grade-input" inputmode="decimal" type="number" step="0.01" min="0" max="100" name="grades[{{ $enrollment->id }}][quiz]" value="{{ old("grades.{$enrollment->id}.quiz", $grade?->quiz) }}">
@@ -313,7 +323,7 @@
     <div class="card card--dash-note">
         <div style="font-size: 13px;">
             Formula: <strong>Quarter Avg</strong> = (Quiz × 0.30) + (Performance Task × 0.30) + (Exam × 0.40)<br>
-            General Average is computed automatically when all 4 quarters are complete.
+            Semester and report-card averages are computed automatically from the corresponding quarter grades.
         </div>
     </div>
 

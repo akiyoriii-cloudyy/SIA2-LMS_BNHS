@@ -12,6 +12,8 @@
         $blaanCount = (int) ($s['blaan'] ?? 0);
         $islamCount = (int) ($s['islam'] ?? 0);
         $missingCells = (int) ($s['missing'] ?? 0);
+        $semester = (int) ($semester ?? (($quarter ?? 1) <= 2 ? 1 : 2));
+        $quarterInSemester = (int) ($quarterInSemester ?? (($quarter ?? 1) <= 2 ? ($quarter ?? 1) : (($quarter ?? 1) - 2)));
 
         $exportQuery = request()->query();
         $exportQuery['export'] = 'csv';
@@ -27,7 +29,10 @@
         <div class="dash-topbar-actions">
             <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">Report Card</a>
             <a class="btn btn-gold btn-sm" href="{{ route('master-sheet.index', $exportQuery) }}">Export CSV</a>
-            <a class="btn btn-primary btn-sm" href="{{ route('gradebook.index') }}">Open Grade Entry</a>
+            <a class="btn btn-primary btn-sm"
+                href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'semester' => $semester, 'quarter' => $quarterInSemester]) }}">
+                Open Grade Entry
+            </a>
         </div>
     </div>
 
@@ -43,8 +48,8 @@
             <div class="dash-kpi-sub">Per selected scope</div>
         </div>
         <div class="dash-kpi kpi-navy">
-            <div class="dash-kpi-value">Q{{ $quarter }}</div>
-            <div class="dash-kpi-label">QUARTER</div>
+            <div class="dash-kpi-value">S{{ $semester }} - Q{{ $quarterInSemester }}</div>
+            <div class="dash-kpi-label">SEMESTER / QUARTER</div>
             <div class="dash-kpi-sub">Current view</div>
         </div>
         <div class="dash-kpi kpi-sage">
@@ -63,7 +68,7 @@
         <div class="dash-panel-hd">
             <div>
                 <div class="dash-panel-title">Master Grade Sheet</div>
-                <div class="dash-panel-sub">Quarter {{ $quarter }} summary by student and subject</div>
+                <div class="dash-panel-sub">Semester {{ $semester }} - Quarter {{ $quarterInSemester }} summary by student and subject</div>
             </div>
         </div>
 
@@ -111,9 +116,16 @@
                     </div>
 
                     <div class="ge-filter">
+                        <select name="semester" aria-label="Semester" onchange="this.form.submit()">
+                            <option value="1" @selected($semester === 1)>1st Semester</option>
+                            <option value="2" @selected($semester === 2)>2nd Semester</option>
+                        </select>
+                    </div>
+
+                    <div class="ge-filter">
                         <select name="current_quarter" aria-label="Quarter" onchange="this.form.submit()">
-                            @for ($q = 1; $q <= 4; $q++)
-                                <option value="{{ $q }}" @selected($quarter === $q)>Quarter {{ $q }}</option>
+                            @for ($q = 1; $q <= 2; $q++)
+                                <option value="{{ $q }}" @selected($quarterInSemester === $q)>Quarter {{ $q }}</option>
                             @endfor
                         </select>
                     </div>
@@ -132,8 +144,8 @@
                 </div>
 
                 <div class="ge-quarter-pills" style="margin-top: 8px;">
-                    @for ($q = 1; $q <= 4; $q++)
-                        <button class="pill ge-quarter-pill {{ $quarter === $q ? 'pill-link--active' : '' }}"
+                    @for ($q = 1; $q <= 2; $q++)
+                        <button class="pill ge-quarter-pill {{ $quarterInSemester === $q ? 'pill-link--active' : '' }}"
                                 type="submit"
                                 name="quarter"
                                 value="{{ $q }}">
@@ -164,7 +176,7 @@
                     <tbody>
                         @forelse ($enrollments as $index => $enrollment)
                             <tr>
-                                <td>{{ str_pad((string) ((int) $quarter), 2, '0', STR_PAD_LEFT) }}</td>
+                                <td>{{ $index + 1 }}</td>
                                 <td>
                                     <div style="font-weight:700;">{{ $enrollment->student?->full_name ?? 'N/A' }}</div>
                                     <div class="master-date">{{ $enrollment->student?->lrn ?? 'No LRN' }}</div>

@@ -55,8 +55,18 @@ class GradebookController extends Controller
         $selectedSubject = $subjects->contains('id', $requestedSubject)
             ? $requestedSubject
             : (int) ($subjects->first()?->id ?? 0);
-        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 1));
-        $quarter = max(1, min(4, $quarterInput));
+        $semesterInput = (int) $request->input('semester', 0);
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
+        if (in_array($semesterInput, [1, 2], true)) {
+            $semester = $semesterInput;
+            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
+        } else {
+            $legacyQuarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $legacyQuarter;
+            $semester = $legacyQuarter <= 2 ? 1 : 2;
+            $quarterInSemester = $legacyQuarter <= 2 ? $legacyQuarter : $legacyQuarter - 2;
+        }
         $search = trim((string) $request->query('q', ''));
 
         $subjectAssignment = SubjectAssignment::query()
@@ -152,6 +162,8 @@ class GradebookController extends Controller
             'selectedSubject' => $selectedSubject,
             'selectedSubjectCategory' => $selectedSubjectCategory,
             'subjectCategoryCounts' => $subjectCategoryCounts,
+            'semester' => $semester,
+            'quarterInSemester' => $quarterInSemester,
             'quarter' => $quarter,
             'rosterNumbers' => $rosterNumbers,
             'enrollments' => $enrollments,
@@ -227,13 +239,17 @@ class GradebookController extends Controller
 
         $subjectCategory = $this->normalizeSubjectCategory((string) $request->input('subject_category', 'core'));
 
+        $semester = $quarter <= 2 ? 1 : 2;
+        $quarterInSemester = $quarter <= 2 ? $quarter : $quarter - 2;
+
         $redirectUrl = route('gradebook.index', [
             'school_year_id' => $validated['school_year_id'],
             'grade_level' => $gradeLevel,
             'section_id' => $validated['section_id'],
             'subject_id' => $validated['subject_id'],
             'subject_category' => $subjectCategory,
-            'quarter' => $quarter,
+            'semester' => $semester,
+            'quarter' => $quarterInSemester,
             'q' => $request->input('q'),
         ]);
 

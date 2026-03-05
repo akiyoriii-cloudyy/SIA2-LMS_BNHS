@@ -4,6 +4,10 @@
     @php
         $totalStudents = (int) ($stats['total_students'] ?? 0);
         $belowPassing = max(0, $totalStudents - (int) ($kpis['passing_count'] ?? 0));
+        $semester = (int) ($semester ?? (($quarter ?? 1) <= 2 ? 1 : 2));
+        $quarterInSemester = (int) ($quarterInSemester ?? (($quarter ?? 1) <= 2 ? ($quarter ?? 1) : (($quarter ?? 1) - 2)));
+        $periodQuery = ['semester' => $semester, 'quarter' => $quarterInSemester];
+        $gradebookPeriodQuery = ['subject_category' => 'core', 'semester' => $semester, 'quarter' => $quarterInSemester];
 
         $distTotal = (int) array_sum($distribution ?? []);
         $donutTotal = $distTotal > 0 ? $distTotal : $totalStudents;
@@ -29,8 +33,32 @@
 
         <div class="dash-topbar-actions">
             <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">📋 Report Card</a>
-            <a class="btn btn-gold btn-sm" href="{{ route('gradebook.index') }}">⚡ Compute All</a>
+            <a class="btn btn-gold btn-sm" href="{{ route('gradebook.index', $gradebookPeriodQuery) }}">⚡ Compute All</a>
             <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">🖨️ Print</button>
+        </div>
+    </div>
+
+    <div class="dash-panel" style="margin-top: 12px;">
+        <div class="dash-panel-body">
+            <form method="GET" action="{{ route('dashboard') }}" class="ge-filters">
+                <div class="ge-filter-row">
+                    <div class="ge-filter">
+                        <select name="semester" aria-label="Semester">
+                            <option value="1" @selected($semester === 1)>1st Semester</option>
+                            <option value="2" @selected($semester === 2)>2nd Semester</option>
+                        </select>
+                    </div>
+                    <div class="ge-filter">
+                        <select name="quarter" aria-label="Quarter">
+                            <option value="1" @selected($quarterInSemester === 1)>Quarter 1</option>
+                            <option value="2" @selected($quarterInSemester === 2)>Quarter 2</option>
+                        </select>
+                    </div>
+                    <div class="ge-filter ge-filter--btn">
+                        <button class="btn btn-sm" type="submit">Apply Period</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -57,7 +85,7 @@
             </div>
             <div class="dash-kpi-value">{{ number_format((float) ($kpis['class_average'] ?? 0), 1) }}</div>
             <div class="dash-kpi-label">CLASS AVERAGE</div>
-            <div class="dash-kpi-sub">Across all subjects Q{{ $quarter }}</div>
+            <div class="dash-kpi-sub">Across all subjects S{{ $semester }} Q{{ $quarterInSemester }}</div>
         </div>
 
         <div class="dash-kpi kpi-navy">
@@ -77,7 +105,7 @@
             </div>
             <div class="dash-kpi-value">{{ number_format((int) ($kpis['incomplete_grades'] ?? 0)) }}</div>
             <div class="dash-kpi-label">INCOMPLETE GRADES</div>
-            <div class="dash-kpi-sub">Missing Q{{ $quarter }} entries</div>
+            <div class="dash-kpi-sub">Missing S{{ $semester }} Q{{ $quarterInSemester }} entries</div>
         </div>
     </div>
 
@@ -86,7 +114,7 @@
             <div class="dash-panel-hd">
                 <div>
                     <div class="dash-panel-title">Subject Performance Overview</div>
-                    <div class="dash-panel-sub">Class average per subject — Quarter {{ $quarter }}</div>
+                    <div class="dash-panel-sub">Class average per subject — Semester {{ $semester }} - Quarter {{ $quarterInSemester }}</div>
                 </div>
             </div>
             <div class="dash-panel-body">
@@ -120,7 +148,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="muted">No grade data yet for Quarter {{ $quarter }}.</td>
+                                <td colspan="4" class="muted">No grade data yet for Semester {{ $semester }} - Quarter {{ $quarterInSemester }}.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -132,7 +160,7 @@
             <div class="dash-panel-hd">
                 <div>
                     <div class="dash-panel-title">Grade Distribution</div>
-                    <div class="dash-panel-sub">Students by grade range — Q{{ $quarter }}</div>
+                    <div class="dash-panel-sub">Students by grade range — S{{ $semester }} Q{{ $quarterInSemester }}</div>
                 </div>
             </div>
             <div class="dash-panel-body" style="display:flex; flex-direction:column; gap: 16px;">
@@ -168,12 +196,14 @@
                 </div>
 
                 <div>
-                    <div class="dash-panel-title" style="font-size:11px;">Quarter Completion</div>
+                    <div class="dash-panel-title" style="font-size:11px;">Semester Quarter Completion</div>
                     <div class="completion-grid">
                         @foreach ($quarterCompletion as $qc)
                             @php
                                 $pct = (int) ($qc['pct'] ?? 0);
-                                $label = $qc['quarter'] === $quarter ? "Q{$qc['quarter']} PROGRESS" : "Q{$qc['quarter']} UPCOMING";
+                                $label = !empty($qc['is_current'])
+                                    ? "Q{$qc['quarter']} PROGRESS"
+                                    : (((int) ($qc['quarter'] ?? 0)) < $quarterInSemester ? "Q{$qc['quarter']} DONE" : "Q{$qc['quarter']} UPCOMING");
                                 $color = $pct >= 95 ? 'var(--sage-light)' : ($pct >= 60 ? 'var(--gold)' : 'var(--cream-dark)');
                             @endphp
                             <div class="comp-item">
@@ -195,7 +225,7 @@
             <div class="dash-panel-hd">
                 <div>
                     <div class="dash-panel-title">🏅 Top Performers</div>
-                    <div class="dash-panel-sub">Ranked by general average — Q{{ $quarter }}</div>
+                    <div class="dash-panel-sub">Ranked by general average — S{{ $semester }} Q{{ $quarterInSemester }}</div>
                 </div>
             </div>
             <div class="dash-panel-body" style="padding-top: 10px;">
@@ -267,18 +297,32 @@
             </div>
             <div class="dash-panel-body" style="display:grid; gap: 14px;">
                 <div class="quick-actions">
-                    <a class="qa-btn" href="{{ route('gradebook.index') }}">
+                    <a class="qa-btn" href="{{ route('gradebook.index', $gradebookPeriodQuery) }}">
                         <span class="qa-icon">✏️</span>
                         <span>
                             <div class="qa-label">Enter Grades</div>
                             <div class="qa-sub">Open grade entry</div>
                         </span>
                     </a>
-                    <a class="qa-btn" href="{{ route('gradebook.index') }}">
+                    <a class="qa-btn" href="{{ route('gradebook.index', $gradebookPeriodQuery) }}">
                         <span class="qa-icon">⚡</span>
                         <span>
                             <div class="qa-label">Compute All</div>
                             <div class="qa-sub">Auto compute averages</div>
+                        </span>
+                    </a>
+                    <a class="qa-btn" href="{{ route('master-sheet.index', $periodQuery) }}">
+                        <span class="qa-icon">📄</span>
+                        <span>
+                            <div class="qa-label">Master Sheet</div>
+                            <div class="qa-sub">Semester quarter view</div>
+                        </span>
+                    </a>
+                    <a class="qa-btn" href="{{ route('subject-teacher.index', $periodQuery) }}">
+                        <span class="qa-icon">🎓</span>
+                        <span>
+                            <div class="qa-label">Subject Teacher</div>
+                            <div class="qa-sub">Track completion</div>
                         </span>
                     </a>
                     <a class="qa-btn" href="{{ route('report-cards.index') }}">
@@ -317,17 +361,17 @@
                     <div class="dash-panel-title" style="font-size:11px;">Submission Status</div>
                     <div class="status-bars">
                         <div class="status-row">
-                            <div class="status-label">Quizzes (Q{{ $quarter }})</div>
+                            <div class="status-label">Quizzes (S{{ $semester }} Q{{ $quarterInSemester }})</div>
                             <div class="status-track"><div class="status-fill status-fill--sage" style="width:{{ (int) ($submissionStatus['quiz'] ?? 0) }}%"></div></div>
                             <div class="status-val">{{ (int) ($submissionStatus['quiz'] ?? 0) }}%</div>
                         </div>
                         <div class="status-row">
-                            <div class="status-label">Performance Task (Q{{ $quarter }})</div>
+                            <div class="status-label">Performance Task (S{{ $semester }} Q{{ $quarterInSemester }})</div>
                             <div class="status-track"><div class="status-fill status-fill--sage" style="width:{{ (int) ($submissionStatus['performance_task'] ?? 0) }}%"></div></div>
                             <div class="status-val">{{ (int) ($submissionStatus['performance_task'] ?? 0) }}%</div>
                         </div>
                         <div class="status-row">
-                            <div class="status-label">Exams (Q{{ $quarter }})</div>
+                            <div class="status-label">Exams (S{{ $semester }} Q{{ $quarterInSemester }})</div>
                             <div class="status-track"><div class="status-fill status-fill--gold" style="width:{{ (int) ($submissionStatus['exam'] ?? 0) }}%"></div></div>
                             <div class="status-val">{{ (int) ($submissionStatus['exam'] ?? 0) }}%</div>
                         </div>
@@ -342,3 +386,4 @@
         </div>
     </div>
 @endsection
+

@@ -18,7 +18,18 @@ class SubjectTeacherController extends Controller
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
         $selectedSchoolYear = (int) ($request->integer('school_year_id')
             ?: ($schoolYears->firstWhere('is_active', true)?->id ?? $schoolYears->first()?->id ?? 0));
-        $quarter = max(1, min(4, (int) $request->integer('quarter', 1)));
+        $semesterInput = (int) $request->input('semester', 0);
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
+        if (in_array($semesterInput, [1, 2], true)) {
+            $semester = $semesterInput;
+            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
+        } else {
+            $legacyQuarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $legacyQuarter;
+            $semester = $legacyQuarter <= 2 ? 1 : 2;
+            $quarterInSemester = $legacyQuarter <= 2 ? $legacyQuarter : $legacyQuarter - 2;
+        }
 
         $assignments = SubjectAssignment::query()
             ->with(['subject:id,code,title', 'section:id,name,grade_level,strand', 'schoolYear:id,name'])
@@ -45,7 +56,10 @@ class SubjectTeacherController extends Controller
         $missingCount = 0;
         $classAverage = null;
         $lastUpdated = null;
-        $openGradebookUrl = route('gradebook.index');
+        $openGradebookUrl = route('gradebook.index', [
+            'semester' => $semester,
+            'quarter' => $quarterInSemester,
+        ]);
 
         if ($selectedAssignment) {
             $enrollments = Enrollment::query()
@@ -119,13 +133,16 @@ class SubjectTeacherController extends Controller
                 'grade_level' => (int) ($selectedAssignment->section?->grade_level ?? 0),
                 'section_id' => $selectedAssignment->section_id,
                 'subject_id' => $selectedAssignment->subject_id,
-                'quarter' => $quarter,
+                'semester' => $semester,
+                'quarter' => $quarterInSemester,
             ]);
         }
 
         return view('subject-teacher.index', [
             'schoolYears' => $schoolYears,
             'selectedSchoolYear' => $selectedSchoolYear,
+            'semester' => $semester,
+            'quarterInSemester' => $quarterInSemester,
             'quarter' => $quarter,
             'assignments' => $assignments,
             'selectedAssignmentId' => $selectedAssignmentId,

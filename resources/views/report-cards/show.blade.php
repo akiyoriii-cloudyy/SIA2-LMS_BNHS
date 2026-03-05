@@ -15,18 +15,15 @@
         }
 
         $items = collect($reportCard?->items ?? [])
-            ->sortBy(fn ($i) => $i->subjectAssignment?->subject?->title ?? '');
+            ->sortBy(fn ($i) => $i->subjectAssignment?->subject?->title ?? '')
+            ->values();
 
-        $generalAverage = $reportCard?->general_average;
-        $fmtQ = fn ($v) => $v === null ? '-' : number_format((float) $v, 0);
+        $fmtQ = fn ($v) => $v === null ? '' : number_format((float) $v, 0);
 
         $age = $ageAtCutoff ?? ($student?->date_of_birth ? $student->date_of_birth->age : null);
-        $ageCutoffLabel = isset($ageCutoffDate) && $ageCutoffDate
-            ? $ageCutoffDate->format('M d, Y')
-            : null;
-        $sex = $student?->sex ? ucfirst((string) $student->sex) : null;
+        $sex = $student?->sex ? mb_strtoupper((string) $student->sex) : null;
 
-        $months = $attendanceMonths ?? ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+        $months = $attendanceMonths ?? ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
         $att = $attendanceSummary ?? [];
 
         $sumRow = function (string $key) use ($months, $att): int {
@@ -38,7 +35,123 @@
             return $total;
         };
 
-        $quarterLabels = ['q1' => 'Q1', 'q2' => 'Q2', 'q3' => 'Q3', 'q4' => 'Q4'];
+        $quarterLabels = ['q1' => '1', 'q2' => '2', 'q3' => '3', 'q4' => '4'];
+
+        $lrn = trim((string) ($student?->lrn ?? ''));
+        $track = mb_strtoupper(trim((string) ($section?->track ?? '')));
+        $strand = mb_strtoupper(trim((string) ($section?->strand ?? '')));
+        $trackStrand = trim($track !== '' && $strand !== '' ? $track.' / '.$strand : ($track !== '' ? $track : $strand));
+
+        $teacherDisplayName = $adviserName ? mb_strtoupper($adviserName) : 'SHEILA MAE O. DALUPAN';
+        $principalName = 'CARLITO V. GILZA';
+        $principalDesignation = 'Principal II';
+
+        $semesterHint = function (?string $title): ?int {
+            $raw = trim((string) $title);
+            if ($raw === '') {
+                return null;
+            }
+
+            if (preg_match('/(?:\\s|\\-|\\/|\\()([1-4])\\)?$/', $raw, $m)) {
+                return ((int) $m[1]) <= 2 ? 1 : 2;
+            }
+
+            return null;
+        };
+
+        $calcSemesterFinal = function ($a, $b): ?float {
+            $a = $a !== null ? (float) $a : null;
+            $b = $b !== null ? (float) $b : null;
+
+            if ($a === null && $b === null) {
+                return null;
+            }
+
+            if ($a === null) {
+                return $b;
+            }
+
+            if ($b === null) {
+                return $a;
+            }
+
+            return round(($a + $b) / 2, 2);
+        };
+
+        $remarkFor = function (?float $grade): string {
+            if ($grade === null) {
+                return '';
+            }
+
+            return $grade >= 75 ? 'Passed' : 'Failed';
+        };
+
+        $hintedItems = $items->filter(fn ($item) => $semesterHint($item->subjectAssignment?->subject?->title) !== null);
+
+        if ($hintedItems->isNotEmpty()) {
+            $firstSemesterItems = $items->filter(fn ($item) => $semesterHint($item->subjectAssignment?->subject?->title) === 1)->values();
+            $secondSemesterItems = $items->filter(fn ($item) => $semesterHint($item->subjectAssignment?->subject?->title) === 2)->values();
+        } else {
+            $firstSemesterItems = $items
+                ->filter(fn ($item) => $item->q1 !== null || $item->q2 !== null)
+                ->values();
+
+            $secondSemesterItems = $items
+                ->filter(fn ($item) => $item->q3 !== null || $item->q4 !== null)
+                ->values();
+
+            if ($firstSemesterItems->isEmpty() && $items->isNotEmpty()) {
+                $firstSemesterItems = $items;
+            }
+
+            if ($secondSemesterItems->isEmpty() && $items->isNotEmpty()) {
+                $split = (int) ceil($items->count() / 2);
+                $secondSemesterItems = $items->skip($split)->values();
+            }
+        }
+
+        $buildSemesterRows = function ($source, string $qa, string $qb) use ($calcSemesterFinal, $remarkFor) {
+            return collect($source)->map(function ($item) use ($qa, $qb, $calcSemesterFinal, $remarkFor): array {
+                $first = $item->{$qa};
+                $second = $item->{$qb};
+                $final = $calcSemesterFinal($first, $second);
+
+                return [
+                    'subject' => (string) ($item->subjectAssignment?->subject?->title ?? '-'),
+                    'q1' => $first,
+                    'q2' => $second,
+                    'final' => $final,
+                    'remarks' => $remarkFor($final),
+                ];
+            })->values();
+        };
+
+        $firstSemesterRows = $buildSemesterRows($firstSemesterItems, 'q1', 'q2');
+        $secondSemesterRows = $buildSemesterRows($secondSemesterItems, 'q3', 'q4');
+
+        $semesterAverage = function ($rows): ?float {
+            $grades = collect($rows)
+                ->pluck('final')
+                ->filter(fn ($grade) => $grade !== null)
+                ->values();
+
+            if ($grades->isEmpty()) {
+                return null;
+            }
+
+            return round((float) $grades->avg(), 2);
+        };
+
+        $firstSemesterAverage = $semesterAverage($firstSemesterRows);
+        $secondSemesterAverage = $semesterAverage($secondSemesterRows);
+        $firstSemesterRemarks = $remarkFor($firstSemesterAverage);
+        $secondSemesterRemarks = $remarkFor($secondSemesterAverage);
+
+        $minSemesterRows = 8;
+        $firstSemesterPad = max(0, $minSemesterRows - $firstSemesterRows->count());
+        $secondSemesterPad = max(0, $minSemesterRows - $secondSemesterRows->count());
+
+        $learningModality = 'FACE TO FACE';
     @endphp
 
     <div class="dash-topbar no-print">
@@ -59,7 +172,7 @@
         <div>
             <div class="rc-pro-title">DepEd Form 138 - SHS Report Card</div>
             <div class="rc-pro-sub">
-                Booklet format: one sheet, folded. Outside = Cover and Back. Inside = Grades and Values.
+                Aligned to standard booklet layout (outside and inside pages).
                 <span class="rc-badge {{ $missingObservedValuesCount > 0 ? 'rc-badge--warn' : '' }}">
                     {{ $missingObservedValuesCount > 0 ? $missingObservedValuesCount.' value slots need teacher rating' : 'Observed values complete' }}
                 </span>
@@ -82,11 +195,11 @@
     <div class="rc-tabs no-print">
         <a class="rc-tab {{ $page === 'outside' ? 'active' : '' }}"
             href="{{ route('report-cards.show', [$enrollment->id, 'page' => 'outside']) }}">
-            Page 1 - Outside (Cover and Back)
+            Page 1 - Outside
         </a>
         <a class="rc-tab {{ $page === 'inside' ? 'active' : '' }}"
             href="{{ route('report-cards.show', [$enrollment->id, 'page' => 'inside']) }}">
-            Page 2 - Inside (Grades and Values)
+            Page 2 - Inside
         </a>
         <a class="rc-tab {{ $page === 'values' ? 'active' : '' }}"
             href="{{ route('report-cards.show', [$enrollment->id, 'page' => 'values']) }}">
@@ -95,7 +208,7 @@
         <div class="rc-tip">
             {{ $page === 'values'
                 ? 'Rate each behavior statement by quarter, then save before printing the report card.'
-                : 'Both pages print on one sheet - fold in half to form the booklet card.' }}
+                : 'Print both pages on one sheet, then fold at center for booklet format.' }}
         </div>
     </div>
 
@@ -186,13 +299,12 @@
 
     @if ($page !== 'values')
         <div class="rc-pro-preview" data-page="{{ $page }}">
-            <div class="rc-paper">
+            <div class="rc-paper rcf-paper">
                 <div class="rc-fold"></div>
 
-                <section class="rc-side rc-side--left rc-page rc-page--outside">
-                    <div class="rc-block">
-                        <div class="rc-block-title">REPORT ON ATTENDANCE</div>
-                        <table class="rc-mini-table">
+                <section class="rc-side rc-side--left rc-page rc-page--outside rcf-side">
+                    <div class="rcf-title-main">Report on Attendance</div>
+                    <table class="rcf-attendance-table">
                             <thead>
                                 <tr>
                                     <th></th>
@@ -225,157 +337,225 @@
                                     <td>{{ $sumRow('absent_days') }}</td>
                                 </tr>
                             </tbody>
-                        </table>
-                    </div>
+                    </table>
 
-                    <div class="rc-block" style="margin-top: 18px;">
-                        <div class="rc-block-title">PARENT/GUARDIAN'S SIGNATURE</div>
-                        <div class="rc-sign-grid">
-                            <div class="rc-sign-row"><span>First Semester</span><span class="line"></span></div>
-                            <div class="rc-sign-row"><span>1st Quarter</span><span class="line"></span></div>
-                            <div class="rc-sign-row"><span>2nd Quarter</span><span class="line"></span></div>
-                            <div class="rc-sign-row"><span>Second Semester</span><span class="line"></span></div>
-                            <div class="rc-sign-row"><span>3rd Quarter</span><span class="line"></span></div>
-                            <div class="rc-sign-row"><span>4th Quarter</span><span class="line"></span></div>
-                        </div>
+                    <div class="rcf-signature-block">
+                        <div class="rcf-title-main">Parent / Guardian's Signature</div>
+                        <div class="rcf-sem-label">1st Semester</div>
+                        <div class="rcf-sign-row"><span>PRELIM</span><span class="line"></span></div>
+                        <div class="rcf-sign-row"><span>FINAL</span><span class="line"></span></div>
+
+                        <div class="rcf-sem-label" style="margin-top: 26px;">2nd Semester</div>
+                        <div class="rcf-sign-row"><span>PRELIM</span><span class="line"></span></div>
+                        <div class="rcf-sign-row"><span>FINAL</span><span class="line"></span></div>
                     </div>
                 </section>
 
-                <section class="rc-side rc-side--right rc-page rc-page--outside">
-                    <div class="rc-cover-top">
-                        <div class="rc-seal">DepEd</div>
-                        <div>
-                            <div class="rc-rp">Republic of the Philippines</div>
-                            <div class="rc-rp">Department of Education</div>
-                            <div class="rc-rp">Region XII - SOCCSKSARGEN</div>
-                            <div class="rc-rp"><strong>SCHOOLS DIVISION OF GENERAL SANTOS CITY</strong></div>
-                        </div>
-                        <div class="rc-form-code">DepEd FORM 138 - SHS</div>
+                <section class="rc-side rc-side--right rc-page rc-page--outside rcf-side">
+                    <div class="rcf-cover-topline">
+                        <div class="rcf-form-code">DEPED FORM 138</div>
+                        <div class="rcf-lrn">LRN: <span>{{ $lrn !== '' ? $lrn : '____________________' }}</span></div>
                     </div>
 
-                    <div class="rc-lines">
-                        <div class="rc-line"><span>Bawing District</span><span class="hint">District</span></div>
-                        <div class="rc-line"><span>PH Bawing National High School</span><span class="hint">School</span></div>
+                    <div class="rcf-header-logos">
+                        <img src="{{ asset('bnhs-logo.jpg') }}" alt="School Logo" class="rcf-logo">
+                        <div class="rcf-school-head">
+                            <div class="rcf-rp">Republic of the Philippines</div>
+                            <div class="rcf-rp">Department of Education</div>
+                            <div class="rcf-rp">Region XII</div>
+                            <div class="rcf-school-name">BAWING NATIONAL HIGH SCHOOL</div>
+                            <div class="rcf-school-city">Bawing, General Santos City</div>
+                        </div>
+                        <img src="{{ asset('bnhs-logo.jpg') }}" alt="Division Logo" class="rcf-logo rcf-logo--faded">
                     </div>
 
-                    <div class="rc-meta-grid">
-                        <div class="rc-meta-row">
-                            <div><strong>Name:</strong> {{ $student->full_name }}</div>
-                            <div><strong>Sex:</strong> {{ $sex ?? '-' }}</div>
+                    <div class="rcf-identity-grid">
+                        <div class="rcf-id-row">
+                            <div class="rcf-id-line"><label>Name:</label><span>{{ $student?->full_name ?? '-' }}</span></div>
+                            <div class="rcf-id-line"><label>Sex:</label><span>{{ $sex ?? '-' }}</span></div>
                         </div>
-                        <div class="rc-meta-row">
-                            <div><strong>Age{{ $ageCutoffLabel ? ' (as of '.$ageCutoffLabel.')' : '' }}:</strong> {{ $age ?? '-' }}</div>
-                            <div><strong>Section:</strong> {{ $section ? $section->name : '-' }}</div>
+                        <div class="rcf-id-row">
+                            <div class="rcf-id-line"><label>Age:</label><span>{{ $age ?? '-' }}</span></div>
+                            <div class="rcf-id-line"><label>Section:</label><span>{{ $section?->name ?? '-' }}</span></div>
                         </div>
-                        <div class="rc-meta-row">
-                            <div><strong>Grade:</strong> {{ $section ? $section->grade_level : '-' }}</div>
-                            <div><strong>School Year:</strong> {{ $schoolYear?->name ?? '-' }}</div>
+                        <div class="rcf-id-row">
+                            <div class="rcf-id-line"><label>Grade:</label><span>{{ $section?->grade_level ?? '-' }}</span></div>
+                            <div class="rcf-id-line"><label>School Year:</label><span>{{ $schoolYear?->name ?? '-' }}</span></div>
                         </div>
-                    </div>
-
-                    <div class="rc-letter">
-                        <div>Dear Parent:</div>
-                        <p>This report card shows the ability and progress your child has made in the different learning areas as well as his/her core values.</p>
-                        <p>The school welcomes you should you desire to know more about your child's progress.</p>
-                    </div>
-
-                    <div class="rc-sig-area">
-                        <div class="sig">
-                            <div class="sig-line"></div>
-                            <div class="sig-name">{{ $adviserName ? 'Ms. '.$adviserName : '-' }}</div>
-                            <div class="sig-role">Teacher</div>
+                        <div class="rcf-id-row rcf-id-row--single">
+                            <div class="rcf-id-line"><label>Track / Strand:</label><span>{{ $trackStrand !== '' ? $trackStrand : '-' }}</span></div>
                         </div>
                     </div>
 
-                    <div class="rc-transfer">
-                        <div class="rc-transfer-title">Certificate of Transfer</div>
-                        <div class="rc-transfer-row"><span>Admitted to Grade:</span><span class="line"></span><span>Section:</span><span class="line"></span></div>
-                        <div class="rc-transfer-row"><span>Eligibility for Admission to Grade:</span><span class="line" style="flex:1"></span></div>
-                        <div class="rc-transfer-row"><span>Approved:</span><span class="line" style="flex:1"></span></div>
-                        <div class="rc-transfer-sign">
-                            <div><div class="sig-line"></div><div class="sig-role">Principal</div></div>
-                            <div><div class="sig-line"></div><div class="sig-role">Teacher</div></div>
+                    <div class="rcf-parent-note">
+                        <div class="rcf-parent-note-title">Dear Parent:</div>
+                        <p>
+                            This report card shows the ability and progress your child has made in the different
+                            learning areas as well as his/her core values.
+                        </p>
+                        <p>
+                            The school welcomes you should you desire to know more about your child's progress.
+                        </p>
+                    </div>
+
+                    <div class="rcf-sign-pair">
+                        <div class="rcf-sign-box">
+                            <div class="rcf-sign-line">{{ $teacherDisplayName }}</div>
+                            <div class="rcf-sign-role">Teacher</div>
                         </div>
-                        <div class="rc-transfer-title" style="margin-top: 10px;">Cancellation of Eligibility to Transfer</div>
-                        <div class="rc-transfer-row"><span>Admitted in:</span><span class="line" style="flex:1"></span></div>
-                        <div class="rc-transfer-row"><span>Date:</span><span class="line" style="flex:1"></span></div>
-                        <div class="rc-transfer-sign" style="justify-content:flex-end;">
-                            <div style="width: 180px;">
-                                <div class="sig-line"></div>
-                                <div class="sig-role">Principal</div>
+                        <div class="rcf-sign-box">
+                            <div class="rcf-sign-line">{{ $principalName }}</div>
+                            <div class="rcf-sign-role">{{ $principalDesignation }}</div>
+                        </div>
+                    </div>
+
+                    <div class="rcf-transfer-box">
+                        <div class="rcf-transfer-title">Certificate of Transfer</div>
+                        <div class="rcf-transfer-row"><span>Admitted to Grade:</span><span class="line"></span><span>Section:</span><span class="line"></span></div>
+                        <div class="rcf-transfer-row"><span>Eligibility for Admission to Grade:</span><span class="line line--wide"></span></div>
+                        <div class="rcf-transfer-row"><span>Admitted in:</span><span class="line line--wide"></span></div>
+                        <div class="rcf-transfer-row"><span>Date:</span><span class="line line--wide"></span></div>
+                        <div class="rcf-transfer-signatures">
+                            <div>
+                                <div class="line"></div>
+                                <div>Principal</div>
+                            </div>
+                            <div>
+                                <div class="line"></div>
+                                <div>Teacher</div>
+                            </div>
+                        </div>
+
+                        <div class="rcf-transfer-title" style="margin-top: 8px;">Cancellation of Eligibility to Transfer</div>
+                        <div class="rcf-transfer-row"><span>Admitted in:</span><span class="line line--wide"></span></div>
+                        <div class="rcf-transfer-row"><span>Date:</span><span class="line line--wide"></span></div>
+                        <div class="rcf-transfer-signatures rcf-transfer-signatures--single">
+                            <div>
+                                <div class="line"></div>
+                                <div>Principal</div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <section class="rc-side rc-side--left rc-page rc-page--inside">
-                    <div class="rc-block-title">REPORT ON LEARNING PROGRESS AND ACHIEVEMENT</div>
-                    <table class="rc-grade-table">
-                        <thead>
-                            <tr>
-                                <th rowspan="2" style="width: 48%;">Subjects</th>
-                                <th colspan="4">Quarter</th>
-                                <th rowspan="2" style="width: 22%;">Semester Final Grade</th>
-                            </tr>
-                            <tr>
-                                <th>1</th><th>2</th><th>3</th><th>4</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($items as $item)
-                                @php $final = $item->final_grade; @endphp
-                                <tr>
-                                    <td>{{ $item->subjectAssignment?->subject?->title ?? '-' }}</td>
-                                    <td>{{ $fmtQ($item->q1) }}</td>
-                                    <td>{{ $fmtQ($item->q2) }}</td>
-                                    <td>{{ $fmtQ($item->q3) }}</td>
-                                    <td>{{ $fmtQ($item->q4) }}</td>
-                                    <td class="final">{{ $final === null ? '-' : number_format((float) $final, 0) }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="6">No report card items yet.</td></tr>
-                            @endforelse
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="5" class="ga">General Average for the Semester</td>
-                                <td class="final">{{ $generalAverage === null ? '-' : number_format((float) $generalAverage, 0) }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <section class="rc-side rc-side--left rc-page rc-page--inside rcf-side">
+                    <div class="rcf-title-main">Report on Learning Progress and Achievement</div>
 
-                    <div class="rc-desc-wrap">
-                        <table class="rc-desc">
+                    <div class="rcf-semester-box">
+                        <div class="rcf-semester-title">First Semester</div>
+                        <table class="rcf-semester-table">
                             <thead>
                                 <tr>
-                                    <th>Descriptors</th>
-                                    <th>Grading Scale</th>
-                                    <th>Remarks</th>
+                                    <th rowspan="2" style="width: 52%;">Subjects</th>
+                                    <th colspan="2">Quarter</th>
+                                    <th rowspan="2" style="width: 14%;">Semester Final Grade</th>
+                                    <th rowspan="2" style="width: 13%;">Remarks</th>
+                                </tr>
+                                <tr>
+                                    <th style="width: 7%;">1</th>
+                                    <th style="width: 7%;">2</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td>Outstanding</td><td>90-100</td><td>Passed</td></tr>
-                                <tr><td>Very Satisfactory</td><td>85-89</td><td>Passed</td></tr>
-                                <tr><td>Satisfactory</td><td>80-84</td><td>Passed</td></tr>
-                                <tr><td>Fairly Satisfactory</td><td>75-79</td><td>Passed</td></tr>
-                                <tr><td>Did Not Meet Expectations</td><td>Below 75</td><td>Failed</td></tr>
+                                @foreach ($firstSemesterRows as $row)
+                                    <tr>
+                                        <td class="subject">{{ $row['subject'] }}</td>
+                                        <td>{{ $fmtQ($row['q1']) }}</td>
+                                        <td>{{ $fmtQ($row['q2']) }}</td>
+                                        <td>{{ $fmtQ($row['final']) }}</td>
+                                        <td>{{ $row['remarks'] }}</td>
+                                    </tr>
+                                @endforeach
+                                @for ($i = 0; $i < $firstSemesterPad; $i++)
+                                    <tr>
+                                        <td class="subject">&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                    </tr>
+                                @endfor
+                                <tr class="summary">
+                                    <td class="subject">General Average for the semester</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td>{{ $fmtQ($firstSemesterAverage) }}</td>
+                                    <td>{{ $firstSemesterRemarks }}</td>
+                                </tr>
+                                <tr class="modality">
+                                    <td class="subject">Learning Modality</td>
+                                    <td colspan="4">{{ $learningModality }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="rcf-semester-box">
+                        <div class="rcf-semester-title">Second Semester</div>
+                        <table class="rcf-semester-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="width: 52%;">Subjects</th>
+                                    <th colspan="2">Quarter</th>
+                                    <th rowspan="2" style="width: 14%;">Semester Final Grade</th>
+                                    <th rowspan="2" style="width: 13%;">Remarks</th>
+                                </tr>
+                                <tr>
+                                    <th style="width: 7%;">1</th>
+                                    <th style="width: 7%;">2</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($secondSemesterRows as $row)
+                                    <tr>
+                                        <td class="subject">{{ $row['subject'] }}</td>
+                                        <td>{{ $fmtQ($row['q1']) }}</td>
+                                        <td>{{ $fmtQ($row['q2']) }}</td>
+                                        <td>{{ $fmtQ($row['final']) }}</td>
+                                        <td>{{ $row['remarks'] }}</td>
+                                    </tr>
+                                @endforeach
+                                @for ($i = 0; $i < $secondSemesterPad; $i++)
+                                    <tr>
+                                        <td class="subject">&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                        <td>&nbsp;</td>
+                                    </tr>
+                                @endfor
+                                <tr class="summary">
+                                    <td class="subject">General Average for the semester</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td>{{ $fmtQ($secondSemesterAverage) }}</td>
+                                    <td>{{ $secondSemesterRemarks }}</td>
+                                </tr>
+                                <tr class="modality">
+                                    <td class="subject">Learning Modality</td>
+                                    <td colspan="4">{{ $learningModality }}</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </section>
 
-                <section class="rc-side rc-side--right rc-page rc-page--inside">
-                    <div class="rc-block-title">REPORT ON LEARNER'S OBSERVED VALUES</div>
-                    <table class="rc-values">
+                <section class="rc-side rc-side--right rc-page rc-page--inside rcf-side">
+                    <div class="rcf-title-main">Report on Learner's Observed Values</div>
+                    <table class="rcf-values-table">
                         <thead>
                             <tr>
                                 <th style="width: 22%;">Core Values</th>
-                                <th style="width: 52%;">Behavior statements</th>
+                                <th style="width: 48%;">Behavior Statements</th>
                                 <th colspan="4">Quarter</th>
                             </tr>
                             <tr>
-                                <th></th><th></th>
-                                <th>1</th><th>2</th><th>3</th><th>4</th>
+                                <th></th>
+                                <th></th>
+                                <th>1</th>
+                                <th>2</th>
+                                <th>3</th>
+                                <th>4</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -387,11 +567,11 @@
                                     @endphp
                                     <tr>
                                         @if ($statementIndex === 0)
-                                            <td rowspan="{{ count($group['rows']) }}"><strong>{{ $group['label'] }}</strong></td>
+                                            <td rowspan="{{ count($group['rows']) }}" class="core">{{ $group['label'] }}</td>
                                         @endif
-                                        <td>{{ $row['statement'] }}</td>
+                                        <td class="statement">{{ $row['statement'] }}</td>
                                         @foreach ($quarterLabels as $quarterKey => $quarterLabel)
-                                            <td>{{ $saved[$quarterKey] ?? '-' }}</td>
+                                            <td>{{ $saved[$quarterKey] ?? '' }}</td>
                                         @endforeach
                                     </tr>
                                 @endforeach
@@ -399,35 +579,464 @@
                         </tbody>
                     </table>
 
-                    <div class="rc-values-note">
-                        <div><strong>Marking</strong> Non-numerical Rating</div>
-                        <div><strong>AO</strong> Always Observed | <strong>RO</strong> Rarely Observed</div>
-                        <div><strong>SO</strong> Sometimes Observed | <strong>NO</strong> Not Observed</div>
-                    </div>
+                    <div class="rcf-legend-wrap">
+                        <div class="rcf-legend-block">
+                            <div class="rcf-legend-title">Observed Values</div>
+                            <div class="rcf-legend-row rcf-legend-row--values rcf-legend-row--head"><span>Marking</span><span>Non-numerical Rating</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--values"><span>AO</span><span>Always Observed</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--values"><span>SO</span><span>Sometimes Observed</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--values"><span>RO</span><span>Rarely Observed</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--values"><span>NO</span><span>Not Observed</span></div>
+                        </div>
 
-                    <div class="rc-desc-wrap">
-                        <div class="rc-block-title" style="margin-bottom: 6px;">LEARNER PROGRESS AND ACHIEVEMENT</div>
-                        <table class="rc-desc">
-                            <thead>
-                                <tr>
-                                    <th>Descriptors</th>
-                                    <th>Grading Scale</th>
-                                    <th>Remarks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td>Outstanding</td><td>90-100</td><td>Passed</td></tr>
-                                <tr><td>Very Satisfactory</td><td>85-89</td><td>Passed</td></tr>
-                                <tr><td>Satisfactory</td><td>80-84</td><td>Passed</td></tr>
-                                <tr><td>Fairly Satisfactory</td><td>75-79</td><td>Passed</td></tr>
-                                <tr><td>Did Not Meet Expectations</td><td>Below 75</td><td>Failed</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="rcf-legend-block">
+                            <div class="rcf-legend-title">Learning Progress and Achievement</div>
+                            <div class="rcf-legend-row rcf-legend-row--achievement rcf-legend-row--head"><span>Descriptors</span><span>Grading Scale</span><span>Remarks</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--achievement"><span>Outstanding</span><span>90 - 100</span><span>Passed</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--achievement"><span>Very Satisfactory</span><span>85 - 89</span><span>Passed</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--achievement"><span>Satisfactory</span><span>80 - 84</span><span>Passed</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--achievement"><span>Fairly Satisfactory</span><span>75 - 79</span><span>Passed</span></div>
+                            <div class="rcf-legend-row rcf-legend-row--achievement"><span>Did Not Meet Expectations</span><span>below 75</span><span>Failed</span></div>
+                        </div>
                     </div>
                 </section>
             </div>
         </div>
     @endif
+
+    <style>
+        .rcf-paper {
+            width: min(1160px, 100%);
+            border: 1.5px solid #111;
+            border-radius: 0;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+            font-family: "Times New Roman", Times, serif;
+            color: #111;
+        }
+
+        .rcf-side {
+            min-height: 760px;
+            padding: 14px 14px 12px;
+        }
+
+        .rcf-title-main {
+            text-transform: uppercase;
+            text-align: center;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            margin-bottom: 8px;
+        }
+
+        .rcf-attendance-table,
+        .rcf-semester-table,
+        .rcf-values-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .rcf-attendance-table th,
+        .rcf-attendance-table td,
+        .rcf-semester-table th,
+        .rcf-semester-table td,
+        .rcf-values-table th,
+        .rcf-values-table td {
+            border: 1px solid #222;
+            padding: 4px 5px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .rcf-attendance-table td:first-child,
+        .rcf-semester-table td.subject {
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .rcf-signature-block {
+            margin-top: 18px;
+            padding-top: 6px;
+        }
+
+        .rcf-sem-label {
+            font-size: 26px;
+            font-weight: 600;
+            margin: 16px 0 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .rcf-sign-row {
+            display: grid;
+            grid-template-columns: 88px 1fr;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .rcf-sign-row .line {
+            border-bottom: 1px solid #111;
+            height: 18px;
+        }
+
+        .rcf-cover-topline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            margin-bottom: 8px;
+            gap: 10px;
+            text-transform: uppercase;
+        }
+
+        .rcf-form-code {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .rcf-lrn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+        }
+
+        .rcf-lrn span {
+            display: inline-block;
+            border-bottom: 1px solid #111;
+            min-width: 220px;
+            padding-bottom: 1px;
+        }
+
+        .rcf-header-logos {
+            display: grid;
+            grid-template-columns: 68px 1fr 68px;
+            align-items: start;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .rcf-logo {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+        }
+
+        .rcf-logo--faded {
+            filter: grayscale(100%);
+            opacity: 0.62;
+        }
+
+        .rcf-school-head {
+            text-align: center;
+        }
+
+        .rcf-rp {
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .rcf-school-name {
+            margin-top: 3px;
+            font-size: 34px;
+            line-height: 1.05;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .rcf-school-city {
+            font-size: 15px;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+
+        .rcf-identity-grid {
+            margin-top: 8px;
+        }
+
+        .rcf-id-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+
+        .rcf-id-row--single {
+            grid-template-columns: 1fr;
+        }
+
+        .rcf-id-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        .rcf-id-line label {
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .rcf-id-line span {
+            flex: 1;
+            border-bottom: 1px solid #111;
+            min-height: 17px;
+            display: inline-flex;
+            align-items: flex-end;
+            padding-bottom: 1px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .rcf-parent-note {
+            margin-top: 8px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .rcf-parent-note-title {
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .rcf-parent-note p {
+            margin: 4px 0;
+            text-align: justify;
+        }
+
+        .rcf-sign-pair {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .rcf-sign-box {
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .rcf-sign-line {
+            border-bottom: 1px solid #111;
+            min-height: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 2px;
+        }
+
+        .rcf-sign-role {
+            margin-top: 3px;
+        }
+
+        .rcf-transfer-box {
+            margin-top: 8px;
+            border-top: 1px solid #111;
+            padding-top: 6px;
+            font-size: 12px;
+        }
+
+        .rcf-transfer-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .rcf-transfer-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .rcf-transfer-row .line {
+            border-bottom: 1px solid #111;
+            min-width: 115px;
+            height: 16px;
+            display: inline-block;
+        }
+
+        .rcf-transfer-row .line--wide {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .rcf-transfer-signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .rcf-transfer-signatures > div {
+            width: 48%;
+            text-align: center;
+        }
+
+        .rcf-transfer-signatures .line {
+            border-bottom: 1px solid #111;
+            height: 18px;
+            margin-bottom: 2px;
+        }
+
+        .rcf-transfer-signatures--single {
+            justify-content: flex-end;
+        }
+
+        .rcf-transfer-signatures--single > div {
+            width: 48%;
+        }
+
+        .rcf-semester-box + .rcf-semester-box {
+            margin-top: 10px;
+        }
+
+        .rcf-semester-title {
+            font-size: 15px;
+            margin: 2px 0 4px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .rcf-semester-table th {
+            font-weight: 700;
+            text-transform: none;
+        }
+
+        .rcf-semester-table td {
+            height: 22px;
+        }
+
+        .rcf-semester-table tr.summary td {
+            font-weight: 700;
+        }
+
+        .rcf-semester-table tr.modality td {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .rcf-values-table th {
+            font-weight: 700;
+        }
+
+        .rcf-values-table td.core {
+            font-weight: 700;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .rcf-values-table td.statement {
+            text-align: left;
+            vertical-align: top;
+            font-size: 10.5px;
+            line-height: 1.2;
+        }
+
+        .rcf-legend-wrap {
+            margin-top: 8px;
+            display: grid;
+            gap: 6px;
+            grid-template-columns: 1fr;
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        .rcf-legend-block {
+            padding: 0;
+        }
+
+        .rcf-legend-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 3px;
+            text-align: left;
+        }
+
+        .rcf-legend-row {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 1px;
+            align-items: start;
+        }
+
+        .rcf-legend-row--values {
+            grid-template-columns: 72px 1fr;
+        }
+
+        .rcf-legend-row--achievement {
+            grid-template-columns: 1.35fr 0.85fr 0.65fr;
+        }
+
+        .rcf-legend-row--head {
+            font-weight: 700;
+        }
+
+        @media (max-width: 1300px) {
+            .rcf-school-name {
+                font-size: 28px;
+            }
+
+            .rcf-cover-topline {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 1120px) {
+            .rcf-paper {
+                grid-template-columns: 1fr;
+            }
+
+            .rc-fold {
+                display: none;
+            }
+
+            .rcf-side {
+                min-height: auto;
+            }
+
+            .rcf-legend-wrap,
+            .rcf-sign-pair,
+            .rcf-id-row {
+                grid-template-columns: 1fr;
+            }
+
+            .rcf-transfer-signatures,
+            .rcf-transfer-signatures--single {
+                justify-content: stretch;
+            }
+
+            .rcf-transfer-signatures > div,
+            .rcf-transfer-signatures--single > div {
+                width: 100%;
+            }
+        }
+
+        @media print {
+            .rcf-paper {
+                width: 100%;
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+
+            .rcf-side {
+                min-height: auto;
+            }
+
+            .rcf-school-name {
+                font-size: 30px;
+            }
+        }
+    </style>
 
     <script>
         (function () {

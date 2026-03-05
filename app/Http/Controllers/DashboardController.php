@@ -35,7 +35,19 @@ class DashboardController extends Controller
             ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
 
         $schoolYearId = $activeSchoolYear?->id;
-        $quarter = max(1, min(4, (int) $request->integer('quarter', $this->guessQuarterFromDate(now()))));
+        $semesterInput = (int) $request->input('semester', 0);
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
+        $defaultQuarter = $this->guessQuarterFromDate(now());
+
+        if (in_array($semesterInput, [1, 2], true)) {
+            $semester = $semesterInput;
+            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
+        } else {
+            $quarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : $defaultQuarter));
+            $semester = $quarter <= 2 ? 1 : 2;
+            $quarterInSemester = $quarter <= 2 ? $quarter : $quarter - 2;
+        }
 
         $enrollmentQuery = Enrollment::query()->when(
             $schoolYearId,
@@ -166,7 +178,7 @@ class DashboardController extends Controller
             ->when($applyEnrollmentScope, fn ($q) => $q->whereIn('ge.enrollment_id', $enrollmentIds))
             ->avg('ge.quarter_grade') ?? 0);
 
-        $prevQuarter = $quarter > 1 ? $quarter - 1 : null;
+        $prevQuarter = $quarterInSemester > 1 ? $quarter - 1 : null;
         $prevClassAverage = $prevQuarter
             ? (float) (DB::table('grade_entries as ge')
                 ->join('enrollments as e', 'ge.enrollment_id', '=', 'e.id')
@@ -290,11 +302,15 @@ class DashboardController extends Controller
         }
 
         $quarterCompletion = [];
-        for ($q = 1; $q <= 4; $q++) {
+        $semesterQuarterMap = $semester === 1
+            ? [1 => 1, 2 => 2]
+            : [1 => 3, 2 => 4];
+
+        foreach ($semesterQuarterMap as $displayQuarter => $actualQuarter) {
             $filled = (int) DB::table('grade_entries as ge')
                 ->join('enrollments as e', 'ge.enrollment_id', '=', 'e.id')
                 ->join('subject_assignments as sa', 'ge.subject_assignment_id', '=', 'sa.id')
-                ->where('ge.quarter', $q)
+                ->where('ge.quarter', $actualQuarter)
                 ->whereNotNull('ge.quarter_grade')
                 ->whereColumn('sa.section_id', 'e.section_id')
                 ->whereColumn('sa.school_year_id', 'e.school_year_id')
@@ -305,7 +321,9 @@ class DashboardController extends Controller
             $pct = $expectedGradeEntries > 0 ? (int) round(($filled / $expectedGradeEntries) * 100) : 0;
 
             $quarterCompletion[] = [
-                'quarter' => $q,
+                'quarter' => $displayQuarter,
+                'actual_quarter' => $actualQuarter,
+                'is_current' => $actualQuarter === $quarter,
                 'pct' => max(0, min(100, $pct)),
             ];
         }
@@ -357,7 +375,7 @@ class DashboardController extends Controller
             $subject = $row->subjectAssignment?->subject?->title ?? 'Subject';
             $activity[] = [
                 'type' => 'grade',
-                'title' => "Q{$quarter} grade updated",
+                'title' => "S{$semester} Q{$quarterInSemester} grade updated",
                 'text' => "{$student} — {$subject}",
                 'at' => $row->updated_at,
             ];
@@ -474,6 +492,8 @@ class DashboardController extends Controller
             'stats' => $stats,
             'quickLinks' => $quickLinks,
             'activeSchoolYear' => $activeSchoolYear,
+            'semester' => $semester,
+            'quarterInSemester' => $quarterInSemester,
             'quarter' => $quarter,
             'recentGrades' => $recentGrades,
             'alertLogs' => $alertLogs,

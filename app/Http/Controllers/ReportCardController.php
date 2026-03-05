@@ -96,8 +96,8 @@ class ReportCardController extends Controller
 
         $schoolYearName = (string) ($enrollment->schoolYear?->name ?? '');
         $startYear = (int) (explode('-', $schoolYearName)[0] ?? 0);
-        $syStart = $startYear > 0 ? Carbon::create($startYear, 6, 1)->startOfDay() : now()->subMonths(10)->startOfMonth();
-        $syEnd = $startYear > 0 ? Carbon::create($startYear + 1, 3, 31)->endOfDay() : now()->endOfMonth();
+        $syStart = $startYear > 0 ? Carbon::create($startYear, 7, 1)->startOfDay() : now()->subMonths(9)->startOfMonth();
+        $syEnd = $startYear > 0 ? Carbon::create($startYear + 1, 4, 30)->endOfDay() : now()->endOfMonth();
 
         $attendanceRows = AttendanceRecord::query()
             ->where('enrollment_id', $enrollment->id)
@@ -105,7 +105,6 @@ class ReportCardController extends Controller
             ->get(['attendance_date', 'status']);
 
         $months = [
-            ['key' => 'Jun', 'month' => 6],
             ['key' => 'Jul', 'month' => 7],
             ['key' => 'Aug', 'month' => 8],
             ['key' => 'Sep', 'month' => 9],
@@ -115,6 +114,7 @@ class ReportCardController extends Controller
             ['key' => 'Jan', 'month' => 1],
             ['key' => 'Feb', 'month' => 2],
             ['key' => 'Mar', 'month' => 3],
+            ['key' => 'Apr', 'month' => 4],
         ];
 
         $attendanceSummary = collect($months)->mapWithKeys(function (array $m) use ($attendanceRows): array {
@@ -248,10 +248,6 @@ class ReportCardController extends Controller
                         'key' => 'maka_kalikasan_1',
                         'statement' => 'Cares for the environment and utilizes resources wisely, judiciously, and economically',
                     ],
-                    [
-                        'key' => 'maka_kalikasan_2',
-                        'statement' => 'Demonstrates appropriate behavior in carrying out activities in school, community, and country',
-                    ],
                 ],
             ],
             [
@@ -260,10 +256,6 @@ class ReportCardController extends Controller
                     [
                         'key' => 'makabansa_1',
                         'statement' => 'Demonstrates pride in being a Filipino; exercises the rights and responsibilities of a Filipino citizen',
-                    ],
-                    [
-                        'key' => 'makabansa_2',
-                        'statement' => 'Demonstrates appropriate behavior in carrying out activities in the school, community, and country',
                     ],
                 ],
             ],

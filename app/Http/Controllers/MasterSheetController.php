@@ -42,8 +42,18 @@ class MasterSheetController extends Controller
         if ($selectedSection !== 0 && ! $sections->contains('id', $selectedSection)) {
             $selectedSection = 0;
         }
-        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 1));
-        $quarter = max(1, min(4, $quarterInput));
+        $semesterInput = (int) $request->input('semester', 0);
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
+        if (in_array($semesterInput, [1, 2], true)) {
+            $semester = $semesterInput;
+            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
+        } else {
+            $legacyQuarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $legacyQuarter;
+            $semester = $legacyQuarter <= 2 ? 1 : 2;
+            $quarterInSemester = $legacyQuarter <= 2 ? $legacyQuarter : $legacyQuarter - 2;
+        }
         $selectedStrand = trim((string) $request->query('strand', 'ALL'));
         $selectedStrand = $selectedStrand !== '' ? $selectedStrand : 'ALL';
         $search = trim((string) $request->query('q', ''));
@@ -138,7 +148,7 @@ class MasterSheetController extends Controller
         }
 
         if ((string) $request->query('export') === 'csv') {
-            return $this->exportCsv($enrollments, $subjects, $gradesByEnrollment, $quarter);
+            return $this->exportCsv($enrollments, $subjects, $gradesByEnrollment, $semester, $quarterInSemester);
         }
 
         $maleCount = (int) $enrollments->filter(function ($enrollment): bool {
@@ -260,6 +270,8 @@ class MasterSheetController extends Controller
             'selectedSchoolYear' => $selectedSchoolYear,
             'selectedSection' => $selectedSection,
             'selectedStrand' => $selectedStrand,
+            'semester' => $semester,
+            'quarterInSemester' => $quarterInSemester,
             'quarter' => $quarter,
             'search' => $search,
             'enrollments' => $enrollments,
@@ -283,11 +295,12 @@ class MasterSheetController extends Controller
         Collection $enrollments,
         Collection $subjects,
         array $gradesByEnrollment,
-        int $quarter
+        int $semester,
+        int $quarterInSemester
     ): StreamedResponse {
-        $filename = sprintf('master-sheet-q%d-%s.csv', $quarter, now()->format('Ymd-His'));
+        $filename = sprintf('master-sheet-s%d-q%d-%s.csv', $semester, $quarterInSemester, now()->format('Ymd-His'));
 
-        return response()->streamDownload(function () use ($enrollments, $subjects, $gradesByEnrollment, $quarter): void {
+        return response()->streamDownload(function () use ($enrollments, $subjects, $gradesByEnrollment, $semester, $quarterInSemester): void {
             $stream = fopen('php://output', 'wb');
             if (! $stream) {
                 return;
@@ -304,7 +317,7 @@ class MasterSheetController extends Controller
 
             foreach ($enrollments as $index => $enrollment) {
                 $row = [
-                    str_pad((string) $quarter, 2, '0', STR_PAD_LEFT),
+                    sprintf('S%d-Q%d', $semester, $quarterInSemester),
                     (string) ($enrollment->student?->lrn ?? ''),
                     (string) ($enrollment->student?->full_name ?? ''),
                     (string) ($enrollment->section?->strand ?? ''),
