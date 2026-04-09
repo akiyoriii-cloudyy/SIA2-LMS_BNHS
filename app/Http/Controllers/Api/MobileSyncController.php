@@ -9,6 +9,7 @@ use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\Section;
 use App\Models\SmsLog;
+use App\Models\Student;
 use App\Models\SyncBatch;
 use App\Services\AttendanceService;
 use Carbon\Carbon;
@@ -156,7 +157,7 @@ class MobileSyncController extends Controller
             ->where('enrollment_id', $enrollment->id)
             ->whereBetween('attendance_date', [$weekStart, $weekEnd])
             ->get(['attendance_date', 'status'])
-            ->mapWithKeys(fn (AttendanceRecord $r) => [$r->attendance_date->toDateString() => $r->status]);
+            ->mapWithKeys(fn (AttendanceRecord $r) => [(string) $r->attendance_date => $r->status]);
 
         $absencesThisWeek = AttendanceRecord::query()
             ->where('enrollment_id', $enrollment->id)
@@ -260,5 +261,90 @@ class MobileSyncController extends Controller
         });
 
         return response()->json(['message' => 'Attendance synced successfully.']);
+    }
+
+    public function rfidScan(Request $request, AttendanceService $attendanceService): JsonResponse
+    {
+        $validated = $request->validate([
+            'rfid_uid' => ['required', 'string', 'max:100'],
+            'attendance_date' => ['nullable', 'date'],
+            'status' => ['nullable', Rule::in(['present', 'late', 'absent', 'excused'])],
+            'school_year_id' => ['nullable', 'exists:school_years,id'],
+            'section_id' => ['nullable', 'exists:sections,id'],
+            'course_id' => ['nullable', 'exists:courses,id'],
+            'remarks' => ['nullable', 'string'],
+        ]);
+
+        $schoolYearId = $validated['school_year_id'] ?? SchoolYear::query()
+            ->where('is_active', true)
+            ->value('id');
+
+        if (! $schoolYearId) {
+            return response()->json(['message' => 'No active school year found.'], 422);
+        }
+
+        $student = Student::query()
+            ->where('rfid_uid', $validated['rfid_uid'])
+            ->first();
+        if (! $student) {
+            return response()->json(['message' => 'RFID card not recognized.'], 404);
+        }
+
+        $enrollmentQuery = Enrollment::query()
+            ->with(['student.guardians', 'section'])
+            ->where('student_id', $student->id)
+            ->where('school_year_id', $schoolYearId);
+
+        if (! empty($validated['section_id'])) {
+            $enrollmentQuery->where('section_id', (int) $validated['section_id']);
+        }
+
+        $enrollment = $enrollmentQuery->orderByDesc('id')->first();
+        if (! $enrollment instanceof Enrollment) {
+            return response()->json(['message' => 'Student has no active enrollment for the selected school year/section.'], 422);
+        }
+
+        $date = isset($validated['attendance_date'])
+            ? Carbon::parse($validated['attendance_date'])
+            : now();
+        $status = $validated['status'] ?? 'present';
+
+        $record = $attendanceService->recordAttendance(
+            $enrollment,
+            $date,
+            $status,
+            isset($validated['course_id']) ? (int) $validated['course_id'] : null,
+            $validated['remarks'] ?? null,
+            $request->user()
+        );
+
+        $primaryGuardian = $enrollment->student?->guardians
+            ?->sortByDesc(fn ($guardian): int => (int) $guardian->pivot->is_primary)
+            ?->first();
+
+        return response()->json([
+            'message' => 'RFID attendance recorded.',
+            'data' => [
+                'attendance_record_id' => $record->id,
+                'attendance_date' => (string) $record->attendance_date,
+                'status' => $record->status,
+                'student' => [
+                    'id' => $enrollment->student?->id,
+                    'name' => $enrollment->student?->full_name,
+                    'lrn' => $enrollment->student?->lrn,
+                    'rfid_uid' => $enrollment->student?->rfid_uid,
+                ],
+                'section' => [
+                    'id' => $enrollment->section?->id,
+                    'name' => $enrollment->section?->name,
+                    'grade_level' => $enrollment->section?->grade_level,
+                ],
+                'primary_guardian' => $primaryGuardian ? [
+                    'name' => trim($primaryGuardian->first_name.' '.$primaryGuardian->last_name),
+                    'phone' => $primaryGuardian->phone,
+                    'relationship' => $primaryGuardian->pivot->relationship,
+                ] : null,
+            ],
+        ]);
     }
 }

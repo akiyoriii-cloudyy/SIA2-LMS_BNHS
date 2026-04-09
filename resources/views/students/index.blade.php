@@ -107,9 +107,15 @@
                         <input type="hidden" name="section_id" value="{{ (int) $selectedSection }}">
                         <div class="inline-grid" style="grid-template-columns: 160px 1fr 1fr auto;">
                             <input name="lrn" placeholder="LRN (optional)" value="{{ old('lrn') }}">
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input class="rfid-input" name="rfid_uid" placeholder="RFID UID (optional)" value="{{ old('rfid_uid') }}">
+                                <button class="btn btn-outline btn-sm rfid-scan-btn" type="button">Scan</button>
+                            </div>
                             <input name="first_name" placeholder="First name" value="{{ old('first_name') }}" required>
-                            <input name="last_name" placeholder="Last name" value="{{ old('last_name') }}" required>
-                            <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                            <div style="display:flex; gap:8px;">
+                                <input name="last_name" placeholder="Last name" value="{{ old('last_name') }}" required>
+                                <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                            </div>
                         </div>
                         <div class="inline-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 10px;">
                             <input name="middle_name" placeholder="Middle name (optional)" value="{{ old('middle_name') }}">
@@ -176,32 +182,118 @@
                     <thead>
                         <tr>
                             <th>LRN</th>
-                            <th>Student</th>
+                            <th>RFID UID</th>
+                            <th>Learner Name (Last Name, First Name, Middle Name)</th>
                             <th>Sex</th>
-                            <th>Age</th>
-                            <th>Ethnicity</th>
-                            <th>Address</th>
-                            <th>Section</th>
-                            <th>Status</th>
-                            <th>Guardians</th>
+                            <th>Birth Date (mm/dd/yyyy)</th>
+                            <th>Age as of Oct. 31</th>
+                            <th>Religious Affiliation</th>
+                            <th>House # / Street / Sitio / Purok</th>
+                            <th>Barangay</th>
+                            <th>Municipality / City</th>
+                            <th>Province</th>
+                            <th>Father's Name</th>
+                            <th>Mother's Maiden Name</th>
+                            <th>Guardian Name (if not living with parents)</th>
+                            <th>Relationship</th>
+                            <th>Contact Number</th>
+                            <th>Learner's Learning Modality</th>
                             <th style="width: 240px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($enrollments as $enrollment)
-                            @php $student = $enrollment->student; @endphp
+                            @php
+                                $student = $enrollment->student;
+                                $guardians = collect($student?->guardians ?? []);
+
+                                $formatPerson = function ($person): string {
+                                    if (! $person) {
+                                        return '-';
+                                    }
+
+                                    $first = trim((string) ($person->first_name ?? ''));
+                                    $last = trim((string) ($person->last_name ?? ''));
+
+                                    if ($first === '' && $last === '') {
+                                        return '-';
+                                    }
+
+                                    return trim($last !== '' ? ($last.', '.$first) : $first);
+                                };
+
+                                $father = $guardians->first(function ($guardian): bool {
+                                    $rel = strtolower(trim((string) ($guardian->pivot->relationship ?? '')));
+
+                                    return str_contains($rel, 'father') || str_contains($rel, 'tatay');
+                                });
+
+                                $mother = $guardians->first(function ($guardian): bool {
+                                    $rel = strtolower(trim((string) ($guardian->pivot->relationship ?? '')));
+
+                                    return str_contains($rel, 'mother') || str_contains($rel, 'nanay');
+                                });
+
+                                $guardian = $guardians->first(function ($row) use ($father, $mother): bool {
+                                    if (($father && $row->id === $father->id) || ($mother && $row->id === $mother->id)) {
+                                        return false;
+                                    }
+
+                                    $rel = strtolower(trim((string) ($row->pivot->relationship ?? '')));
+
+                                    return str_contains($rel, 'guardian')
+                                        || str_contains($rel, 'relative')
+                                        || str_contains($rel, 'aunt')
+                                        || str_contains($rel, 'uncle')
+                                        || str_contains($rel, 'grand');
+                                });
+
+                                if (! $guardian) {
+                                    $guardian = $guardians->first(function ($row) use ($father, $mother): bool {
+                                        return ! (($father && $row->id === $father->id) || ($mother && $row->id === $mother->id));
+                                    });
+                                }
+
+                                $guardianRelationship = $guardian ? trim((string) ($guardian->pivot->relationship ?? '-')) : '-';
+                                $guardianRelationship = $guardianRelationship !== '' ? ucfirst($guardianRelationship) : '-';
+
+                                $addressParts = collect(explode(',', (string) ($student?->address ?? '')))
+                                    ->map(fn ($part) => trim($part))
+                                    ->filter(fn ($part) => $part !== '')
+                                    ->values();
+
+                                $houseStreet = $addressParts->get(0, '-');
+                                $barangay = $addressParts->get(1, '-');
+                                $municipality = $addressParts->get(2, '-');
+                                $province = $addressParts->get(3, '-');
+
+                                $birthDate = $student?->date_of_birth ? optional($student->date_of_birth)->format('m/d/Y') : '-';
+                                $religiousAffiliation = trim((string) ($student?->ethnicity ?? ''));
+                                $religiousAffiliation = $religiousAffiliation !== '' ? $religiousAffiliation : '-';
+                                $contactNumber = $guardian?->phone ?? $father?->phone ?? $mother?->phone ?? '-';
+                            @endphp
                             <tr class="{{ $student && $student->trashed() ? 'row-deleted' : '' }}">
                                 <td style="font-family: 'JetBrains Mono', monospace; font-weight: 800;">
                                     {{ $student?->lrn ?? '-' }}
                                 </td>
+                                <td style="font-family: 'JetBrains Mono', monospace;">
+                                    {{ $student?->rfid_uid ?: '-' }}
+                                </td>
                                 <td style="font-weight: 800;">{{ $student?->full_name ?? '-' }}</td>
                                 <td>{{ $student?->sex ?? '-' }}</td>
+                                <td>{{ $birthDate }}</td>
                                 <td>{{ $student?->age ?? '-' }}</td>
-                                <td>{{ $student?->ethnicity ?? '-' }}</td>
-                                <td>{{ $student?->address ?? '-' }}</td>
-                                <td>Grade {{ $enrollment->section?->grade_level }} - {{ $enrollment->section?->name }}</td>
-                                <td><span class="chip">{{ $enrollment->status }}</span></td>
-                                <td>{{ number_format((int) ($student?->guardians_count ?? 0)) }}</td>
+                                <td>{{ $religiousAffiliation }}</td>
+                                <td>{{ $houseStreet }}</td>
+                                <td>{{ $barangay }}</td>
+                                <td>{{ $municipality }}</td>
+                                <td>{{ $province }}</td>
+                                <td>{{ $formatPerson($father) }}</td>
+                                <td>{{ $formatPerson($mother) }}</td>
+                                <td>{{ $formatPerson($guardian) }}</td>
+                                <td>{{ $guardianRelationship }}</td>
+                                <td>{{ $contactNumber }}</td>
+                                <td>Face to Face</td>
                                 <td>
                                     @if ($student)
                                         @if ($status === 'deleted')
@@ -219,9 +311,15 @@
                                                             @method('PUT')
                                                             <div class="inline-grid" style="grid-template-columns: 160px 1fr 1fr auto;">
                                                                 <input name="lrn" placeholder="LRN" value="{{ $student->lrn }}">
+                                                                <div style="display:flex; gap:8px; align-items:center;">
+                                                                    <input class="rfid-input" name="rfid_uid" placeholder="RFID UID" value="{{ old('rfid_uid', $student->rfid_uid) }}">
+                                                                    <button class="btn btn-outline btn-sm rfid-scan-btn" type="button">Scan</button>
+                                                                </div>
                                                                 <input name="first_name" value="{{ $student->first_name }}" required>
-                                                                <input name="last_name" value="{{ $student->last_name }}" required>
-                                                                <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                                                                <div style="display:flex; gap:8px;">
+                                                                    <input name="last_name" value="{{ $student->last_name }}" required>
+                                                                    <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                                                                </div>
                                                             </div>
                                                             <div class="inline-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 10px;">
                                                                 <input name="middle_name" placeholder="Middle name" value="{{ $student->middle_name }}">
@@ -255,7 +353,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="muted">No enrollments found.</td>
+                                <td colspan="18" class="muted">No enrollments found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -263,4 +361,67 @@
             </div>
         </div>
     </div>
+
+    <script>
+        (function () {
+            const buttons = Array.from(document.querySelectorAll('.rfid-scan-btn'));
+            let activeInput = null;
+            let buffer = '';
+            let resetTimer = null;
+
+            function stopCapture() {
+                if (activeInput) {
+                    activeInput.placeholder = activeInput.dataset.placeholder || activeInput.placeholder;
+                }
+                activeInput = null;
+                buffer = '';
+                if (resetTimer) {
+                    clearTimeout(resetTimer);
+                    resetTimer = null;
+                }
+            }
+
+            buttons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const container = btn.closest('div');
+                    const input = container ? container.querySelector('.rfid-input') : null;
+                    if (!input) return;
+
+                    activeInput = input;
+                    activeInput.dataset.placeholder = activeInput.placeholder;
+                    activeInput.placeholder = 'Ready to scan... tap RFID card';
+                    activeInput.focus();
+                    activeInput.select();
+                    buffer = '';
+                });
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (!activeInput) return;
+
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    if (buffer.trim() !== '') {
+                        activeInput.value = buffer.trim();
+                    }
+                    stopCapture();
+                    return;
+                }
+
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    stopCapture();
+                    return;
+                }
+
+                if (event.key.length === 1) {
+                    buffer += event.key;
+                    if (resetTimer) clearTimeout(resetTimer);
+                    resetTimer = setTimeout(() => {
+                        buffer = '';
+                    }, 1000);
+                }
+            });
+        })();
+    </script>
 @endsection

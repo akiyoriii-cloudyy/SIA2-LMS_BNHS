@@ -13,8 +13,9 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\ReportCard;
-use App\Models\Teacher;
-use Illuminate\Http\RedirectResponse;
+use App\Models\User;
+use App\Models\SchoolNotification;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,14 +23,178 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): View|RedirectResponse
+    public function index(Request $request): View
     {
         $user = $request->user();
 
-        if ($user?->hasRole('admin')) {
-            return redirect()->route('admin.users.index', $request->query());
+        if ($user?->hasRole('subject_teacher') && ! $user->hasRole('admin')) {
+            return $this->subjectTeacherDashboard($request, $user);
         }
 
+        if ($user?->hasRole('admin')) {
+            $activeSchoolYear = SchoolYear::query()
+                ->where('is_active', true)
+                ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
+
+            $schoolYearId = $activeSchoolYear?->id;
+            $weekStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+            $totalUsers = User::query()->count();
+            $totalTeachers = User::query()->whereHas('roles', fn ($q) => $q->whereIn('name', ['adviser', 'subject_teacher']))->count();
+            $totalAdmins = User::query()->whereHas('roles', fn ($q) => $q->where('name', 'admin'))->count();
+            $totalStudents = Enrollment::query()
+                ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
+                ->distinct('student_id')
+                ->count('student_id');
+
+            $totalSections = Section::query()->count();
+            $totalSubjects = Subject::query()->count();
+            $totalEnrollments = Enrollment::query()
+                ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
+                ->count();
+            $totalCourses = Course::query()
+                ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
+                ->count();
+
+            $smsQueued = SmsLog::query()->where('status', 'queued')->count();
+            $smsFailed = SmsLog::query()->where('status', 'failed')->count();
+            $weeklyAlerts = SmsLog::query()->where('week_start', $weekStart)->count();
+
+            $attendanceToday = AttendanceRecord::query()
+                ->whereDate('attendance_date', now()->toDateString())
+                ->count();
+
+            $recentUsers = User::query()->with('roles')->orderByDesc('created_at')->limit(6)->get();
+            $recentSmsLogs = SmsLog::query()->with('student')->orderByDesc('created_at')->limit(6)->get();
+
+            $subjectAssignmentCount = SubjectAssignment::query()
+                ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
+                ->count();
+
+            $adminUnreadNotifications = SchoolNotification::query()
+                ->where('user_id', $user->id)
+                ->where('channel', 'in_app')
+                ->whereNull('read_at')
+                ->count();
+
+            return view('dashboard', [
+                'isAdminDashboard' => true,
+                'activeSchoolYear' => $activeSchoolYear,
+                'adminStats' => [
+                    'total_users' => $totalUsers,
+                    'total_teachers' => $totalTeachers,
+                    'total_admins' => $totalAdmins,
+                    'total_students' => $totalStudents,
+                    'total_sections' => $totalSections,
+                    'total_subjects' => $totalSubjects,
+                    'total_enrollments' => $totalEnrollments,
+                    'total_courses' => $totalCourses,
+                    'attendance_today' => $attendanceToday,
+                    'sms_queued' => $smsQueued,
+                    'sms_failed' => $smsFailed,
+                    'weekly_alerts' => $weeklyAlerts,
+                    'subject_assignment_count' => $subjectAssignmentCount,
+                ],
+                'recentUsers' => $recentUsers,
+                'recentSmsLogs' => $recentSmsLogs,
+                'adminUnreadNotifications' => $adminUnreadNotifications,
+            ]);
+        }
+
+        return view('dashboard', $this->buildDashboardAnalytics($request, $user, schoolWideScope: false));
+    }
+
+    private function subjectTeacherDashboard(Request $request, User $user): View
+    {
+        $teacher = $user->teacher;
+        $activeSchoolYear = SchoolYear::query()
+            ->where('is_active', true)
+            ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
+        $schoolYearId = $activeSchoolYear?->id;
+
+        $semesterInput = (int) $request->input('semester', 0);
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
+        $defaultQuarter = $this->guessQuarterFromDate(now());
+
+        if (in_array($semesterInput, [1, 2], true)) {
+            $semester = $semesterInput;
+            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
+            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
+        } else {
+            $quarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : $defaultQuarter));
+            $semester = $quarter <= 2 ? 1 : 2;
+            $quarterInSemester = $quarter <= 2 ? $quarter : $quarter - 2;
+        }
+
+        $periodQuery = ['semester' => $semester, 'quarter' => $quarterInSemester];
+        $gradebookBase = ['subject_category' => 'core', 'semester' => $semester, 'quarter' => $quarterInSemester];
+
+        $assignmentRows = collect();
+        if ($teacher && $schoolYearId) {
+            $assignments = SubjectAssignment::query()
+                ->with(['section', 'subject', 'schoolYear'])
+                ->where('teacher_id', $teacher->id)
+                ->where('school_year_id', $schoolYearId)
+                ->orderBy('section_id')
+                ->orderBy('subject_id')
+                ->get();
+
+            $assignmentRows = $assignments->map(function (SubjectAssignment $sa) use ($quarter, $gradebookBase): array {
+                $enrollmentIds = Enrollment::query()
+                    ->where('school_year_id', $sa->school_year_id)
+                    ->where('section_id', $sa->section_id)
+                    ->orderBy('id')
+                    ->pluck('id');
+
+                $grades = GradeEntry::query()
+                    ->where('subject_assignment_id', $sa->id)
+                    ->where('quarter', $quarter)
+                    ->get()
+                    ->keyBy('enrollment_id');
+
+                $pending = (int) $enrollmentIds->filter(function (int $eid) use ($grades): bool {
+                    $g = $grades->get($eid);
+
+                    return ! $g
+                        || $g->quiz === null
+                        || ($g->performance_task ?? $g->assignment) === null
+                        || $g->exam === null;
+                })->count();
+
+                $gradebookUrl = route('gradebook.index', array_merge($gradebookBase, [
+                    'school_year_id' => $sa->school_year_id,
+                    'grade_level' => $sa->section?->grade_level ?? 0,
+                    'section_id' => $sa->section_id,
+                    'subject_id' => $sa->subject_id,
+                ]));
+
+                return [
+                    'assignment' => $sa,
+                    'pending' => $pending,
+                    'total' => $enrollmentIds->count(),
+                    'gradebook_url' => $gradebookUrl,
+                ];
+            });
+        }
+
+        $totalPending = (int) $assignmentRows->sum('pending');
+
+        return view('dashboard-subject-teacher', [
+            'activeSchoolYear' => $activeSchoolYear,
+            'semester' => $semester,
+            'quarterInSemester' => $quarterInSemester,
+            'quarter' => $quarter,
+            'assignmentRows' => $assignmentRows,
+            'totalPending' => $totalPending,
+            'missingTeacher' => ! $teacher,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildDashboardAnalytics(Request $request, User $user, bool $schoolWideScope): array
+    {
         $activeSchoolYear = SchoolYear::query()
             ->where('is_active', true)
             ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
@@ -54,9 +219,16 @@ class DashboardController extends Controller
             fn ($q) => $q->where('school_year_id', $schoolYearId),
         );
 
-        $applyEnrollmentScope = $user && $user->hasRole('teacher') && ! $user->hasRole('admin');
+        $applyEnrollmentScope = ! $schoolWideScope
+            && $user->hasRole('adviser')
+            && ! $user->hasRole('admin');
 
-        if ($user?->hasRole('teacher') && $user->teacher && $schoolYearId) {
+        if (
+            ! $schoolWideScope
+            && $user->hasRole('adviser')
+            && $user->teacher
+            && $schoolYearId
+        ) {
             $teacherSectionIds = SubjectAssignment::query()
                 ->where('teacher_id', $user->teacher->id)
                 ->where('school_year_id', $schoolYearId)
@@ -78,7 +250,10 @@ class DashboardController extends Controller
 
         $totalSubjects = SubjectAssignment::query()
             ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
-            ->when($user?->hasRole('teacher') && $user->teacher, fn ($q) => $q->where('teacher_id', $user->teacher->id))
+            ->when(
+                ! $schoolWideScope && $user->hasRole('adviser') && $user->teacher,
+                fn ($q) => $q->where('teacher_id', $user->teacher->id)
+            )
             ->distinct('subject_id')
             ->count('subject_id');
 
@@ -472,15 +647,17 @@ class DashboardController extends Controller
                 ->first();
         }
 
-        $scopeLabel = $sampleSection
-            ? ('Grade '.$sampleSection->grade_level.' • '.$sampleSection->name.($sectionIds->count() > 1 ? ' +'.($sectionIds->count() - 1).' more' : ''))
-            : 'All sections';
+        $scopeLabel = $schoolWideScope
+            ? 'All sections (school-wide)'
+            : ($sampleSection
+                ? ('Grade '.$sampleSection->grade_level.' • '.$sampleSection->name.($sectionIds->count() > 1 ? ' +'.($sectionIds->count() - 1).' more' : ''))
+                : 'All sections');
 
         $quickLinks = [
             ['label' => 'Courses', 'route' => 'courses.index'],
         ];
 
-        if ($user && $user->hasRole('admin', 'teacher')) {
+        if ($user && $user->hasRole('adviser')) {
             $quickLinks = array_merge($quickLinks, [
                 ['label' => 'Gradebook', 'route' => 'gradebook.index'],
                 ['label' => 'Attendance', 'route' => 'attendance.index'],
@@ -488,7 +665,7 @@ class DashboardController extends Controller
             ]);
         }
 
-        return view('dashboard', [
+        return [
             'stats' => $stats,
             'quickLinks' => $quickLinks,
             'activeSchoolYear' => $activeSchoolYear,
@@ -513,10 +690,10 @@ class DashboardController extends Controller
             'topPerformers' => $topPerformersData,
             'activity' => $activity,
             'submissionStatus' => $submissionStatus,
-        ]);
+        ];
     }
 
-    private function guessQuarterFromDate(Carbon $date): int
+    private function guessQuarterFromDate(CarbonInterface $date): int
     {
         $month = (int) $date->format('n');
 

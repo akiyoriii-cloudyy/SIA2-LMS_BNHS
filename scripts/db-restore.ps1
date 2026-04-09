@@ -1,4 +1,25 @@
 param(
+    [string]$Host = "127.0.0.1",
+    [int]$Port = 3306,
+    [string]$Database = "lms_bnhs",
+    [string]$User = "root",
+    [string]$Password = "",
+    [Parameter(Mandatory = $true)]
+    [string]$BackupFile
+)
+
+if (!(Test-Path $BackupFile)) {
+    throw "Backup file not found: $BackupFile"
+}
+
+$env:MYSQL_PWD = $Password
+try {
+    & mysql --host=$Host --port=$Port --user=$User $Database < $BackupFile
+    Write-Host "Database restored from: $BackupFile"
+} finally {
+    Remove-Item Env:MYSQL_PWD -ErrorAction SilentlyContinue
+}
+param(
     [Parameter(Mandatory = $true)]
     [string] $SqlFile,
     [string] $EnvPath = ".env"

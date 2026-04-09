@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Subject;
+use App\Models\TeacherSubject;
+use App\Services\InAppNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -10,6 +12,10 @@ use Illuminate\View\View;
 
 class SubjectController extends Controller
 {
+    public function __construct(
+        private readonly InAppNotificationService $inAppNotifications,
+    ) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
@@ -65,11 +71,19 @@ class SubjectController extends Controller
             'category' => ['required', 'string', Rule::in(Subject::CATEGORIES)],
         ]);
 
+        $title = trim($validated['title']);
         Subject::query()->create([
             'code' => strtoupper(trim($validated['code'])),
-            'title' => trim($validated['title']),
+            'title' => $title,
             'category' => strtolower(trim($validated['category'])),
         ]);
+
+        $this->inAppNotifications->notifyAllAdmins(
+            'subject',
+            'Subject created',
+            "A new subject «{$title}» was added from Records.",
+            $this->actorMeta($request),
+        );
 
         return back()->with('status', 'Subject added.');
     }
@@ -88,21 +102,83 @@ class SubjectController extends Controller
             'category' => strtolower(trim($validated['category'])),
         ]);
 
+        $meta = $this->actorMeta($request) + ['subject_id' => $subject->id];
+        $this->inAppNotifications->notifyAllAdmins(
+            'subject',
+            'Subject updated',
+            "Subject «{$subject->title}» ({$subject->code}) was updated from Records.",
+            $meta,
+        );
+
+        $assignment = TeacherSubject::query()->where('subject_id', $subject->id)->with('teacher.user')->first();
+        $assigneeUserId = $assignment?->teacher?->user_id;
+        if ($assigneeUserId && $assigneeUserId !== $request->user()->id) {
+            $this->inAppNotifications->notifyUser(
+                $assigneeUserId,
+                'subject',
+                'Subject updated',
+                "The subject you teach, «{$subject->title}», was updated.",
+                $meta,
+            );
+        }
+
         return back()->with('status', 'Subject updated.');
     }
 
-    public function destroy(Subject $subject): RedirectResponse
+    public function destroy(Request $request, Subject $subject): RedirectResponse
     {
+        $assignment = TeacherSubject::query()->where('subject_id', $subject->id)->with('teacher.user')->first();
+        $label = $subject->title;
+        $meta = $this->actorMeta($request) + ['subject_id' => $subject->id];
+
         $subject->delete();
+
+        $this->inAppNotifications->notifyAllAdmins(
+            'subject',
+            'Subject deleted',
+            "Subject «{$label}» was removed from Records.",
+            $meta,
+        );
+
+        $assigneeUserId = $assignment?->teacher?->user_id;
+        if ($assigneeUserId && $assigneeUserId !== $request->user()->id) {
+            $this->inAppNotifications->notifyUser(
+                $assigneeUserId,
+                'subject',
+                'Subject removed',
+                "«{$label}» is no longer available in the catalog (your assignment may need review).",
+                $meta,
+            );
+        }
 
         return back()->with('status', 'Subject deleted.');
     }
 
-    public function restore(string $id): RedirectResponse
+    public function restore(Request $request, string $id): RedirectResponse
     {
         $subject = Subject::onlyTrashed()->findOrFail($id);
         $subject->restore();
 
+        $this->inAppNotifications->notifyAllAdmins(
+            'subject',
+            'Subject restored',
+            "Subject «{$subject->title}» was restored.",
+            $this->actorMeta($request) + ['subject_id' => $subject->id],
+        );
+
         return back()->with('status', 'Subject restored.');
+    }
+
+    /**
+     * @return array{actor_id: int, actor_name: string}
+     */
+    private function actorMeta(Request $request): array
+    {
+        $user = $request->user();
+
+        return [
+            'actor_id' => $user->id,
+            'actor_name' => (string) ($user->display_name ?: $user->name),
+        ];
     }
 }

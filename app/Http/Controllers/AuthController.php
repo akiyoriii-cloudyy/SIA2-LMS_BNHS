@@ -27,13 +27,13 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
-        if ($user && ! $user->hasRole('admin', 'teacher')) {
+        if ($user && ! $user->hasRole('admin', 'adviser', 'subject_teacher')) {
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             return back()->withErrors([
-                'email' => 'Access denied. This portal is for Admin and Teacher accounts only.',
+                'email' => 'Access denied. This portal is for admin, adviser, and subject teacher accounts only.',
             ])->onlyInput('email');
         }
 

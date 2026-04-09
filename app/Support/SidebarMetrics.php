@@ -37,7 +37,7 @@ class SidebarMetrics
 
     public static function teacherMissingGradesCount(User $user, ?int $quarter = null): int
     {
-        if (! $user->hasRole('teacher')) {
+        if (! $user->hasRole('adviser', 'subject_teacher')) {
             return 0;
         }
 
@@ -50,7 +50,7 @@ class SidebarMetrics
 
         $assignmentIds = SubjectAssignment::query()
             ->where('school_year_id', $activeSchoolYear)
-            ->when($user->hasRole('teacher') && ! $user->hasRole('admin'), function ($q) use ($user): void {
+            ->when(($user->hasRole('adviser') || $user->hasRole('subject_teacher')) && ! $user->hasRole('admin'), function ($q) use ($user): void {
                 $teacherId = $user->teacher?->id;
                 if ($teacherId) {
                     $q->where('teacher_id', $teacherId);
@@ -94,7 +94,7 @@ class SidebarMetrics
 
     public static function printableReportCardsCount(User $user): int
     {
-        if (! $user->hasRole('teacher')) {
+        if (! $user->hasRole('adviser')) {
             return 0;
         }
 
@@ -107,7 +107,7 @@ class SidebarMetrics
             ->whereNotNull('general_average')
             ->whereHas('enrollment', fn ($q) => $q->where('school_year_id', $activeSchoolYear));
 
-        if ($user->hasRole('teacher') && ! $user->hasRole('admin')) {
+        if ($user->hasRole('adviser') && ! $user->hasRole('admin')) {
             $teacherId = $user->teacher?->id;
 
             if (! $teacherId) {

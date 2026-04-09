@@ -18,7 +18,7 @@
             ->sortBy(fn ($i) => $i->subjectAssignment?->subject?->title ?? '')
             ->values();
 
-        $fmtQ = fn ($v) => $v === null ? '' : number_format((float) $v, 0);
+        $fmtQ = fn ($v) => $v === null ? '' : number_format((float) $v, 1);
 
         $age = $ageAtCutoff ?? ($student?->date_of_birth ? $student->date_of_birth->age : null);
         $sex = $student?->sex ? mb_strtoupper((string) $student->sex) : null;
@@ -46,33 +46,12 @@
         $principalName = 'CARLITO V. GILZA';
         $principalDesignation = 'Principal II';
 
-        $semesterHint = function (?string $title): ?int {
-            $raw = trim((string) $title);
-            if ($raw === '') {
-                return null;
-            }
-
-            if (preg_match('/(?:\\s|\\-|\\/|\\()([1-4])\\)?$/', $raw, $m)) {
-                return ((int) $m[1]) <= 2 ? 1 : 2;
-            }
-
-            return null;
-        };
-
         $calcSemesterFinal = function ($a, $b): ?float {
             $a = $a !== null ? (float) $a : null;
             $b = $b !== null ? (float) $b : null;
 
-            if ($a === null && $b === null) {
+            if ($a === null || $b === null) {
                 return null;
-            }
-
-            if ($a === null) {
-                return $b;
-            }
-
-            if ($b === null) {
-                return $a;
             }
 
             return round(($a + $b) / 2, 2);
@@ -86,28 +65,20 @@
             return $grade >= 75 ? 'Passed' : 'Failed';
         };
 
-        $hintedItems = $items->filter(fn ($item) => $semesterHint($item->subjectAssignment?->subject?->title) !== null);
+        $firstSemesterItems = $items
+            ->filter(fn ($item) => $item->q1 !== null || $item->q2 !== null)
+            ->values();
 
-        if ($hintedItems->isNotEmpty()) {
-            $firstSemesterItems = $items->filter(fn ($item) => $semesterHint($item->subjectAssignment?->subject?->title) === 1)->values();
-            $secondSemesterItems = $items->filter(fn ($item) => $semesterHint($item->subjectAssignment?->subject?->title) === 2)->values();
-        } else {
-            $firstSemesterItems = $items
-                ->filter(fn ($item) => $item->q1 !== null || $item->q2 !== null)
-                ->values();
+        $secondSemesterItems = $items
+            ->filter(fn ($item) => $item->q3 !== null || $item->q4 !== null)
+            ->values();
 
-            $secondSemesterItems = $items
-                ->filter(fn ($item) => $item->q3 !== null || $item->q4 !== null)
-                ->values();
+        if ($firstSemesterItems->isEmpty() && $items->isNotEmpty()) {
+            $firstSemesterItems = $items;
+        }
 
-            if ($firstSemesterItems->isEmpty() && $items->isNotEmpty()) {
-                $firstSemesterItems = $items;
-            }
-
-            if ($secondSemesterItems->isEmpty() && $items->isNotEmpty()) {
-                $split = (int) ceil($items->count() / 2);
-                $secondSemesterItems = $items->skip($split)->values();
-            }
+        if ($secondSemesterItems->isEmpty() && $items->isNotEmpty()) {
+            $secondSemesterItems = $items;
         }
 
         $buildSemesterRows = function ($source, string $qa, string $qb) use ($calcSemesterFinal, $remarkFor) {

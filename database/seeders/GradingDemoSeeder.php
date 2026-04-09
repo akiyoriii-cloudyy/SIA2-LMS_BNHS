@@ -21,7 +21,7 @@ class GradingDemoSeeder extends Seeder
     public function run(): void
     {
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'School administrator']);
-        $teacherRole = Role::firstOrCreate(['name' => 'teacher'], ['description' => 'Subject teacher']);
+        $adviserRole = Role::firstOrCreate(['name' => 'adviser'], ['description' => 'Class adviser']);
 
         $adminUser = User::firstOrCreate(
             ['email' => 'admin@bnhs.local'],
@@ -33,7 +33,7 @@ class GradingDemoSeeder extends Seeder
             ['email' => 'teacher@bnhs.local'],
             ['name' => 'Adviser One', 'password' => Hash::make('password'), 'phone' => '+639222222222']
         );
-        $teacherUser->roles()->syncWithoutDetaching([$teacherRole->id]);
+        $teacherUser->roles()->syncWithoutDetaching([$adviserRole->id]);
 
         $teacher = Teacher::firstOrCreate(
             ['user_id' => $teacherUser->id],

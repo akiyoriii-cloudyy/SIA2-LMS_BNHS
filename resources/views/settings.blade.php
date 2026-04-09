@@ -37,8 +37,20 @@
                     @method('PUT')
                     <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
                         <div>
-                            <label>Name</label>
-                            <input name="name" value="{{ old('name', $user?->name) }}" required>
+                            <label>First name</label>
+                            <input name="first_name" value="{{ old('first_name', $user?->profile?->first_name) }}" required>
+                        </div>
+                        <div>
+                            <label>Middle name (optional)</label>
+                            <input name="middle_name" value="{{ old('middle_name', $user?->profile?->middle_name) }}">
+                        </div>
+                        <div>
+                            <label>Last name</label>
+                            <input name="last_name" value="{{ old('last_name', $user?->profile?->last_name) }}" required>
+                        </div>
+                        <div>
+                            <label>Suffix (optional)</label>
+                            <input name="suffix" value="{{ old('suffix', $user?->profile?->suffix) }}">
                         </div>
                         <div>
                             <label>Email</label>
@@ -46,8 +58,8 @@
                             <div class="muted" style="font-size:12px; margin-top:6px;">Email changes are managed by the admin.</div>
                         </div>
                         <div>
-                            <label>Phone (optional)</label>
-                            <input name="phone" value="{{ old('phone', $user?->phone) }}">
+                            <label>Phone</label>
+                            <input name="phone" value="{{ old('phone', $user?->phone) }}" required>
                         </div>
                         <div style="display:flex; align-items:flex-end;">
                             <button class="btn btn-primary" type="submit" style="width:100%;">Save</button>

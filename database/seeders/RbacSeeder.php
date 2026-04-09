@@ -10,7 +10,7 @@ class RbacSeeder extends Seeder
 {
     /**
      * RBAC baseline:
-     * - Roles: admin > teacher (editor) > user
+     * - Roles: admin > adviser (class/homeroom) > subject_teacher (encoding only) > user
      * - Permissions: used by `permission` middleware on routes
      */
     public function run(): void
@@ -35,11 +35,13 @@ class RbacSeeder extends Seeder
         }
 
         $admin = Role::updateOrCreate(['name' => 'admin'], ['description' => 'School administrator', 'level' => 300]);
-        $teacher = Role::updateOrCreate(['name' => 'teacher'], ['description' => 'Subject teacher (editor)', 'level' => 200]);
+        $adviser = Role::updateOrCreate(['name' => 'adviser'], ['description' => 'Class adviser / homeroom teacher', 'level' => 200]);
+        $subjectTeacher = Role::updateOrCreate(['name' => 'subject_teacher'], ['description' => 'Subject teacher (grade encoding for assigned subjects)', 'level' => 200]);
         $user = Role::updateOrCreate(['name' => 'user'], ['description' => 'Limited user', 'level' => 100]);
 
         $admin->permissions()->sync(Permission::query()->pluck('id')->all());
-        $teacher->permissions()->sync(Permission::query()->whereIn('name', [
+
+        $adviser->permissions()->sync(Permission::query()->whereIn('name', [
             'dashboard.view',
             'courses.view',
             'gradebook.view',
@@ -51,10 +53,17 @@ class RbacSeeder extends Seeder
             'sms_logs.view',
             'settings.manage_own',
         ])->pluck('id')->all());
+
+        $subjectTeacher->permissions()->sync(Permission::query()->whereIn('name', [
+            'dashboard.view',
+            'gradebook.view',
+            'gradebook.edit',
+            'settings.manage_own',
+        ])->pluck('id')->all());
+
         $user->permissions()->sync(Permission::query()->whereIn('name', [
             'dashboard.view',
             'courses.view',
         ])->pluck('id')->all());
     }
 }
-

@@ -3,6 +3,13 @@
 @section('title', 'Admin Settings')
 
 @section('content')
+    @php
+        $nameParts = preg_split('/\s+/', trim((string) ($user?->name ?? ''))) ?: [];
+        $fallbackFirstName = $nameParts[0] ?? '';
+        $fallbackLastName = count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : '';
+        $roleName = ucfirst((string) ($user?->roles?->first()?->name ?? 'admin'));
+    @endphp
+
     <div class="dash-topbar">
         <div class="dash-topbar-left">
             <span class="dash-topbar-title">EduTrack</span>
@@ -37,16 +44,33 @@
                     @method('PUT')
                     <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
                         <div>
-                            <label>Name</label>
-                            <input name="name" value="{{ old('name', $user?->name) }}" required>
+                            <label>Role</label>
+                            <input value="{{ $roleName }}" readonly disabled>
+                            <div class="muted" style="font-size:12px; margin-top:6px;">Role is managed via admin user permissions.</div>
+                        </div>
+                        <div>
+                            <label>First name</label>
+                            <input name="first_name" value="{{ old('first_name', $user?->profile?->first_name ?? $fallbackFirstName) }}" required>
+                        </div>
+                        <div>
+                            <label>Middle name</label>
+                            <input name="middle_name" value="{{ old('middle_name', $user?->profile?->middle_name) }}">
+                        </div>
+                        <div>
+                            <label>Last name</label>
+                            <input name="last_name" value="{{ old('last_name', $user?->profile?->last_name ?? $fallbackLastName) }}" required>
+                        </div>
+                        <div>
+                            <label>Suffix (optional)</label>
+                            <input name="suffix" value="{{ old('suffix', $user?->profile?->suffix) }}">
                         </div>
                         <div>
                             <label>Email</label>
                             <input type="email" name="email" value="{{ old('email', $user?->email) }}" required>
                         </div>
                         <div>
-                            <label>Phone (optional)</label>
-                            <input name="phone" value="{{ old('phone', $user?->phone) }}">
+                            <label>Phone</label>
+                            <input name="phone" value="{{ old('phone', $user?->phone) }}" required>
                         </div>
                         <div style="display:flex; align-items:flex-end;">
                             <button class="btn btn-primary" type="submit" style="width:100%;">Save</button>

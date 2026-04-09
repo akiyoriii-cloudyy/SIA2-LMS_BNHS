@@ -14,13 +14,15 @@
     </script>
     <script src="{{ asset('lms-theme.js') }}?v={{ @filemtime(public_path('lms-theme.js')) }}" defer></script>
 </head>
-<body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }} {{ auth()->check() ? (auth()->user()->hasRole('admin') ? 'lms-role-admin' : (auth()->user()->hasRole('teacher') ? 'lms-role-teacher' : 'lms-role-user')) : '' }}">
+<body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }} {{ auth()->check() ? (auth()->user()->hasRole('admin') ? 'lms-role-admin' : (auth()->user()->hasRole('adviser') ? 'lms-role-adviser' : (auth()->user()->hasRole('subject_teacher') ? 'lms-role-subject-teacher' : 'lms-role-user'))) : '' }}">
     @if (auth()->check())
         @php
             $sidebarMissingGrades = 0;
             $sidebarPrintableReports = 0;
 
-            if (auth()->user()->hasRole('teacher')) {
+            $sidebarIsAdviser = auth()->user()->hasRole('adviser');
+            $sidebarIsSubjectTeacher = auth()->user()->hasRole('subject_teacher');
+            if ($sidebarIsAdviser || $sidebarIsSubjectTeacher) {
                 $sidebarSemesterInput = (int) request()->integer('semester', 0);
                 $sidebarQuarterInput = (int) request()->integer('quarter', request()->integer('current_quarter', 0));
 
@@ -35,7 +37,9 @@
                 }
 
                 $sidebarMissingGrades = \App\Support\SidebarMetrics::teacherMissingGradesCount(auth()->user(), $sidebarQuarter);
-                $sidebarPrintableReports = \App\Support\SidebarMetrics::printableReportCardsCount(auth()->user());
+                $sidebarPrintableReports = $sidebarIsAdviser
+                    ? \App\Support\SidebarMetrics::printableReportCardsCount(auth()->user())
+                    : 0;
             }
         @endphp
 
@@ -61,9 +65,35 @@
                 <nav class="menu">
                     <div class="group">Main</div>
                     @if (auth()->user()->hasRole('admin'))
-                        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') || request()->routeIs('dashboard') ? 'active' : '' }}">
+                        <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="icon">&#128200;</span>
+                            Dashboard
+                        </a>
+
+                        <a href="{{ route('notifications.index') }}"
+                            class="{{ request()->routeIs('notifications.*') ? 'active' : '' }}">
+                            <span class="icon">&#128276;</span>
+                            Notifications
+                            @if (($inAppUnreadCount ?? 0) > 0)
+                                <span class="nav-badge">{{ $inAppUnreadCount > 99 ? '99+' : $inAppUnreadCount }}</span>
+                            @endif
+                        </a>
+
+                        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                             <span class="icon">&#128100;</span>
                             User Management
+                        </a>
+
+                        <div class="group">Communications</div>
+                        @if (auth()->user()->hasPermission('sms_logs.view'))
+                            <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
+                                <span class="icon">&#128241;</span>
+                                SMS logs
+                            </a>
+                        @endif
+                        <a href="{{ route('mobile.app') }}" class="{{ request()->routeIs('mobile.app') ? 'active' : '' }}">
+                            <span class="icon">&#128242;</span>
+                            RFID mobile app
                         </a>
 
                         <div class="group">Admin</div>
@@ -72,17 +102,41 @@
                             Settings
                         </a>
                     @else
-                        <a href="{{ auth()->user()->hasRole('teacher') ? route('dashboard', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) : route('dashboard') }}"
+                        <a href="{{ ($sidebarIsAdviser || $sidebarIsSubjectTeacher) ? route('dashboard', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) : route('dashboard') }}"
                             class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                             <span class="icon">&#128200;</span>
                             Dashboard
                         </a>
+
+                        @if ($sidebarIsAdviser || $sidebarIsSubjectTeacher)
+                            <a href="{{ route('notifications.index') }}"
+                                class="{{ request()->routeIs('notifications.*') ? 'active' : '' }}">
+                                <span class="icon">&#128276;</span>
+                                Notifications
+                                @if (($inAppUnreadCount ?? 0) > 0)
+                                    <span class="nav-badge">{{ $inAppUnreadCount > 99 ? '99+' : $inAppUnreadCount }}</span>
+                                @endif
+                            </a>
+                        @endif
                     @endif
 
-                    @if (auth()->user()->hasRole('teacher'))
+                    @if ($sidebarIsSubjectTeacher && ! $sidebarIsAdviser)
                         <a href="{{ route('gradebook.index', ['subject_category' => 'core', 'semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
                             <span class="icon">&#9999;</span>
                             Grade Entry
+                            @if ($sidebarMissingGrades > 0)
+                                <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
+                            @endif
+                        </a>
+                    @endif
+
+                    @if ($sidebarIsAdviser)
+                        <a href="{{ route('gradebook.index', ['subject_category' => 'core', 'semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
+                            <span class="icon">&#9999;</span>
+                            Grade Entry
+                            @if ($sidebarMissingGrades > 0)
+                                <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
+                            @endif
                         </a>
 
                         <a href="{{ route('master-sheet.index', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('master-sheet.*') ? 'active' : '' }}">
@@ -92,7 +146,7 @@
 
                         <a href="{{ route('subject-teacher.index', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('subject-teacher.*') ? 'active' : '' }}">
                             <span class="icon">&#127891;</span>
-                            Subject Teacher
+                            Subject load
                             @if ($sidebarMissingGrades > 0)
                                 <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
                             @endif
@@ -120,6 +174,18 @@
                                 <span class="nav-badge">{{ $sidebarPrintableReports }}</span>
                             @endif
                         </a>
+
+                        <div class="group">Communications</div>
+                        @if (auth()->user()->hasPermission('sms_logs.view'))
+                            <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
+                                <span class="icon">&#128241;</span>
+                                SMS logs
+                            </a>
+                        @endif
+                        <a href="{{ route('mobile.app') }}" class="{{ request()->routeIs('mobile.app') ? 'active' : '' }}">
+                            <span class="icon">&#128242;</span>
+                            RFID mobile app
+                        </a>
                     @endif
                 </nav>
 
@@ -129,7 +195,7 @@
                             href="{{ route('admin.settings') }}">
                             Settings
                         </a>
-                    @elseif (auth()->user()->hasRole('teacher'))
+                    @elseif ($sidebarIsAdviser || $sidebarIsSubjectTeacher)
                         <a class="sidebar-footer-link {{ request()->routeIs('settings*') ? 'active' : '' }}"
                             href="{{ route('settings') }}">
                             Settings
@@ -143,8 +209,9 @@
                             <div class="trole">
                                 @php
                                     $role = auth()->user()->roles->first()?->name ?? 'user';
+                                    $roleLabel = $role === 'subject_teacher' ? 'Subject teacher' : str_replace('_', ' ', $role);
                                 @endphp
-                                {{ ucfirst($role) }}
+                                {{ ucfirst($roleLabel) }}
                             </div>
                         </div>
                     </div>

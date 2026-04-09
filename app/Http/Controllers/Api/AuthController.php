@@ -26,7 +26,7 @@ class AuthController extends Controller
         }
 
         $user->loadMissing('roles');
-        if (! $user->hasRole('admin', 'teacher')) {
+        if (! $user->hasRole('admin', 'adviser')) {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 

@@ -34,7 +34,7 @@ class SubjectTeacherController extends Controller
         $assignments = SubjectAssignment::query()
             ->with(['subject:id,code,title', 'section:id,name,grade_level,strand', 'schoolYear:id,name'])
             ->where('school_year_id', $selectedSchoolYear)
-            ->when($user?->hasRole('teacher') && ! $user->hasRole('admin'), function ($q) use ($user): void {
+            ->when($user?->hasRole('adviser') && ! $user->hasRole('admin'), function ($q) use ($user): void {
                 $teacherId = $user->teacher?->id;
                 if ($teacherId) {
                     $q->where('teacher_id', $teacherId);

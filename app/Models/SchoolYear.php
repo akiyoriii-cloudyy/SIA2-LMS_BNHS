@@ -20,4 +20,9 @@ class SchoolYear extends Model
     {
         return $this->hasMany(Enrollment::class);
     }
+
+    public function terms(): HasMany
+    {
+        return $this->hasMany(Term::class);
+    }
 }

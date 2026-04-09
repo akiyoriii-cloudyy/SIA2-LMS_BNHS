@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Subject extends Model
@@ -33,5 +34,10 @@ class Subject extends Model
                 ELSE 99
             END
         ")->orderBy('title');
+    }
+
+    public function teacherSubjects(): HasMany
+    {
+        return $this->hasMany(TeacherSubject::class);
     }
 }

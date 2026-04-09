@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PasswordResetController;
 
 use App\Http\Controllers\Admin\UsersController as AdminUsersController;
+use App\Http\Controllers\Admin\SystemManagementController as AdminSystemManagementController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MasterSheetController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\SmsLogController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\SubjectTeacherController;
 use App\Http\Controllers\SubjectController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,17 +36,24 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware(['auth'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['role:admin,teacher', 'permission:dashboard.view'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['role:admin,adviser,subject_teacher', 'permission:dashboard.view'])->name('dashboard');
 
-    Route::get('/courses', [CourseController::class, 'index'])->middleware(['role:admin,teacher', 'permission:courses.view'])->name('courses.index');
+    Route::middleware(['role:admin,adviser,subject_teacher', 'permission:dashboard.view'])->group(function (): void {
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        Route::post('/notifications/{schoolNotification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    });
 
-    Route::get('/settings', [SettingsController::class, 'index'])->middleware(['role:teacher', 'permission:settings.manage_own'])->name('settings');
-    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware(['role:teacher', 'permission:settings.manage_own'])->name('settings.profile.update');
+    Route::get('/courses', [CourseController::class, 'index'])->middleware(['role:adviser', 'permission:courses.view'])->name('courses.index');
+
+    Route::get('/settings', [SettingsController::class, 'index'])->middleware(['role:adviser,subject_teacher', 'permission:settings.manage_own'])->name('settings');
+    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware(['role:adviser,subject_teacher', 'permission:settings.manage_own'])->name('settings.profile.update');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function (): void {
         Route::middleware('permission:users.manage')->group(function (): void {
             Route::get('/users', [AdminUsersController::class, 'index'])->name('users.index');
             Route::post('/users', [AdminUsersController::class, 'store'])->name('users.store');
+            Route::put('/users/{id}', [AdminUsersController::class, 'update'])->name('users.update');
             Route::put('/users/{id}/password', [AdminUsersController::class, 'updatePassword'])->name('users.password.update');
             Route::delete('/users/{id}', [AdminUsersController::class, 'destroy'])->name('users.destroy');
             Route::post('/users/{id}/restore', [AdminUsersController::class, 'restore'])->name('users.restore');
@@ -54,12 +63,45 @@ Route::middleware(['auth'])->group(function (): void {
             Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings');
             Route::put('/settings/profile', [\App\Http\Controllers\Admin\SettingsController::class, 'updateProfile'])->name('settings.profile.update');
             Route::put('/settings/password', [\App\Http\Controllers\Admin\SettingsController::class, 'updatePassword'])->name('settings.password.update');
+
+            Route::get('/system-management', [AdminSystemManagementController::class, 'index'])->name('system.index');
+            Route::get('/system-management/academic-settings', [AdminSystemManagementController::class, 'academicSettings'])->name('system.academic-settings');
+            Route::post('/system-management/academic-years', [AdminSystemManagementController::class, 'storeAcademicYear'])->name('system.academic-years.store');
+            Route::post('/system-management/academic-years/{schoolYear}/set-current', [AdminSystemManagementController::class, 'setCurrentAcademicYear'])->name('system.academic-years.set-current');
+            Route::post('/system-management/semesters', [AdminSystemManagementController::class, 'storeSemester'])->name('system.semesters.store');
+            Route::post('/system-management/semesters/{semester}/set-current', [AdminSystemManagementController::class, 'setCurrentSemester'])->name('system.semesters.set-current');
+
+            Route::get('/system-management/strands', [AdminSystemManagementController::class, 'strands'])->name('system.strands');
+            Route::post('/system-management/strands', [AdminSystemManagementController::class, 'storeStrand'])->name('system.strands.store');
+            Route::put('/system-management/strands/{strand}', [AdminSystemManagementController::class, 'updateStrand'])->name('system.strands.update');
+            Route::delete('/system-management/strands/{strand}', [AdminSystemManagementController::class, 'destroyStrand'])->name('system.strands.destroy');
+
+            Route::get('/system-management/terms', [AdminSystemManagementController::class, 'terms'])->name('system.terms');
+            Route::post('/system-management/terms', [AdminSystemManagementController::class, 'storeTerm'])->name('system.terms.store');
+            Route::put('/system-management/terms/{term}', [AdminSystemManagementController::class, 'updateTerm'])->name('system.terms.update');
+            Route::delete('/system-management/terms/{term}', [AdminSystemManagementController::class, 'destroyTerm'])->name('system.terms.destroy');
+
+            Route::get('/system-management/subjects', [AdminSystemManagementController::class, 'subjects'])->name('system.subjects');
+            Route::post('/system-management/subjects', [AdminSystemManagementController::class, 'storeSubject'])->name('system.subjects.store');
+            Route::put('/system-management/subjects/{subject}', [AdminSystemManagementController::class, 'updateSubject'])->name('system.subjects.update');
+            Route::post('/system-management/subjects/assign-teacher', [AdminSystemManagementController::class, 'assignTeacherSubject'])->name('system.subjects.assign-teacher');
         });
     });
 
-    Route::middleware('role:admin,teacher')->group(function (): void {
-        Route::get('/sms-logs', [SmsLogController::class, 'index'])->middleware('permission:sms_logs.view')->name('sms-logs.index');
+    Route::middleware(['role:adviser,subject_teacher'])->group(function (): void {
+        Route::get('/gradebook', [GradebookController::class, 'index'])->middleware('permission:gradebook.view')->name('gradebook.index');
+        Route::post('/gradebook', [GradebookController::class, 'store'])->middleware('permission:gradebook.edit')->name('gradebook.store');
+    });
 
+    Route::middleware(['role:admin,adviser', 'permission:sms_logs.view'])->group(function (): void {
+        Route::get('/sms-logs', [SmsLogController::class, 'index'])->name('sms-logs.index');
+    });
+
+    Route::middleware(['role:admin,adviser'])->group(function (): void {
+        Route::view('/mobile-app', 'mobile-app')->name('mobile.app');
+    });
+
+    Route::middleware('role:adviser')->group(function (): void {
         Route::middleware('permission:records.manage')->group(function (): void {
             Route::get('/students', [StudentController::class, 'index'])->name('students.index');
             Route::post('/students', [StudentController::class, 'store'])->name('students.store');
@@ -72,10 +114,7 @@ Route::middleware(['auth'])->group(function (): void {
             Route::delete('/subjects/{subject}', [SubjectController::class, 'destroy'])->name('subjects.destroy');
             Route::post('/subjects/{id}/restore', [SubjectController::class, 'restore'])->name('subjects.restore');
         });
-        Route::view('/mobile-app', 'mobile-app')->name('mobile.app');
 
-        Route::get('/gradebook', [GradebookController::class, 'index'])->middleware('permission:gradebook.view')->name('gradebook.index');
-        Route::post('/gradebook', [GradebookController::class, 'store'])->middleware('permission:gradebook.edit')->name('gradebook.store');
         Route::get('/master-sheet', [MasterSheetController::class, 'index'])->name('master-sheet.index');
         Route::get('/subject-teacher', [SubjectTeacherController::class, 'index'])->name('subject-teacher.index');
 

@@ -48,9 +48,9 @@
             <div class="dash-kpi-sub">Per selected scope</div>
         </div>
         <div class="dash-kpi kpi-navy">
-            <div class="dash-kpi-value">S{{ $semester }} - Q{{ $quarterInSemester }}</div>
-            <div class="dash-kpi-label">SEMESTER / QUARTER</div>
-            <div class="dash-kpi-sub">Current view</div>
+            <div class="dash-kpi-value">S{{ $semester }}</div>
+            <div class="dash-kpi-label">SEMESTER VIEW</div>
+            <div class="dash-kpi-sub">1st, 2nd, and Final grades per subject</div>
         </div>
         <div class="dash-kpi kpi-sage">
             <div class="dash-kpi-value">{{ number_format($maleCount) }} / {{ number_format($femaleCount) }}</div>
@@ -68,7 +68,7 @@
         <div class="dash-panel-hd">
             <div>
                 <div class="dash-panel-title">Master Grade Sheet</div>
-                <div class="dash-panel-sub">Semester {{ $semester }} - Quarter {{ $quarterInSemester }} summary by student and subject</div>
+                <div class="dash-panel-sub">Semester {{ $semester }} summary by student and subject (1st, 2nd, Final)</div>
             </div>
         </div>
 
@@ -122,14 +122,6 @@
                         </select>
                     </div>
 
-                    <div class="ge-filter">
-                        <select name="current_quarter" aria-label="Quarter" onchange="this.form.submit()">
-                            @for ($q = 1; $q <= 2; $q++)
-                                <option value="{{ $q }}" @selected($quarterInSemester === $q)>Quarter {{ $q }}</option>
-                            @endfor
-                        </select>
-                    </div>
-
                     <div class="ge-filter ge-filter--search">
                         <input type="text" name="q" placeholder="Search student..." value="{{ $search }}">
                     </div>
@@ -142,34 +134,34 @@
                         <a class="btn btn--ghost btn-sm" href="{{ route('master-sheet.index') }}">Clear</a>
                     </div>
                 </div>
-
-                <div class="ge-quarter-pills" style="margin-top: 8px;">
-                    @for ($q = 1; $q <= 2; $q++)
-                        <button class="pill ge-quarter-pill {{ $quarterInSemester === $q ? 'pill-link--active' : '' }}"
-                                type="submit"
-                                name="quarter"
-                                value="{{ $q }}">
-                            Quarter {{ $q }}
-                        </button>
-                    @endfor
-                </div>
             </form>
 
             <div class="table-wrap master-sheet-wrap">
                 <table class="table master-sheet-table">
                     <thead>
                         <tr>
-                            <th>No.</th>
-                            <th>Student</th>
-                            <th>Strand</th>
-                            <th>Section</th>
+                            <th rowspan="2">No.</th>
+                            <th rowspan="2">Student</th>
+                            <th rowspan="2">Strand</th>
+                            <th rowspan="2">Section</th>
                             @forelse ($subjects as $subject)
-                                <th>
+                                <th colspan="3">
                                     {{ $subject->title }}
                                     <div class="master-head-sub">{{ $subject->code }}</div>
                                 </th>
                             @empty
-                                <th>No subjects</th>
+                                <th colspan="3">No subjects</th>
+                            @endforelse
+                        </tr>
+                        <tr>
+                            @forelse ($subjects as $subject)
+                                <th class="master-quarter-head">1st</th>
+                                <th class="master-quarter-head">2nd</th>
+                                <th class="master-quarter-head">Final</th>
+                            @empty
+                                <th class="master-quarter-head">1st</th>
+                                <th class="master-quarter-head">2nd</th>
+                                <th class="master-quarter-head">Final</th>
                             @endforelse
                         </tr>
                     </thead>
@@ -194,24 +186,40 @@
                                     @foreach ($subjects as $subject)
                                         @php
                                             $cell = data_get($gradesByEnrollment, "{$enrollment->id}.{$subject->id}", []);
-                                            $isComplete = (bool) ($cell['complete'] ?? false);
-                                            $grade = $cell['quarter_grade'] ?? null;
-                                            $date = $cell['date'] ?? null;
+                                            $first = $cell['first'] ?? [];
+                                            $second = $cell['second'] ?? [];
+
+                                            $firstComplete = (bool) ($first['complete'] ?? false);
+                                            $secondComplete = (bool) ($second['complete'] ?? false);
+                                            $firstGrade = $first['quarter_grade'] ?? null;
+                                            $secondGrade = $second['quarter_grade'] ?? null;
+                                            $finalGrade = ($firstGrade !== null && $secondGrade !== null)
+                                                ? round((((float) $firstGrade) + ((float) $secondGrade)) / 2, 1)
+                                                : null;
                                         @endphp
                                         <td class="master-grade-cell">
-                                            <span class="grade-pill-sm {{ $isComplete ? 'gp-pass' : 'gp-fail' }}">
-                                                {{ $isComplete ? number_format((float) $grade, 0) : '-' }}
+                                            <span class="grade-pill-sm {{ $firstComplete ? 'gp-pass' : 'gp-fail' }}">
+                                                {{ $firstComplete && $firstGrade !== null ? number_format((float) $firstGrade, 1) : '-' }}
                                             </span>
-                                            <div class="master-date">{{ $date ?? '-' }}</div>
+                                        </td>
+                                        <td class="master-grade-cell">
+                                            <span class="grade-pill-sm {{ $secondComplete ? 'gp-pass' : 'gp-fail' }}">
+                                                {{ $secondComplete && $secondGrade !== null ? number_format((float) $secondGrade, 1) : '-' }}
+                                            </span>
+                                        </td>
+                                        <td class="master-grade-cell">
+                                            <span class="grade-pill-sm {{ $finalGrade !== null ? 'gp-pass' : 'gp-fail' }}">
+                                                {{ $finalGrade !== null ? number_format((float) $finalGrade, 1) : '-' }}
+                                            </span>
                                         </td>
                                     @endforeach
                                 @else
-                                    <td class="muted">No assigned subjects in this scope.</td>
+                                    <td colspan="3" class="muted">No assigned subjects in this scope.</td>
                                 @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ 5 + max(1, (int) $subjects->count()) }}" class="muted">
+                                <td colspan="{{ 4 + max(3, ((int) $subjects->count() * 3)) }}" class="muted">
                                     No students found for the selected filters.
                                 </td>
                             </tr>

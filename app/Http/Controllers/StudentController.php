@@ -6,6 +6,7 @@ use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\InAppNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,10 @@ use Illuminate\View\View;
 
 class StudentController extends Controller
 {
+    public function __construct(
+        private readonly InAppNotificationService $inAppNotifications,
+    ) {}
+
     public function index(Request $request): View
     {
         $status = (string) $request->query('status', 'active');
@@ -79,7 +84,11 @@ class StudentController extends Controller
 
         $query = (clone $baseQuery)
             ->with([
-                'student' => fn ($q) => $q->withCount('guardians'),
+                'student' => fn ($q) => $q
+                    ->withCount('guardians')
+                    ->with([
+                        'guardians' => fn ($g) => $g->select('guardians.id', 'first_name', 'last_name', 'phone'),
+                    ]),
                 'section',
                 'schoolYear',
             ])
@@ -129,6 +138,7 @@ class StudentController extends Controller
             'section_id' => ['required', 'integer', 'exists:sections,id'],
             'grade_level' => ['nullable', 'integer', 'min:1', 'max:12'],
             'lrn' => ['nullable', 'string', 'max:255', 'unique:students,lrn'],
+            'rfid_uid' => ['nullable', 'string', 'max:100', 'unique:students,rfid_uid'],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -143,6 +153,7 @@ class StudentController extends Controller
 
         $student = Student::query()->create([
             'lrn' => $validated['lrn'] ?? null,
+            'rfid_uid' => $validated['rfid_uid'] ?? null,
             'first_name' => trim($validated['first_name']),
             'middle_name' => $validated['middle_name'] ?? null,
             'last_name' => trim($validated['last_name']),
@@ -170,6 +181,12 @@ class StudentController extends Controller
             $gradeLevel = (int) (Section::query()->whereKey((int) $validated['section_id'])->value('grade_level') ?? 0);
         }
 
+        $student->refresh();
+        $meta = $this->actorMeta($request) + ['student_id' => $student->id];
+        $line = "Student «{$student->full_name}» was added to records.";
+        $this->inAppNotifications->notifyAllAdmins('student_record', 'Student added', $line, $meta);
+        $this->inAppNotifications->notifyAllTeachers('student_record', 'Student added', $line, $meta);
+
         return redirect()->route('students.index', [
             'school_year_id' => (int) $validated['school_year_id'],
             'grade_level' => $gradeLevel,
@@ -181,6 +198,7 @@ class StudentController extends Controller
     {
         $validated = $request->validate([
             'lrn' => ['nullable', 'string', 'max:255', Rule::unique('students', 'lrn')->ignore($student->id)],
+            'rfid_uid' => ['nullable', 'string', 'max:100', Rule::unique('students', 'rfid_uid')->ignore($student->id)],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -194,6 +212,7 @@ class StudentController extends Controller
 
         $student->update([
             'lrn' => $validated['lrn'] ?? null,
+            'rfid_uid' => $validated['rfid_uid'] ?? null,
             'first_name' => trim($validated['first_name']),
             'middle_name' => $validated['middle_name'] ?? null,
             'last_name' => trim($validated['last_name']),
@@ -209,22 +228,51 @@ class StudentController extends Controller
         $ethnicityLabel = $student->ethnicity ?: 'not set';
         $addressLabel = $student->address ?: 'not set';
 
+        $meta = $this->actorMeta($request) + ['student_id' => $student->id];
+        $line = "Student «{$student->full_name}» was updated.";
+        $this->inAppNotifications->notifyAllAdmins('student_record', 'Student updated', $line, $meta);
+        $this->inAppNotifications->notifyAllTeachers('student_record', 'Student updated', $line, $meta);
+
         return back()->with('status', "Student updated. Ethnicity: {$ethnicityLabel}; Address: {$addressLabel}.");
     }
 
-    public function destroy(Student $student): RedirectResponse
+    public function destroy(Request $request, Student $student): RedirectResponse
     {
+        $label = $student->full_name;
+        $meta = $this->actorMeta($request) + ['student_id' => $student->id];
         $student->delete();
+
+        $line = "Student «{$label}» was removed from active records.";
+        $this->inAppNotifications->notifyAllAdmins('student_record', 'Student deleted', $line, $meta);
+        $this->inAppNotifications->notifyAllTeachers('student_record', 'Student deleted', $line, $meta);
 
         return back()->with('status', 'Student deleted.');
     }
 
-    public function restore(string $id): RedirectResponse
+    public function restore(Request $request, string $id): RedirectResponse
     {
         $student = Student::onlyTrashed()->findOrFail($id);
         $student->restore();
 
+        $meta = $this->actorMeta($request) + ['student_id' => $student->id];
+        $line = "Student «{$student->full_name}» was restored.";
+        $this->inAppNotifications->notifyAllAdmins('student_record', 'Student restored', $line, $meta);
+        $this->inAppNotifications->notifyAllTeachers('student_record', 'Student restored', $line, $meta);
+
         return back()->with('status', 'Student restored.');
+    }
+
+    /**
+     * @return array{actor_id: int, actor_name: string}
+     */
+    private function actorMeta(Request $request): array
+    {
+        $user = $request->user();
+
+        return [
+            'actor_id' => $user->id,
+            'actor_name' => (string) ($user->display_name ?: $user->name),
+        ];
     }
 
 }

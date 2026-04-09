@@ -1,4 +1,27 @@
 param(
+    [string]$Host = "127.0.0.1",
+    [int]$Port = 3306,
+    [string]$Database = "lms_bnhs",
+    [string]$User = "root",
+    [string]$Password = "",
+    [string]$OutputDir = ".\storage\backups"
+)
+
+if (!(Test-Path $OutputDir)) {
+    New-Item -ItemType Directory -Path $OutputDir | Out-Null
+}
+
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$outputFile = Join-Path $OutputDir "$Database-$timestamp.sql"
+
+$env:MYSQL_PWD = $Password
+try {
+    & mysqldump --host=$Host --port=$Port --user=$User --single-transaction --routines --triggers $Database > $outputFile
+    Write-Host "Database backup created: $outputFile"
+} finally {
+    Remove-Item Env:MYSQL_PWD -ErrorAction SilentlyContinue
+}
+param(
     [string] $EnvPath = ".env",
     [string] $OutFile = ""
 )

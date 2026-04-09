@@ -21,6 +21,30 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
+## LMS BNHS Quick Start
+
+1. Install dependencies:
+   - `composer install`
+2. Configure environment:
+   - copy `.env.example` to `.env`
+   - set your database credentials in `.env`
+3. Generate app key:
+   - `php artisan key:generate`
+4. Run migrations and seeders:
+   - `php artisan migrate --seed`
+5. Run tests:
+   - `php artisan test`
+6. Start development server:
+   - `php artisan serve`
+
+## Laboratory Deliverables (2-4)
+
+- Detailed implementation mapping is in:
+  - `docs/LABORATORY_2_TO_4_IMPLEMENTATION.md`
+- Database backup and restore helper scripts:
+  - `scripts/db-backup.ps1`
+  - `scripts/db-restore.ps1`
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.

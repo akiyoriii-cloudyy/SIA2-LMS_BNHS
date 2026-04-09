@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
@@ -48,5 +51,28 @@ class AuthFlowTest extends TestCase
         $response->assertRedirect(route('login'));
         $this->assertTrue(auth()->attempt(['email' => $user->email, 'password' => 'newpassword123']));
     }
-}
 
+    public function test_admin_password_update_logs_out_and_redirects_to_login(): void
+    {
+        $this->seed(RbacSeeder::class);
+
+        $admin = User::factory()->create([
+            'email' => 'admin@example.com',
+            'password' => 'oldpassword123',
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->value('id')]);
+
+        $response = $this->actingAs($admin)->put(route('admin.settings.password.update'), [
+            'current_password' => 'oldpassword123',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ]);
+
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHas('status', 'Password changed successfully. Please sign in again.');
+        $this->assertGuest();
+
+        $admin->refresh();
+        $this->assertTrue(Hash::check('newpassword123', $admin->password));
+    }
+}

@@ -1,6 +1,233 @@
 @extends('layouts.app')
 
 @section('content')
+    @if (!empty($isAdminDashboard))
+        @php
+            $a = $adminStats ?? [];
+            $recentUsersList = collect($recentUsers ?? []);
+            $recentSmsLogsList = collect($recentSmsLogs ?? []);
+        @endphp
+
+        <div class="dash-topbar">
+            <div class="dash-topbar-left">
+                <span class="dash-topbar-title">EduTrack</span>
+                <span class="dash-topbar-sep">/</span>
+                <span class="dash-topbar-bc">Admin dashboard</span>
+            </div>
+            <div class="dash-topbar-actions">
+                <a class="btn btn-outline btn-sm" href="{{ route('notifications.index') }}">
+                    Notifications
+                    @if (($adminUnreadNotifications ?? 0) > 0)
+                        <span class="nav-badge" style="margin-left:6px;">{{ (int) $adminUnreadNotifications > 99 ? '99+' : (int) $adminUnreadNotifications }}</span>
+                    @endif
+                </a>
+                <a class="btn btn-outline btn-sm" href="{{ route('admin.users.index') }}">User management</a>
+                <a class="btn btn-outline btn-sm" href="{{ route('mobile.app') }}">RFID mobile app</a>
+                <a class="btn btn-primary btn-sm" href="{{ route('sms-logs.index') }}">SMS logs</a>
+            </div>
+        </div>
+
+        <div class="dash-panel admin-dash-intro">
+            <div class="dash-panel-body">
+                <p class="muted" style="margin:0;font-size:13px;line-height:1.5;">
+                    School-wide <strong>grades, averages, and report-card analytics</strong> are available on teacher (adviser) accounts only.
+                    Use the links below for accounts, system setup, SMS delivery, and the RFID scanner app.
+                </p>
+            </div>
+        </div>
+
+        <div class="dash-kpi-grid">
+            <div class="dash-kpi kpi-gold">
+                <div class="dash-kpi-top">
+                    <div class="dash-kpi-icon">👥</div>
+                    <span class="kpi-trend trend-neutral">Accounts</span>
+                </div>
+                <div class="dash-kpi-value">{{ number_format((int) ($a['total_users'] ?? 0)) }}</div>
+                <div class="dash-kpi-label">Total users</div>
+                <div class="dash-kpi-sub">Teachers {{ (int) ($a['total_teachers'] ?? 0) }} · Admins {{ (int) ($a['total_admins'] ?? 0) }}</div>
+            </div>
+            <div class="dash-kpi kpi-sage">
+                <div class="dash-kpi-top">
+                    <div class="dash-kpi-icon">🧑‍🎓</div>
+                    <span class="kpi-trend trend-neutral">{{ $activeSchoolYear?->name ?? 'SY' }}</span>
+                </div>
+                <div class="dash-kpi-value">{{ number_format((int) ($a['total_students'] ?? 0)) }}</div>
+                <div class="dash-kpi-label">Enrolled students</div>
+                <div class="dash-kpi-sub">Active school year headcount</div>
+            </div>
+            <div class="dash-kpi kpi-navy">
+                <div class="dash-kpi-top">
+                    <div class="dash-kpi-icon">🏫</div>
+                    <span class="kpi-trend trend-neutral">Structure</span>
+                </div>
+                <div class="dash-kpi-value">{{ number_format((int) ($a['total_enrollments'] ?? 0)) }}</div>
+                <div class="dash-kpi-label">Enrollments</div>
+                <div class="dash-kpi-sub">{{ (int) ($a['total_sections'] ?? 0) }} sections · {{ (int) ($a['total_subjects'] ?? 0) }} catalog subjects · {{ (int) ($a['total_courses'] ?? 0) }} courses</div>
+            </div>
+            <div class="dash-kpi kpi-red">
+                <div class="dash-kpi-top">
+                    <div class="dash-kpi-icon">📱</div>
+                    <span class="kpi-trend trend-down">{{ (int) ($a['sms_failed'] ?? 0) > 0 ? 'Review failed' : 'OK' }}</span>
+                </div>
+                <div class="dash-kpi-value">{{ number_format((int) ($a['weekly_alerts'] ?? 0)) }}</div>
+                <div class="dash-kpi-label">Absence alerts (week)</div>
+                <div class="dash-kpi-sub">Queued {{ (int) ($a['sms_queued'] ?? 0) }} · Failed {{ (int) ($a['sms_failed'] ?? 0) }}</div>
+            </div>
+        </div>
+
+        <div class="dash-panel admin-quick-admin-links">
+            <div class="dash-panel-hd">
+                <div>
+                    <div class="dash-panel-title">Admin setup</div>
+                    <div class="dash-panel-sub">Configure the school year, catalog, and staff accounts</div>
+                </div>
+            </div>
+            <div class="dash-panel-body">
+                <div class="admin-qgroups" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+                    <div class="admin-qgroup" style="margin:0;">
+                        <div class="admin-qgroup-title">People &amp; access</div>
+                        <div class="admin-qgroup-cards">
+                            <a class="admin-qcard" href="{{ route('admin.users.index') }}">
+                                <span class="admin-qcard-icon">👥</span>
+                                <span class="admin-qcard-body">
+                                    <span class="admin-qcard-label">User management</span>
+                                    <span class="admin-qcard-desc">Accounts, roles, and profiles</span>
+                                </span>
+                            </a>
+                            <a class="admin-qcard" href="{{ route('notifications.index') }}">
+                                <span class="admin-qcard-icon">🔔</span>
+                                <span class="admin-qcard-body">
+                                    <span class="admin-qcard-label">Notifications</span>
+                                    <span class="admin-qcard-desc">System and assignment alerts</span>
+                                </span>
+                            </a>
+                            <a class="admin-qcard" href="{{ route('admin.settings') }}">
+                                <span class="admin-qcard-icon">⚙️</span>
+                                <span class="admin-qcard-body">
+                                    <span class="admin-qcard-label">Admin settings</span>
+                                    <span class="admin-qcard-desc">Password and profile</span>
+                                </span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="admin-qgroup" style="margin:0;">
+                        <div class="admin-qgroup-title">Academic setup</div>
+                        <div class="admin-qgroup-cards">
+                            <a class="admin-qcard" href="{{ route('admin.system.academic-settings') }}">
+                                <span class="admin-qcard-icon">📅</span>
+                                <span class="admin-qcard-body">
+                                    <span class="admin-qcard-label">Academic settings</span>
+                                    <span class="admin-qcard-desc">School years &amp; semesters</span>
+                                </span>
+                            </a>
+                            <a class="admin-qcard" href="{{ route('admin.system.strands') }}">
+                                <span class="admin-qcard-icon">🧭</span>
+                                <span class="admin-qcard-body">
+                                    <span class="admin-qcard-label">Strands</span>
+                                    <span class="admin-qcard-desc">Tracks and strand catalog</span>
+                                </span>
+                            </a>
+                            <a class="admin-qcard" href="{{ route('admin.system.terms') }}">
+                                <span class="admin-qcard-icon">📆</span>
+                                <span class="admin-qcard-body">
+                                    <span class="admin-qcard-label">Terms</span>
+                                    <span class="admin-qcard-desc">Grading periods</span>
+                                </span>
+                            </a>
+                            <a class="admin-qcard" href="{{ route('admin.system.subjects') }}">
+                                <span class="admin-qcard-icon">📚</span>
+                                <span class="admin-qcard-body">
+                                    <span class="admin-qcard-label">Subject management</span>
+                                    <span class="admin-qcard-desc">Catalog &amp; teacher assignment</span>
+                                </span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel admin-ops-strip">
+            <div class="dash-panel-hd">
+                <div>
+                    <div class="dash-panel-title">Operations snapshot</div>
+                    <div class="dash-panel-sub">Live counters for day-to-day supervision</div>
+                </div>
+            </div>
+            <div class="dash-panel-body">
+                <div class="admin-ops-grid">
+                    <div class="admin-ops-item">
+                        <span class="admin-ops-val">{{ number_format((int) ($a['attendance_today'] ?? 0)) }}</span>
+                        <span class="admin-ops-lbl">Attendance marks today</span>
+                    </div>
+                    <div class="admin-ops-item">
+                        <span class="admin-ops-val">{{ number_format((int) ($a['total_courses'] ?? 0)) }}</span>
+                        <span class="admin-ops-lbl">LMS courses</span>
+                    </div>
+                    <div class="admin-ops-item">
+                        <span class="admin-ops-val">{{ $activeSchoolYear?->name ?? '—' }}</span>
+                        <span class="admin-ops-lbl">Active school year</span>
+                    </div>
+                    <div class="admin-ops-item">
+                        <span class="admin-ops-val">{{ number_format((int) ($a['subject_assignment_count'] ?? 0)) }}</span>
+                        <span class="admin-ops-lbl">Subject assignments (active year)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-row-2">
+            <div class="dash-panel">
+                <div class="dash-panel-hd">
+                    <div class="dash-panel-title">Recently added users</div>
+                </div>
+                <div class="dash-panel-body">
+                    <table class="subj-avg-table">
+                        <thead>
+                            <tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($recentUsersList as $u)
+                                <tr>
+                                    <td>{{ data_get($u, 'display_name', data_get($u, 'name', '-')) }}</td>
+                                    <td>{{ data_get($u, 'email', '-') }}</td>
+                                    <td>{{ ucfirst((string) data_get($u, 'roles.0.name', 'user')) }}</td>
+                                    <td>{{ data_get($u, 'created_at')?->diffForHumans() ?? '-' }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="muted">No user records found.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="dash-panel">
+                <div class="dash-panel-hd">
+                    <div class="dash-panel-title">Recent SMS logs</div>
+                </div>
+                <div class="dash-panel-body">
+                    <table class="subj-avg-table">
+                        <thead>
+                            <tr><th>Student</th><th>Status</th><th>Absences</th><th>Created</th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($recentSmsLogsList as $log)
+                                <tr>
+                                    <td>{{ data_get($log, 'student.full_name', '-') }}</td>
+                                    <td>{{ strtoupper((string) data_get($log, 'status', '-')) }}</td>
+                                    <td>{{ (int) data_get($log, 'absences_count', 0) }}</td>
+                                    <td>{{ data_get($log, 'created_at')?->diffForHumans() ?? '-' }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="muted">No SMS logs available.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @else
     @php
         $totalStudents = (int) ($stats['total_students'] ?? 0);
         $belowPassing = max(0, $totalStudents - (int) ($kpis['passing_count'] ?? 0));
@@ -385,5 +612,6 @@
             </div>
         </div>
     </div>
+    @endif
 @endsection
 

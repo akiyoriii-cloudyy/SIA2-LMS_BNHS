@@ -1,6 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
+    @if (!empty($gradebookEmptyMessage))
+        <div class="dash-panel" style="margin-top:12px;">
+            <div class="dash-panel-body">
+                <div class="error">{{ $gradebookEmptyMessage }}</div>
+            </div>
+        </div>
+    @else
     @php
         $stats = $gradeEntryStats ?? [];
 
@@ -26,7 +33,9 @@
         </div>
 
         <div class="dash-topbar-actions">
-            <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">Report Card</a>
+            @if (empty($subjectTeacherScoped))
+                <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">Report Card</a>
+            @endif
             <button class="btn btn-gold btn-sm" type="button" data-action="compute-all">Compute All</button>
             <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print</button>
         </div>
@@ -479,4 +488,5 @@
             });
         })();
     </script>
+    @endif
 @endsection

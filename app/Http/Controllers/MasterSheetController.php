@@ -54,6 +54,9 @@ class MasterSheetController extends Controller
             $semester = $legacyQuarter <= 2 ? 1 : 2;
             $quarterInSemester = $legacyQuarter <= 2 ? $legacyQuarter : $legacyQuarter - 2;
         }
+        $quarterPair = $semester === 1 ? [1, 2] : [3, 4];
+        $firstQuarter = $quarterPair[0];
+        $secondQuarter = $quarterPair[1];
         $selectedStrand = trim((string) $request->query('strand', 'ALL'));
         $selectedStrand = $selectedStrand !== '' ? $selectedStrand : 'ALL';
         $search = trim((string) $request->query('q', ''));
@@ -120,6 +123,7 @@ class MasterSheetController extends Controller
                 ->select([
                     'grade_entries.enrollment_id',
                     'subject_assignments.subject_id',
+                    'grade_entries.quarter',
                     'grade_entries.quiz',
                     'grade_entries.performance_task',
                     'grade_entries.assignment',
@@ -128,7 +132,7 @@ class MasterSheetController extends Controller
                     'grade_entries.updated_at',
                 ])
                 ->join('subject_assignments', 'subject_assignments.id', '=', 'grade_entries.subject_assignment_id')
-                ->where('grade_entries.quarter', $quarter)
+                ->whereIn('grade_entries.quarter', [$firstQuarter, $secondQuarter])
                 ->where('subject_assignments.school_year_id', $selectedSchoolYear)
                 ->whereIn('grade_entries.enrollment_id', $enrollments->pluck('id'))
                 ->whereIn('subject_assignments.subject_id', $subjectIds)
@@ -136,7 +140,9 @@ class MasterSheetController extends Controller
                 ->get();
 
             foreach ($gradeRows as $row) {
-                $gradesByEnrollment[(int) $row->enrollment_id][(int) $row->subject_id] = [
+                $quarterKey = (int) $row->quarter === $firstQuarter ? 'first' : 'second';
+
+                $gradesByEnrollment[(int) $row->enrollment_id][(int) $row->subject_id][$quarterKey] = [
                     'quarter_grade' => $row->quarter_grade !== null ? (float) $row->quarter_grade : null,
                     'complete' => $row->quiz !== null
                         && (($row->performance_task ?? $row->assignment) !== null)
@@ -148,7 +154,7 @@ class MasterSheetController extends Controller
         }
 
         if ((string) $request->query('export') === 'csv') {
-            return $this->exportCsv($enrollments, $subjects, $gradesByEnrollment, $semester, $quarterInSemester);
+            return $this->exportCsv($enrollments, $subjects, $gradesByEnrollment, $semester);
         }
 
         $maleCount = (int) $enrollments->filter(function ($enrollment): bool {
@@ -193,19 +199,34 @@ class MasterSheetController extends Controller
             }
 
             $strandSummary[$strand]['students']++;
-            $strandSummary[$strand]['cells_total'] += (int) $subjects->count();
+            $strandSummary[$strand]['cells_total'] += (int) ($subjects->count() * 2);
 
             foreach ($subjects as $subject) {
                 $cell = data_get($gradesByEnrollment, "{$enrollment->id}.{$subject->id}");
-                if (! ($cell['complete'] ?? false)) {
+                $first = $cell['first'] ?? [];
+                $second = $cell['second'] ?? [];
+
+                $firstComplete = (bool) ($first['complete'] ?? false);
+                $secondComplete = (bool) ($second['complete'] ?? false);
+
+                if (! $firstComplete) {
                     $missingCells++;
-                    continue;
+                }
+                if (! $secondComplete) {
+                    $missingCells++;
                 }
 
-                $strandSummary[$strand]['cells_complete']++;
+                if ($firstComplete) {
+                    $strandSummary[$strand]['cells_complete']++;
+                }
+                if ($secondComplete) {
+                    $strandSummary[$strand]['cells_complete']++;
+                }
 
-                if (($cell['quarter_grade'] ?? null) !== null) {
-                    $strandSummary[$strand]['grade_sum'] += (float) $cell['quarter_grade'];
+                $firstGrade = $first['quarter_grade'] ?? null;
+                $secondGrade = $second['quarter_grade'] ?? null;
+                if ($firstGrade !== null && $secondGrade !== null) {
+                    $strandSummary[$strand]['grade_sum'] += round((((float) $firstGrade) + ((float) $secondGrade)) / 2, 2);
                     $strandSummary[$strand]['grade_count']++;
                 }
             }
@@ -295,12 +316,11 @@ class MasterSheetController extends Controller
         Collection $enrollments,
         Collection $subjects,
         array $gradesByEnrollment,
-        int $semester,
-        int $quarterInSemester
+        int $semester
     ): StreamedResponse {
-        $filename = sprintf('master-sheet-s%d-q%d-%s.csv', $semester, $quarterInSemester, now()->format('Ymd-His'));
+        $filename = sprintf('master-sheet-s%d-q12-final-%s.csv', $semester, now()->format('Ymd-His'));
 
-        return response()->streamDownload(function () use ($enrollments, $subjects, $gradesByEnrollment, $semester, $quarterInSemester): void {
+        return response()->streamDownload(function () use ($enrollments, $subjects, $gradesByEnrollment, $semester): void {
             $stream = fopen('php://output', 'wb');
             if (! $stream) {
                 return;
@@ -311,13 +331,15 @@ class MasterSheetController extends Controller
 
             $headers = ['No.', 'LRN', 'Student', 'Strand', 'Section'];
             foreach ($subjects as $subject) {
-                $headers[] = (string) $subject->title;
+                $headers[] = (string) $subject->title.' (1st)';
+                $headers[] = (string) $subject->title.' (2nd)';
+                $headers[] = (string) $subject->title.' (Final)';
             }
             fputcsv($stream, $headers);
 
             foreach ($enrollments as $index => $enrollment) {
                 $row = [
-                    sprintf('S%d-Q%d', $semester, $quarterInSemester),
+                    (string) ($index + 1),
                     (string) ($enrollment->student?->lrn ?? ''),
                     (string) ($enrollment->student?->full_name ?? ''),
                     (string) ($enrollment->section?->strand ?? ''),
@@ -327,10 +349,23 @@ class MasterSheetController extends Controller
                 ];
 
                 foreach ($subjects as $subject) {
-                    $cell = data_get($gradesByEnrollment, "{$enrollment->id}.{$subject->id}");
-                    $row[] = ($cell['complete'] ?? false)
-                        ? (string) number_format((float) ($cell['quarter_grade'] ?? 0), 0)
-                        : '';
+                    $cell = data_get($gradesByEnrollment, "{$enrollment->id}.{$subject->id}", []);
+                    $first = $cell['first'] ?? [];
+                    $second = $cell['second'] ?? [];
+
+                    $firstGrade = ($first['complete'] ?? false)
+                        ? ($first['quarter_grade'] ?? null)
+                        : null;
+                    $secondGrade = ($second['complete'] ?? false)
+                        ? ($second['quarter_grade'] ?? null)
+                        : null;
+                    $finalGrade = ($firstGrade !== null && $secondGrade !== null)
+                        ? round((((float) $firstGrade) + ((float) $secondGrade)) / 2, 2)
+                        : null;
+
+                    $row[] = $firstGrade !== null ? (string) number_format((float) $firstGrade, 1) : '';
+                    $row[] = $secondGrade !== null ? (string) number_format((float) $secondGrade, 1) : '';
+                    $row[] = $finalGrade !== null ? (string) number_format((float) $finalGrade, 1) : '';
                 }
 
                 fputcsv($stream, $row);

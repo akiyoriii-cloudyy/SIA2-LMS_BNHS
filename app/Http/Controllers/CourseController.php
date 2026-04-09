@@ -12,7 +12,7 @@ class CourseController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasRole('teacher') && $user->teacher) {
+        if ($user->hasRole('adviser') && $user->teacher) {
             $courses = Course::query()
                 ->with(['subject', 'teacher'])
                 ->where('teacher_id', $user->teacher->id)

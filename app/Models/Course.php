@@ -13,7 +13,7 @@ class Course extends Model
         'section_id',
         'subject_id',
         'teacher_id',
-        'title',
+        'title',   
         'description',
         'is_published',
     ];

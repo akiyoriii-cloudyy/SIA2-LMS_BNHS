@@ -32,6 +32,10 @@
                         <p class="subtitle">Sign in to continue</p>
                     </div>
 
+                    @if (session('status'))
+                        <div class="alert">{{ session('status') }}</div>
+                    @endif
+
                     @if ($errors->any())
                         <div class="error">{{ $errors->first() }}</div>
                     @endif

@@ -61,6 +61,11 @@ class User extends Authenticatable
         return $this->hasOne(Teacher::class);
     }
 
+    public function profile(): HasOne
+    {
+        return $this->hasOne(UserProfile::class);
+    }
+
     public function student(): HasOne
     {
         return $this->hasOne(Student::class);
@@ -69,6 +74,14 @@ class User extends Authenticatable
     public function apiTokens(): HasMany
     {
         return $this->hasMany(ApiToken::class);
+    }
+
+    /**
+     * In-app LMS notifications (custom {@see SchoolNotification} rows; not Laravel's database notification channel).
+     */
+    public function schoolNotifications(): HasMany
+    {
+        return $this->hasMany(SchoolNotification::class, 'user_id');
     }
 
     public function hasRole(string ...$roles): bool
@@ -92,5 +105,10 @@ class User extends Authenticatable
         return $this->roles()
             ->whereHas('permissions', fn ($q) => $q->whereIn('name', $permissions))
             ->exists();
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->profile?->full_name ?: $this->name;
     }
 }
