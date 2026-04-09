@@ -10,6 +10,7 @@ use App\Models\Subject;
 use App\Models\SubjectAssignment;
 use App\Models\User;
 use App\Services\GradingService;
+use App\Services\InAppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,20 +18,27 @@ use Illuminate\View\View;
 
 class GradebookController extends Controller
 {
+    public function __construct(
+        private readonly InAppNotificationService $inAppNotifications,
+    ) {
+    }
+
     public function index(Request $request): View
     {
         $user = $request->user();
         $subjectTeacherScoped = $this->isSubjectTeacherOnly($user);
+        $adviserScoped = $this->isAdviserOnly($user);
+        $teacherScoped = $subjectTeacherScoped || $adviserScoped;
 
-        if ($subjectTeacherScoped && ! $user->teacher) {
+        if ($teacherScoped && ! $user->teacher) {
             return view('gradebook.index', $this->emptyGradebookViewData($request, 'Link your account to a teacher profile to encode grades.'));
         }
 
-        $assignmentScope = $subjectTeacherScoped
+        $assignmentScope = $teacherScoped
             ? SubjectAssignment::query()->where('teacher_id', $user->teacher->id)
             : null;
 
-        if ($subjectTeacherScoped) {
+        if ($teacherScoped) {
             $schoolYearIds = (clone $assignmentScope)->distinct()->pluck('school_year_id')->filter()->values();
             $schoolYears = SchoolYear::query()
                 ->whereIn('id', $schoolYearIds)
@@ -53,7 +61,7 @@ class GradebookController extends Controller
             ? (clone $assignmentScope)->where('school_year_id', $selectedSchoolYear)->with(['section', 'subject'])->get()
             : null;
 
-        if ($subjectTeacherScoped && $assignmentsForYear->isEmpty()) {
+        if ($teacherScoped && $assignmentsForYear->isEmpty()) {
             return view('gradebook.index', $this->emptyGradebookViewData($request, 'No assignments for this school year.'));
         }
 
@@ -159,25 +167,17 @@ class GradebookController extends Controller
                 : (int) ($subjects->first()?->id ?? 0);
         }
 
-        $semesterInput = (int) $request->input('semester', 0);
-        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
-        if (in_array($semesterInput, [1, 2], true)) {
-            $semester = $semesterInput;
-            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
-            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
-        } else {
-            $legacyQuarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : 1));
-            $quarter = $legacyQuarter;
-            $semester = $legacyQuarter <= 2 ? 1 : 2;
-            $quarterInSemester = $legacyQuarter <= 2 ? $legacyQuarter : $legacyQuarter - 2;
-        }
+        $term = $this->resolveTermFromRequest($request);
+        $quarter = $term;
+        $semester = 1;
+        $quarterInSemester = $term;
         $search = trim((string) $request->query('q', ''));
 
         $subjectAssignment = SubjectAssignment::query()
             ->where('school_year_id', $selectedSchoolYear)
             ->where('section_id', $selectedSection)
             ->where('subject_id', $selectedSubject)
-            ->when($subjectTeacherScoped, fn ($q) => $q->where('teacher_id', $user->teacher->id))
+            ->when($teacherScoped, fn ($q) => $q->where('teacher_id', $user->teacher->id))
             ->first();
 
         $enrollments = collect();
@@ -276,6 +276,7 @@ class GradebookController extends Controller
             'subjectAssignment' => $subjectAssignment,
             'search' => $search,
             'subjectTeacherScoped' => $subjectTeacherScoped,
+            'adviserScoped' => $adviserScoped,
             'gradeEntryStats' => [
                 'total_students' => $sectionTotalStudents,
                 'total_subjects' => $sectionSubjectsCount ?: (int) $subjects->count(),
@@ -285,6 +286,8 @@ class GradebookController extends Controller
                     ? sprintf('Grade %s — %s', $selectedSectionModel->grade_level, $selectedSectionModel->name)
                     : null,
                 'subject_title' => $selectedSubjectModel?->title,
+                'subject_code' => $selectedSubjectModel?->code,
+                'term' => $term,
             ],
         ]);
     }
@@ -296,7 +299,7 @@ class GradebookController extends Controller
             'section_id' => ['required', 'exists:sections,id'],
             'grade_level' => ['nullable', 'integer', 'min:1', 'max:12'],
             'subject_id' => ['required', 'exists:subjects,id'],
-            'quarter' => ['required', 'integer', 'min:1', 'max:4'],
+            'quarter' => ['required', 'integer', 'min:1', 'max:3'],
             'grades' => ['nullable', 'array'],
             'grades.*.quiz' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'grades.*.performance_task' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -319,6 +322,20 @@ class GradebookController extends Controller
                     && $subjectAssignment->teacher_id === $user->teacher->id,
                 403,
                 'You may only encode grades for subjects assigned to you.',
+            );
+        } elseif ($this->isAdviserOnly($user)) {
+            $subjectAssignment = SubjectAssignment::query()->where([
+                'school_year_id' => (int) $validated['school_year_id'],
+                'section_id' => (int) $validated['section_id'],
+                'subject_id' => (int) $validated['subject_id'],
+            ])->first();
+
+            abort_unless(
+                $user->teacher
+                    && $subjectAssignment
+                    && $subjectAssignment->teacher_id === $user->teacher->id,
+                403,
+                'You may only encode grades for the subject assigned to you.',
             );
         } else {
             $subjectAssignment = SubjectAssignment::query()->firstOrCreate([
@@ -356,6 +373,15 @@ class GradebookController extends Controller
             );
         }
 
+        if (count($gradeRows) > 0) {
+            $this->notifyGradeEncodingChanges(
+                $user,
+                $subjectAssignment,
+                $quarter,
+                count($gradeRows),
+            );
+        }
+
         $gradeLevel = (int) ($validated['grade_level'] ?? 0);
         if ($gradeLevel <= 0) {
             $gradeLevel = (int) (Section::query()->whereKey((int) $validated['section_id'])->value('grade_level') ?? 0);
@@ -363,8 +389,8 @@ class GradebookController extends Controller
 
         $subjectCategory = $this->normalizeSubjectCategory((string) $request->input('subject_category', 'core'));
 
-        $semester = $quarter <= 2 ? 1 : 2;
-        $quarterInSemester = $quarter <= 2 ? $quarter : $quarter - 2;
+        $semester = 1;
+        $quarterInSemester = $quarter;
 
         $redirectUrl = route('gradebook.index', [
             'school_year_id' => $validated['school_year_id'],
@@ -374,6 +400,7 @@ class GradebookController extends Controller
             'subject_category' => $subjectCategory,
             'semester' => $semester,
             'quarter' => $quarterInSemester,
+            'term' => $quarterInSemester,
             'q' => $request->input('q'),
         ]);
 
@@ -397,18 +424,10 @@ class GradebookController extends Controller
     {
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
         $gradeLevels = Section::query()->select('grade_level')->distinct()->orderBy('grade_level')->pluck('grade_level')->map(fn ($l) => (int) $l)->values();
-        $semesterInput = (int) $request->input('semester', 0);
-        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
-        if (in_array($semesterInput, [1, 2], true)) {
-            $semester = $semesterInput;
-            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
-            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
-        } else {
-            $legacyQuarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : 1));
-            $quarter = $legacyQuarter;
-            $semester = $legacyQuarter <= 2 ? 1 : 2;
-            $quarterInSemester = $legacyQuarter <= 2 ? $legacyQuarter : $legacyQuarter - 2;
-        }
+        $term = $this->resolveTermFromRequest($request);
+        $quarter = $term;
+        $semester = 1;
+        $quarterInSemester = $term;
 
         return [
             'schoolYears' => $schoolYears,
@@ -438,6 +457,8 @@ class GradebookController extends Controller
                 'school_year' => null,
                 'section_label' => null,
                 'subject_title' => null,
+                'subject_code' => null,
+                'term' => $term,
             ],
         ];
     }
@@ -446,6 +467,13 @@ class GradebookController extends Controller
     {
         return $user !== null
             && $user->hasRole('subject_teacher')
+            && ! $user->hasRole('admin');
+    }
+
+    private function isAdviserOnly(?User $user): bool
+    {
+        return $user !== null
+            && $user->hasRole('adviser')
             && ! $user->hasRole('admin');
     }
 
@@ -464,5 +492,91 @@ class GradebookController extends Controller
         $allowed = Subject::CATEGORIES;
 
         return in_array($category, $allowed, true) ? $category : 'core';
+    }
+
+    private function resolveTermFromRequest(Request $request): int
+    {
+        $termInput = (int) $request->input('term', 0);
+        if ($termInput >= 1 && $termInput <= 3) {
+            return $termInput;
+        }
+
+        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 1));
+        return max(1, min(3, $quarterInput));
+    }
+
+    private function notifyGradeEncodingChanges(
+        User $actor,
+        SubjectAssignment $subjectAssignment,
+        int $quarter,
+        int $savedRows
+    ): void {
+        $sectionLabel = Section::query()
+            ->whereKey($subjectAssignment->section_id)
+            ->select(['grade_level', 'name'])
+            ->first();
+        $subject = Subject::query()->whereKey($subjectAssignment->subject_id)->first(['title', 'code']);
+        $schoolYear = SchoolYear::query()->whereKey($subjectAssignment->school_year_id)->value('name');
+        $actorName = $actor->display_name ?: $actor->name;
+        $quarterLabel = $quarter <= 2 ? "S1 Q{$quarter}" : 'S2 Q'.($quarter - 2);
+        $sectionText = $sectionLabel
+            ? 'Grade '.$sectionLabel->grade_level.' - '.$sectionLabel->name
+            : 'assigned section';
+        $subjectText = trim((string) ($subject?->title ?? 'Subject').(($subject?->code ?? null) ? " ({$subject->code})" : ''));
+        $message = "{$actorName} saved {$savedRows} grade row(s) for {$subjectText}, {$sectionText}, {$quarterLabel}".($schoolYear ? " ({$schoolYear})" : '').'.';
+
+        $meta = [
+            'by_user_id' => $actor->id,
+            'subject_assignment_id' => $subjectAssignment->id,
+            'school_year_id' => $subjectAssignment->school_year_id,
+            'section_id' => $subjectAssignment->section_id,
+            'subject_id' => $subjectAssignment->subject_id,
+            'quarter' => $quarter,
+            'saved_rows' => $savedRows,
+        ];
+
+        // Subject teacher updates should alert advisers for section-level report-card finalization.
+        if ($this->isSubjectTeacherOnly($actor)) {
+            $sectionTeacherIds = SubjectAssignment::query()
+                ->where('school_year_id', $subjectAssignment->school_year_id)
+                ->where('section_id', $subjectAssignment->section_id)
+                ->whereNotNull('teacher_id')
+                ->pluck('teacher_id')
+                ->unique()
+                ->values();
+
+            $adviserUserIds = User::query()
+                ->where('id', '!=', $actor->id)
+                ->whereHas('roles', fn ($q) => $q->where('name', 'adviser'))
+                ->whereHas('teacher', fn ($q) => $q->whereIn('id', $sectionTeacherIds))
+                ->pluck('id')
+                ->values();
+
+            $this->inAppNotifications->notifyUsers(
+                $adviserUserIds,
+                'grade_sync',
+                'Subject grades updated',
+                $message,
+                $meta
+            );
+
+            return;
+        }
+
+        // Adviser/admin updates should alert the assigned subject teacher for the encoded subject.
+        $subjectTeacherUserIds = User::query()
+            ->where('id', '!=', $actor->id)
+            ->whereHas('roles', fn ($q) => $q->where('name', 'subject_teacher'))
+            ->whereHas('teacher', fn ($q) => $q->where('id', $subjectAssignment->teacher_id))
+            ->pluck('id')
+            ->values();
+
+        $this->inAppNotifications->notifyUsers(
+            $subjectTeacherUserIds,
+            'grade_sync',
+            'Gradebook updated by adviser',
+            $message,
+            $meta
+        );
     }
 }

@@ -15,10 +15,12 @@ use App\Models\SubjectAssignment;
 use App\Models\ReportCard;
 use App\Models\User;
 use App\Models\SchoolNotification;
+use App\Models\TeacherSubject;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -112,24 +114,17 @@ class DashboardController extends Controller
             ->first() ?? SchoolYear::query()->orderByDesc('name')->first();
         $schoolYearId = $activeSchoolYear?->id;
 
-        $semesterInput = (int) $request->input('semester', 0);
-        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
-        $defaultQuarter = $this->guessQuarterFromDate(now());
+        $term = max(1, min(3, (int) $request->input('term', $request->input('quarter', 1))));
+        $semester = 1;
+        $quarterInSemester = $term;
+        $quarter = $term;
 
-        if (in_array($semesterInput, [1, 2], true)) {
-            $semester = $semesterInput;
-            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
-            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
-        } else {
-            $quarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : $defaultQuarter));
-            $semester = $quarter <= 2 ? 1 : 2;
-            $quarterInSemester = $quarter <= 2 ? $quarter : $quarter - 2;
-        }
-
-        $periodQuery = ['semester' => $semester, 'quarter' => $quarterInSemester];
-        $gradebookBase = ['subject_category' => 'core', 'semester' => $semester, 'quarter' => $quarterInSemester];
+        $periodQuery = ['term' => $term];
+        $gradebookBase = ['subject_category' => 'core', 'term' => $term];
 
         $assignmentRows = collect();
+        $teacherSubjectCount = 0;
+        $recentUpdates = collect();
         if ($teacher && $schoolYearId) {
             $assignments = SubjectAssignment::query()
                 ->with(['section', 'subject', 'schoolYear'])
@@ -175,17 +170,52 @@ class DashboardController extends Controller
                     'gradebook_url' => $gradebookUrl,
                 ];
             });
+
+            $teacherSubjectQuery = TeacherSubject::query()
+                ->where('teacher_id', $teacher->id);
+            if (Schema::hasColumn('teacher_subjects', 'is_active')) {
+                $teacherSubjectQuery->where('is_active', true);
+            }
+            $teacherSubjectCount = (int) $teacherSubjectQuery->count();
+
+            $assignmentIds = $assignments->pluck('id');
+            if ($assignmentIds->isNotEmpty()) {
+                $recentUpdates = GradeEntry::query()
+                    ->with(['enrollment.student', 'subjectAssignment.subject'])
+                    ->whereIn('subject_assignment_id', $assignmentIds)
+                    ->where('quarter', $quarter)
+                    ->where(function ($q): void {
+                        $q->whereNotNull('quiz')
+                            ->orWhereNotNull('performance_task')
+                            ->orWhereNotNull('assignment')
+                            ->orWhereNotNull('exam')
+                            ->orWhereNotNull('quarter_grade');
+                    })
+                    ->orderByDesc('updated_at')
+                    ->limit(8)
+                    ->get();
+            }
         }
 
         $totalPending = (int) $assignmentRows->sum('pending');
+        $inAppUnreadNotifications = SchoolNotification::query()
+            ->where('user_id', $user->id)
+            ->where('channel', 'in_app')
+            ->whereNull('read_at')
+            ->count();
 
         return view('dashboard-subject-teacher', [
             'activeSchoolYear' => $activeSchoolYear,
             'semester' => $semester,
             'quarterInSemester' => $quarterInSemester,
             'quarter' => $quarter,
+            'term' => $term,
             'assignmentRows' => $assignmentRows,
             'totalPending' => $totalPending,
+            'teacherSubjectCount' => $teacherSubjectCount,
+            'recentUpdates' => $recentUpdates,
+            'periodQuery' => $periodQuery,
+            'inAppUnreadNotifications' => $inAppUnreadNotifications,
             'missingTeacher' => ! $teacher,
         ]);
     }

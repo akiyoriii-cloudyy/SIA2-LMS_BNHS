@@ -177,6 +177,7 @@
                                                     type="button"
                                                     data-update-url="{{ route('admin.users.update', $u->id) }}"
                                                     data-role="{{ $roleName }}"
+                                                    data-is-admin="{{ $roleName === 'admin' ? '1' : '0' }}"
                                                     data-first-name="{{ $profileFirstName }}"
                                                     data-middle-name="{{ $profileMiddleName }}"
                                                     data-last-name="{{ $profileLastName }}"
@@ -260,6 +261,11 @@
                     <div style="display:grid; gap:12px;">
                         <div>
                             <label style="display:block; font-size:14px; font-weight:700; margin-bottom:6px;">Role</label>
+                            <div id="edit-role-admin" style="display:none;">
+                                <input type="text" value="Admin" disabled style="height:48px; font-size:17px; background:#f5f5f5; cursor:not-allowed;">
+                                <input type="hidden" name="role" value="admin">
+                                <div class="muted" style="font-size:12px; margin-top:4px;">Admin role cannot be changed.</div>
+                            </div>
                             <select id="edit-role" name="role" required style="height:48px; font-size:17px;">
                                 <option value="admin">Admin</option>
                                 <option value="adviser">Adviser</option>
@@ -312,7 +318,21 @@
 
             const openModal = (button) => {
                 form.action = button.dataset.updateUrl || '';
-                document.getElementById('edit-role').value = button.dataset.role || 'adviser';
+                const isAdmin = button.dataset.isAdmin === '1';
+                const roleSelect = document.getElementById('edit-role');
+                const roleAdminDiv = document.getElementById('edit-role-admin');
+
+                if (isAdmin) {
+                    roleSelect.style.display = 'none';
+                    roleSelect.removeAttribute('required');
+                    roleAdminDiv.style.display = 'block';
+                } else {
+                    roleSelect.style.display = 'block';
+                    roleSelect.setAttribute('required', 'required');
+                    roleAdminDiv.style.display = 'none';
+                    roleSelect.value = button.dataset.role || 'adviser';
+                }
+
                 document.getElementById('edit-first-name').value = button.dataset.firstName || '';
                 document.getElementById('edit-middle-name').value = button.dataset.middleName || '';
                 document.getElementById('edit-last-name').value = button.dataset.lastName || '';

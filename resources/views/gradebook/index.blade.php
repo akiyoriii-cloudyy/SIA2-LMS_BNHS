@@ -17,12 +17,12 @@
         $schoolYearName = (string) ($stats['school_year'] ?? '—');
         $sectionLabel = (string) ($stats['section_label'] ?? '—');
         $subjectTitle = (string) ($stats['subject_title'] ?? ($subjects->firstWhere('id', $selectedSubject)?->title ?? 'Subject'));
+        $subjectCode = (string) ($stats['subject_code'] ?? ($subjects->firstWhere('id', $selectedSubject)?->code ?? ''));
         $selectedSubjectCategory = (string) ($selectedSubjectCategory ?? 'core');
         $subjectCategoryLabel = ucfirst($selectedSubjectCategory).' subjects';
         $subjectCategoryCounts = (array) ($subjectCategoryCounts ?? []);
         $rosterNumbers = (array) ($rosterNumbers ?? []);
-        $semester = (int) ($semester ?? (($quarter ?? 1) <= 2 ? 1 : 2));
-        $quarterInSemester = (int) ($quarterInSemester ?? (($quarter ?? 1) <= 2 ? ($quarter ?? 1) : (($quarter ?? 1) - 2)));
+        $term = (int) ($stats['term'] ?? $quarterInSemester ?? $quarter ?? 1);
     @endphp
 
     <div class="dash-topbar">
@@ -64,8 +64,8 @@
             <div class="dash-kpi-top">
                 <div class="dash-kpi-icon">🗓️</div>
             </div>
-            <div class="dash-kpi-value">S{{ $semester }} - Q{{ $quarterInSemester }}</div>
-            <div class="dash-kpi-label">SEMESTER / QUARTER</div>
+            <div class="dash-kpi-value">TERM {{ $term }}</div>
+            <div class="dash-kpi-label">TRIMESTER TERM</div>
             <div class="dash-kpi-sub">SY. {{ $schoolYearName }}</div>
         </div>
 
@@ -105,7 +105,7 @@
                 <div class="ge-step ge-step--gold">
                     <div class="ge-step-icon">📊</div>
                     <div class="ge-step-label">Qtrly</div>
-                    <div class="ge-step-sub">Per semester Q1-Q2</div>
+                    <div class="ge-step-sub">Per term T1-T3</div>
                 </div>
                 <div class="ge-step ge-step--sage">
                     <div class="ge-step-icon">🧾</div>
@@ -140,7 +140,7 @@
     <div class="pill-row ge-category-pills" style="margin-bottom: 12px;">
         @foreach (['core', 'applied', 'specialized'] as $categoryItem)
             <a class="pill pill-link ge-category-pill {{ $selectedSubjectCategory === $categoryItem ? 'pill-link--active' : '' }}"
-               href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'subject_category' => $categoryItem, 'semester' => $semester, 'quarter' => $quarterInSemester, 'q' => $search]) }}">
+               href="{{ route('gradebook.index', ['school_year_id' => $selectedSchoolYear, 'grade_level' => $selectedGradeLevel, 'section_id' => $selectedSection, 'subject_category' => $categoryItem, 'term' => $term, 'q' => $search]) }}">
                 {{ ucfirst($categoryItem) }} ({{ (int) ($subjectCategoryCounts[$categoryItem] ?? 0) }})
             </a>
         @endforeach
@@ -150,7 +150,11 @@
         <div class="dash-panel-hd">
             <div>
                 <div class="dash-panel-title">{{ $subjectTitle }}</div>
-                <div class="dash-panel-sub">{{ $sectionLabel }} • Semester {{ $semester }} - Quarter {{ $quarterInSemester }} | Grades auto-transfer to Form 138 Report Card</div>
+                <div class="dash-panel-sub">
+                    Now encoding:
+                    <strong>{{ $subjectCode !== '' ? $subjectCode.' - '.$subjectTitle : $subjectTitle }}</strong>
+                    · {{ $sectionLabel }} · Term {{ $term }} | Grades auto-transfer to Form 138 Report Card
+                </div>
             </div>
             <div class="dash-topbar-actions" style="margin-left:auto;">
                 <button class="btn btn-gold btn-sm" type="button" id="auto-compute-all">⚡ Auto-Compute All</button>
@@ -159,7 +163,7 @@
 
         <div class="dash-panel-body">
             <form method="GET" action="{{ route('gradebook.index') }}" class="ge-filters">
-                <input type="hidden" name="current_quarter" value="{{ $quarterInSemester }}">
+                <input type="hidden" name="current_quarter" value="{{ $term }}">
                 <input type="hidden" name="subject_category" value="{{ $selectedSubjectCategory }}">
 
                 <div class="ge-filter-row">
@@ -173,17 +177,30 @@
                         </select>
                     </div>
                     <div class="ge-filter">
-                        <select name="subject_id" aria-label="Subject">
-                            @if ($subjects->isEmpty())
-                                <option value="">No subjects in this category</option>
-                            @else
-                                @foreach ($subjects as $subject)
-                                    <option value="{{ $subject->id }}" @selected($selectedSubject === $subject->id)>
-                                        {{ $subject->title }}
-                                    </option>
-                                @endforeach
-                            @endif
-                        </select>
+                        @php
+                            $isAssignedSubjectLocked = !empty($adviserScoped)
+                                || (!empty($subjectTeacherScoped) && $subjects->count() === 1);
+                        @endphp
+
+                        @if ($isAssignedSubjectLocked)
+                            <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
+                            <div class="muted" style="padding:10px 12px; border:1px solid var(--cream-dark); border-radius:10px;">
+                                <strong>Assigned subject:</strong>
+                                {{ $subjectCode !== '' ? $subjectCode.' - '.$subjectTitle : $subjectTitle }}
+                            </div>
+                        @else
+                            <select name="subject_id" aria-label="Subject">
+                                @if ($subjects->isEmpty())
+                                    <option value="">No subjects in this category</option>
+                                @else
+                                    @foreach ($subjects as $subject)
+                                        <option value="{{ $subject->id }}" @selected($selectedSubject === $subject->id)>
+                                            {{ $subject->title }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        @endif
                     </div>
 
                     <div class="ge-filter">
@@ -206,12 +223,7 @@
                         </select>
                     </div>
 
-                    <div class="ge-filter">
-                        <select name="semester" aria-label="Semester">
-                            <option value="1" @selected($semester === 1)>1st Semester</option>
-                            <option value="2" @selected($semester === 2)>2nd Semester</option>
-                        </select>
-                    </div>
+                    <input type="hidden" name="semester" value="1">
 
                     <div class="ge-filter ge-filter--search">
                         <input type="text" name="q" placeholder="Search student..." value="{{ $search ?? '' }}">
@@ -231,12 +243,12 @@
                 </div>
 
                 <div class="ge-quarter-pills">
-                    @for ($q = 1; $q <= 2; $q++)
-                        <button class="pill ge-quarter-pill {{ $quarterInSemester === $q ? 'pill-link--active' : '' }}"
+                    @for ($q = 1; $q <= 3; $q++)
+                        <button class="pill ge-quarter-pill {{ $term === $q ? 'pill-link--active' : '' }}"
                                 type="submit"
-                                name="quarter"
+                                name="term"
                                 value="{{ $q }}">
-                            Quarter {{ $q }}
+                            Term {{ $q }}
                         </button>
                     @endfor
                 </div>
@@ -250,8 +262,9 @@
                 <input type="hidden" name="section_id" value="{{ $selectedSection }}">
                 <input type="hidden" name="subject_id" value="{{ $selectedSubject }}">
                 <input type="hidden" name="subject_category" value="{{ $selectedSubjectCategory }}">
-                <input type="hidden" name="semester" value="{{ $semester }}">
+                <input type="hidden" name="semester" value="1">
                 <input type="hidden" name="quarter" value="{{ $quarter }}">
+                <input type="hidden" name="term" value="{{ $term }}">
                 <input type="hidden" name="q" value="{{ $search ?? '' }}">
 
                 <div class="table-wrap">

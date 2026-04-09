@@ -29,6 +29,26 @@
                 @csrf
                 <div class="grid-3">
                     <div>
+                        <label>School Year</label>
+                        <select name="school_year_id" required>
+                            <option value="">Choose school year...</option>
+                            @foreach($schoolYears as $schoolYear)
+                                <option value="{{ $schoolYear->id }}" @selected((int) $schoolYear->id === (int) ($activeSchoolYearId ?? 0))>
+                                    {{ $schoolYear->name }}{{ $schoolYear->is_active ? ' (Active)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label>Section</label>
+                        <select name="section_id" required>
+                            <option value="">Choose section...</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->id }}">Grade {{ $section->grade_level }} - {{ $section->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
                         <label>Select Teacher</label>
                         <select name="teacher_id" required>
                             <option value="">Choose a teacher...</option>
@@ -37,7 +57,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div>
+                    <div style="grid-column: span 2;">
                         <label>Select Subject</label>
                         <select name="subject_id" required>
                             <option value="">Choose a subject...</option>
@@ -46,7 +66,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div style="display:flex; align-items:flex-end;">
+                    <div style="display:flex; align-items:flex-end; grid-column: span 1;">
                         <button class="btn btn-primary" type="submit" style="width:100%;">Assign Subject to Teacher</button>
                     </div>
                 </div>

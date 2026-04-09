@@ -18,23 +18,15 @@ class SubjectTeacherController extends Controller
         $schoolYears = SchoolYear::query()->orderByDesc('name')->get();
         $selectedSchoolYear = (int) ($request->integer('school_year_id')
             ?: ($schoolYears->firstWhere('is_active', true)?->id ?? $schoolYears->first()?->id ?? 0));
-        $semesterInput = (int) $request->input('semester', 0);
-        $quarterInput = (int) $request->input('quarter', $request->input('current_quarter', 0));
-        if (in_array($semesterInput, [1, 2], true)) {
-            $semester = $semesterInput;
-            $quarterInSemester = max(1, min(2, $quarterInput > 0 ? $quarterInput : 1));
-            $quarter = $semester === 1 ? $quarterInSemester : $quarterInSemester + 2;
-        } else {
-            $legacyQuarter = max(1, min(4, $quarterInput > 0 ? $quarterInput : 1));
-            $quarter = $legacyQuarter;
-            $semester = $legacyQuarter <= 2 ? 1 : 2;
-            $quarterInSemester = $legacyQuarter <= 2 ? $legacyQuarter : $legacyQuarter - 2;
-        }
+        $term = max(1, min(3, (int) $request->input('term', $request->input('quarter', 1))));
+        $semester = 1;
+        $quarterInSemester = $term;
+        $quarter = $term;
 
         $assignments = SubjectAssignment::query()
             ->with(['subject:id,code,title', 'section:id,name,grade_level,strand', 'schoolYear:id,name'])
             ->where('school_year_id', $selectedSchoolYear)
-            ->when($user?->hasRole('adviser') && ! $user->hasRole('admin'), function ($q) use ($user): void {
+            ->when($user && ($user->hasRole('adviser') || $user->hasRole('subject_teacher')) && ! $user->hasRole('admin'), function ($q) use ($user): void {
                 $teacherId = $user->teacher?->id;
                 if ($teacherId) {
                     $q->where('teacher_id', $teacherId);
@@ -57,8 +49,7 @@ class SubjectTeacherController extends Controller
         $classAverage = null;
         $lastUpdated = null;
         $openGradebookUrl = route('gradebook.index', [
-            'semester' => $semester,
-            'quarter' => $quarterInSemester,
+            'term' => $term,
         ]);
 
         if ($selectedAssignment) {
@@ -133,8 +124,7 @@ class SubjectTeacherController extends Controller
                 'grade_level' => (int) ($selectedAssignment->section?->grade_level ?? 0),
                 'section_id' => $selectedAssignment->section_id,
                 'subject_id' => $selectedAssignment->subject_id,
-                'semester' => $semester,
-                'quarter' => $quarterInSemester,
+                'term' => $term,
             ]);
         }
 
@@ -144,6 +134,7 @@ class SubjectTeacherController extends Controller
             'semester' => $semester,
             'quarterInSemester' => $quarterInSemester,
             'quarter' => $quarter,
+            'term' => $term,
             'assignments' => $assignments,
             'selectedAssignmentId' => $selectedAssignmentId,
             'selectedAssignment' => $selectedAssignment,

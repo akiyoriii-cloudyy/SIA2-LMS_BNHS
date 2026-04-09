@@ -4,6 +4,7 @@ use App\Http\Controllers\GradebookController;
 use App\Http\Controllers\ReportCardController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MfaController;
 use App\Http\Controllers\PasswordResetController;
 
 use App\Http\Controllers\Admin\UsersController as AdminUsersController;
@@ -26,6 +27,8 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login.submit');
+    Route::get('/mfa/challenge', [MfaController::class, 'challenge'])->name('mfa.challenge');
+    Route::post('/mfa/challenge', [MfaController::class, 'verify'])->middleware('throttle:login')->name('mfa.verify');
 
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgot'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
@@ -46,8 +49,11 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::get('/courses', [CourseController::class, 'index'])->middleware(['role:adviser', 'permission:courses.view'])->name('courses.index');
 
-    Route::get('/settings', [SettingsController::class, 'index'])->middleware(['role:adviser,subject_teacher', 'permission:settings.manage_own'])->name('settings');
-    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware(['role:adviser,subject_teacher', 'permission:settings.manage_own'])->name('settings.profile.update');
+    Route::get('/settings', [SettingsController::class, 'index'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings');
+    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.profile.update');
+    Route::get('/settings/mfa', [MfaController::class, 'setup'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa');
+    Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa.enable');
+    Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa.disable');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function (): void {
         Route::middleware('permission:users.manage')->group(function (): void {
@@ -101,6 +107,10 @@ Route::middleware(['auth'])->group(function (): void {
         Route::view('/mobile-app', 'mobile-app')->name('mobile.app');
     });
 
+    Route::middleware('role:adviser,subject_teacher')->group(function (): void {
+        Route::get('/subject-teacher', [SubjectTeacherController::class, 'index'])->name('subject-teacher.index');
+    });
+
     Route::middleware('role:adviser')->group(function (): void {
         Route::middleware('permission:records.manage')->group(function (): void {
             Route::get('/students', [StudentController::class, 'index'])->name('students.index');
@@ -116,7 +126,6 @@ Route::middleware(['auth'])->group(function (): void {
         });
 
         Route::get('/master-sheet', [MasterSheetController::class, 'index'])->name('master-sheet.index');
-        Route::get('/subject-teacher', [SubjectTeacherController::class, 'index'])->name('subject-teacher.index');
 
         Route::get('/attendance', [AttendanceController::class, 'index'])->middleware('permission:attendance.manage')->name('attendance.index');
         Route::post('/attendance', [AttendanceController::class, 'store'])->middleware('permission:attendance.manage')->name('attendance.store');

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -20,29 +22,32 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (! auth()->attempt($credentials, true)) {
+        $user = \App\Models\User::query()->where('email', $credentials['email'])->first();
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return back()->withErrors(['email' => 'Invalid credentials.'])->onlyInput('email');
         }
 
-        $request->session()->regenerate();
-
-        $user = $request->user();
         if ($user && ! $user->hasRole('admin', 'adviser', 'subject_teacher')) {
-            auth()->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
             return back()->withErrors([
                 'email' => 'Access denied. This portal is for admin, adviser, and subject teacher accounts only.',
             ])->onlyInput('email');
         }
+
+        if ($user->mfa_enabled && $user->mfa_confirmed_at !== null) {
+            $request->session()->put('mfa.pending_user_id', $user->id);
+            $request->session()->regenerateToken();
+            return redirect()->route('mfa.challenge');
+        }
+
+        Auth::login($user, true);
+        $request->session()->regenerate();
 
         return redirect()->route('dashboard');
     }
 
     public function logout(Request $request): RedirectResponse
     {
-        auth()->logout();
+        Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

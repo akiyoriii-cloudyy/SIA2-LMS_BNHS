@@ -9,7 +9,7 @@ Route::middleware('throttle:api-login')->post('/auth/login', [AuthController::cl
 Route::middleware(['auth.api'])->group(function (): void {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-    Route::middleware('role:admin,adviser')->group(function (): void {
+    Route::middleware('role:admin,adviser,subject_teacher')->group(function (): void {
         Route::get('/mobile/bootstrap', [MobileSyncController::class, 'bootstrap']);
         Route::get('/mobile/courses', [MobileSyncController::class, 'courses']);
         Route::get('/mobile/roster', [MobileSyncController::class, 'roster']);

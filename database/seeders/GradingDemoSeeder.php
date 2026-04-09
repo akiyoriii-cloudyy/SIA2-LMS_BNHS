@@ -22,6 +22,7 @@ class GradingDemoSeeder extends Seeder
     {
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'School administrator']);
         $adviserRole = Role::firstOrCreate(['name' => 'adviser'], ['description' => 'Class adviser']);
+        $subjectTeacherRole = Role::firstOrCreate(['name' => 'subject_teacher'], ['description' => 'Subject teacher']);
 
         $adminUser = User::firstOrCreate(
             ['email' => 'admin@bnhs.local'],
@@ -29,14 +30,14 @@ class GradingDemoSeeder extends Seeder
         );
         $adminUser->roles()->syncWithoutDetaching([$adminRole->id]);
 
-        $teacherUser = User::firstOrCreate(
-            ['email' => 'teacher@bnhs.local'],
+        $adviserUser = User::firstOrCreate(
+            ['email' => 'adviser@bnhs.local'],
             ['name' => 'Adviser One', 'password' => Hash::make('password'), 'phone' => '+639222222222']
         );
-        $teacherUser->roles()->syncWithoutDetaching([$adviserRole->id]);
+        $adviserUser->roles()->syncWithoutDetaching([$adviserRole->id]);
 
-        $teacher = Teacher::firstOrCreate(
-            ['user_id' => $teacherUser->id],
+        $adviser = Teacher::firstOrCreate(
+            ['user_id' => $adviserUser->id],
             ['first_name' => 'Adviser', 'last_name' => 'One']
         );
 
@@ -61,25 +62,57 @@ class GradingDemoSeeder extends Seeder
             ['code' => 'PEH', 'title' => 'Physical Education and Health', 'category' => 'core'],
         ];
 
+        $subjectTeachersByCode = [];
         foreach ($subjects as $subjectData) {
+            $code = (string) $subjectData['code'];
+            $email = strtolower($code).'.teacher@bnhs.local';
+
+            $user = User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $code.' Teacher',
+                    'password' => Hash::make('password'),
+                    'phone' => '+63933'.str_pad((string) crc32($email) % 10000000, 7, '0', STR_PAD_LEFT),
+                ]
+            );
+            $user->roles()->syncWithoutDetaching([$subjectTeacherRole->id]);
+
+            $teacher = Teacher::firstOrCreate(
+                ['user_id' => $user->id],
+                ['first_name' => $code, 'last_name' => 'Teacher']
+            );
+
+            $subjectTeachersByCode[$code] = $teacher;
+        }
+
+        foreach ($subjects as $idx => $subjectData) {
             $subject = Subject::updateOrCreate(
                 ['code' => $subjectData['code']],
                 ['title' => $subjectData['title'], 'category' => $subjectData['category']]
             );
-            SubjectAssignment::firstOrCreate([
+            $code = (string) $subject->code;
+            $assignedTeacherId = $idx === 0
+                ? $adviser->id
+                : (int) ($subjectTeachersByCode[$code]?->id ?? $adviser->id);
+
+            $assignment = SubjectAssignment::firstOrCreate([
                 'school_year_id' => $schoolYear->id,
                 'section_id' => $section->id,
                 'subject_id' => $subject->id,
             ], [
-                'teacher_id' => $teacher->id,
+                'teacher_id' => $assignedTeacherId,
             ]);
+
+            if ((int) ($assignment->teacher_id ?? 0) !== $assignedTeacherId) {
+                $assignment->update(['teacher_id' => $assignedTeacherId]);
+            }
 
             Course::firstOrCreate([
                 'school_year_id' => $schoolYear->id,
                 'section_id' => $section->id,
                 'subject_id' => $subject->id,
             ], [
-                'teacher_id' => $teacher->id,
+                'teacher_id' => $adviser->id,
                 'title' => $subject->title.' - Grade 11',
                 'description' => 'LMS course for '.$subject->title,
                 'is_published' => true,

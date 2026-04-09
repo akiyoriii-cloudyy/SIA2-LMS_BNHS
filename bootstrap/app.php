@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
-            'auth.api' => \App\Http\Middleware\ApiTokenMiddleware::class,
+            'auth.api' => \App\Http\Middleware\JwtAuthMiddleware::class,
         ]);
 
         $middleware->appendToGroup('web', \App\Http\Middleware\LoadUserRoles::class);

@@ -10,6 +10,9 @@ class TeacherSubject extends Model
     protected $fillable = [
         'teacher_id',
         'subject_id',
+        'school_year_id',
+        'section_id',
+        'is_active',
     ];
 
     public function teacher(): BelongsTo

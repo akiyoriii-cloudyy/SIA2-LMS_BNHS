@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SchoolYear;
 use App\Models\Semester;
+use App\Models\Section;
 use App\Models\Strand;
 use App\Models\Subject;
+use App\Models\SubjectAssignment;
 use App\Models\Teacher;
 use App\Models\TeacherSubject;
 use App\Models\Term;
@@ -300,6 +302,11 @@ class SystemManagementController extends Controller
         return view('admin.system.subjects', [
             'teachers' => Teacher::query()->with('user')->orderBy('last_name')->get(),
             'subjects' => Subject::query()->orderBy('title')->get(),
+            'schoolYears' => SchoolYear::query()->orderByDesc('name')->get(),
+            'sections' => Section::query()->orderedForDropdown()->get(),
+            'activeSchoolYearId' => (int) (SchoolYear::query()->where('is_active', true)->value('id')
+                ?: SchoolYear::query()->orderByDesc('name')->value('id')
+                ?: 0),
             'assignments' => $assignments,
         ]);
     }
@@ -371,13 +378,19 @@ class SystemManagementController extends Controller
         $validated = $request->validate([
             'teacher_id' => ['required', 'exists:teachers,id'],
             'subject_id' => ['required', 'exists:subjects,id'],
+            'school_year_id' => ['required', 'exists:school_years,id'],
+            'section_id' => ['required', 'exists:sections,id'],
         ]);
 
         $subjectId = (int) $validated['subject_id'];
         $newTeacherId = (int) $validated['teacher_id'];
+        $schoolYearId = (int) $validated['school_year_id'];
+        $sectionId = (int) $validated['section_id'];
 
         $subject = Subject::query()->findOrFail($subjectId);
         $newTeacher = Teacher::query()->with('user')->findOrFail($newTeacherId);
+        $section = Section::query()->findOrFail($sectionId);
+        $schoolYear = SchoolYear::query()->findOrFail($schoolYearId);
 
         $existing = TeacherSubject::query()->where('subject_id', $subjectId)->first();
         $oldTeacherId = $existing?->teacher_id;
@@ -387,13 +400,33 @@ class SystemManagementController extends Controller
         }
 
         TeacherSubject::query()->updateOrCreate(
-            ['subject_id' => $subjectId],
-            ['teacher_id' => $newTeacherId]
+            [
+                'subject_id' => $subjectId,
+                'school_year_id' => $schoolYearId,
+                'section_id' => $sectionId,
+            ],
+            [
+                'teacher_id' => $newTeacherId,
+                'is_active' => true,
+            ]
         );
+
+        // Keep grade-encoding scope in sync: subject teachers are filtered by subject_assignments.teacher_id.
+        SubjectAssignment::query()
+            ->updateOrCreate(
+                [
+                    'school_year_id' => $schoolYearId,
+                    'section_id' => $sectionId,
+                    'subject_id' => $subjectId,
+                ],
+                ['teacher_id' => $newTeacherId]
+            );
 
         $meta = $this->actorMeta($request) + [
             'subject_id' => $subject->id,
             'teacher_id' => $newTeacher->id,
+            'section_id' => $section->id,
+            'school_year_id' => $schoolYear->id,
         ];
 
         $teacherDisplay = $newTeacher->user
@@ -403,7 +436,7 @@ class SystemManagementController extends Controller
         $this->inAppNotifications->notifyAllAdmins(
             'assignment',
             'Teacher assignment',
-            "You have successfully assigned {$teacherDisplay} to teach «{$subject->title}».",
+            "You have successfully assigned {$teacherDisplay} to teach «{$subject->title}» for Grade {$section->grade_level} - {$section->name} ({$schoolYear->name}).",
             $meta,
         );
 
@@ -414,7 +447,7 @@ class SystemManagementController extends Controller
                     $oldTeacher->user_id,
                     'assignment',
                     'Subject assignment removed',
-                    "You have been unassigned from «{$subject->title}».",
+                    "You have been unassigned from «{$subject->title}» for Grade {$section->grade_level} - {$section->name} ({$schoolYear->name}).",
                     $meta,
                 );
             }
@@ -425,7 +458,7 @@ class SystemManagementController extends Controller
                 $newTeacher->user_id,
                 'assignment',
                 'New subject assignment',
-                "You have been assigned to teach «{$subject->title}».",
+                "You have been assigned to teach «{$subject->title}» for Grade {$section->grade_level} - {$section->name} ({$schoolYear->name}).",
                 $meta,
             );
         }
