@@ -103,6 +103,18 @@
                                 Activity Logs
                             </a>
                         @endif
+                        @if (auth()->user()->hasPermission('roles.manage'))
+                            <a href="{{ route('admin.roles.index') }}" class="{{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
+                                <span class="icon">&#128101;</span>
+                                Role Management
+                            </a>
+                        @endif
+                        @if (auth()->user()->hasPermission('permissions.manage'))
+                            <a href="{{ route('admin.permissions.index') }}" class="{{ request()->routeIs('admin.permissions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128295;</span>
+                                Permissions
+                            </a>
+                        @endif
                         <a href="{{ route('admin.settings') }}" class="{{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
                             <span class="icon">&#9881;</span>
                             Settings
@@ -212,15 +224,19 @@
                 </nav>
 
                 <div class="sidebar-footer">
+                    <a class="sidebar-footer-link {{ request()->routeIs('profile.show') ? 'active' : '' }}"
+                        href="{{ route('profile.show') }}">
+                        <span class="icon">&#128100;</span> My Profile
+                    </a>
                     @if (auth()->user()->hasRole('admin'))
                         <a class="sidebar-footer-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}"
                             href="{{ route('admin.settings') }}">
-                            Settings
+                            <span class="icon">&#9881;</span> Settings
                         </a>
                     @elseif ($sidebarIsAdviser || $sidebarIsSubjectTeacher)
                         <a class="sidebar-footer-link {{ request()->routeIs('settings*') ? 'active' : '' }}"
                             href="{{ route('settings') }}">
-                            Settings
+                            <span class="icon">&#9881;</span> Settings
                         </a>
                     @endif
 

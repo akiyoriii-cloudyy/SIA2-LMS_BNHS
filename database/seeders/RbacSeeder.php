@@ -28,6 +28,8 @@ class RbacSeeder extends Seeder
             'settings.manage_own' => 'Manage own profile/settings',
             'users.manage' => 'Manage users',
             'settings.manage' => 'Manage admin settings',
+            'roles.manage' => 'Manage roles and permissions',
+            'permissions.manage' => 'Manage system permissions',
             'activity_logs.view' => 'View activity logs and audit trail',
             'activity_logs.manage' => 'Manage and terminate user sessions',
         ];

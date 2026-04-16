@@ -10,6 +10,8 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\Admin\UsersController as AdminUsersController;
 use App\Http\Controllers\Admin\SystemManagementController as AdminSystemManagementController;
 use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
+use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\PermissionManagementController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MasterSheetController;
@@ -92,6 +94,28 @@ Route::middleware(['auth'])->group(function (): void {
             Route::post('/system-management/subjects', [AdminSystemManagementController::class, 'storeSubject'])->name('system.subjects.store');
             Route::put('/system-management/subjects/{subject}', [AdminSystemManagementController::class, 'updateSubject'])->name('system.subjects.update');
             Route::post('/system-management/subjects/assign-teacher', [AdminSystemManagementController::class, 'assignTeacherSubject'])->name('system.subjects.assign-teacher');
+        });
+
+        Route::middleware('permission:roles.manage')->group(function (): void {
+            Route::get('/roles', [RoleManagementController::class, 'index'])->name('roles.index');
+            Route::get('/roles/create', [RoleManagementController::class, 'create'])->name('roles.create');
+            Route::post('/roles', [RoleManagementController::class, 'store'])->name('roles.store');
+            Route::get('/roles/{role}', [RoleManagementController::class, 'show'])->name('roles.show');
+            Route::get('/roles/{role}/edit', [RoleManagementController::class, 'edit'])->name('roles.edit');
+            Route::put('/roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');
+            Route::delete('/roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
+            Route::post('/roles/{role}/permissions', [RoleManagementController::class, 'assignPermissions'])->name('roles.permissions.assign');
+        });
+
+        Route::middleware('permission:permissions.manage')->group(function (): void {
+            Route::get('/permissions', [PermissionManagementController::class, 'index'])->name('permissions.index');
+            Route::get('/permissions/create', [PermissionManagementController::class, 'create'])->name('permissions.create');
+            Route::post('/permissions', [PermissionManagementController::class, 'store'])->name('permissions.store');
+            Route::get('/permissions/{permission}', [PermissionManagementController::class, 'show'])->name('permissions.show');
+            Route::get('/permissions/{permission}/edit', [PermissionManagementController::class, 'edit'])->name('permissions.edit');
+            Route::put('/permissions/{permission}', [PermissionManagementController::class, 'update'])->name('permissions.update');
+            Route::delete('/permissions/{permission}', [PermissionManagementController::class, 'destroy'])->name('permissions.destroy');
+            Route::post('/permissions/{permission}/roles', [PermissionManagementController::class, 'assignToRoles'])->name('permissions.roles.assign');
         });
     });
 
