@@ -233,7 +233,7 @@
                             href="{{ route('admin.settings') }}">
                             <span class="icon">&#9881;</span> Settings
                         </a>
-                    @elseif ($sidebarIsAdviser || $sidebarIsSubjectTeacher)
+                    @elseif ($sidebarIsSubjectTeacher && !$sidebarIsAdviser)
                         <a class="sidebar-footer-link {{ request()->routeIs('settings*') ? 'active' : '' }}"
                             href="{{ route('settings') }}">
                             <span class="icon">&#9881;</span> Settings
