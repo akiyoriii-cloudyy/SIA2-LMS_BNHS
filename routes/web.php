@@ -53,6 +53,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('/courses', [CourseController::class, 'index'])->middleware(['role:adviser', 'permission:courses.view'])->name('courses.index');
 
     Route::get('/settings', [SettingsController::class, 'index'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings');
+    Route::get('/profile', [SettingsController::class, 'index'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('profile.show');
     Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.profile.update');
     Route::get('/settings/mfa', [MfaController::class, 'setup'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa');
     Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa.enable');
