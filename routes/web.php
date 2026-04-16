@@ -9,6 +9,7 @@ use App\Http\Controllers\PasswordResetController;
 
 use App\Http\Controllers\Admin\UsersController as AdminUsersController;
 use App\Http\Controllers\Admin\SystemManagementController as AdminSystemManagementController;
+use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MasterSheetController;
@@ -91,6 +92,23 @@ Route::middleware(['auth'])->group(function (): void {
             Route::post('/system-management/subjects', [AdminSystemManagementController::class, 'storeSubject'])->name('system.subjects.store');
             Route::put('/system-management/subjects/{subject}', [AdminSystemManagementController::class, 'updateSubject'])->name('system.subjects.update');
             Route::post('/system-management/subjects/assign-teacher', [AdminSystemManagementController::class, 'assignTeacherSubject'])->name('system.subjects.assign-teacher');
+        });
+    });
+
+    Route::middleware(['role:admin,adviser,subject_teacher', 'permission:activity_logs.view'])->prefix('admin')->name('admin.')->group(function (): void {
+        Route::get('/activity-logs', [AdminActivityLogController::class, 'index'])->name('activity-logs.index');
+        Route::get('/activity-logs/stats', [AdminActivityLogController::class, 'stats'])->name('activity-logs.stats');
+        Route::get('/activity-logs/export', [AdminActivityLogController::class, 'export'])->name('activity-logs.export');
+        Route::get('/activity-logs/{activityLog}', [AdminActivityLogController::class, 'show'])->name('activity-logs.show');
+        Route::put('/activity-logs/{activityLog}/notes', [AdminActivityLogController::class, 'updateNotes'])->name('activity-logs.notes.update');
+        Route::put('/activity-logs/{activityLog}/custom-action', [AdminActivityLogController::class, 'updateCustomAction'])->name('activity-logs.custom-action.update');
+        Route::get('/users/{userId}/sessions', [AdminActivityLogController::class, 'userSessions'])->name('activity-logs.user-sessions');
+
+        Route::middleware(['role:admin', 'permission:activity_logs.manage'])->group(function (): void {
+            Route::get('/sessions/active', [AdminActivityLogController::class, 'activeSessions'])->name('sessions.active');
+            Route::delete('/sessions/{sessionId}/terminate', [AdminActivityLogController::class, 'terminateSession'])->name('sessions.terminate');
+            Route::delete('/activity-logs/{activityLog}', [AdminActivityLogController::class, 'destroy'])->name('activity-logs.destroy');
+            Route::post('/activity-logs/bulk-delete', [AdminActivityLogController::class, 'bulkDelete'])->name('activity-logs.bulk-delete');
         });
     });
 

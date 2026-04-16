@@ -42,6 +42,10 @@ class AuthController extends Controller
         Auth::login($user, true);
         $request->session()->regenerate();
 
+        // Create user session record AFTER session regeneration
+        $sessionTracker = app(\App\Services\SessionTracker::class);
+        $sessionTracker->startSession($user->id, session()->getId());
+
         return redirect()->route('dashboard');
     }
 

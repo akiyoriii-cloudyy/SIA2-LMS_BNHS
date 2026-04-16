@@ -97,6 +97,12 @@
                         </a>
 
                         <div class="group">Admin</div>
+                        @if (auth()->user()->hasPermission('activity_logs.view'))
+                            <a href="{{ route('admin.activity-logs.index') }}" class="{{ request()->routeIs('admin.activity-logs.*') || request()->routeIs('admin.sessions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128220;</span>
+                                Activity Logs
+                            </a>
+                        @endif
                         <a href="{{ route('admin.settings') }}" class="{{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
                             <span class="icon">&#9881;</span>
                             Settings

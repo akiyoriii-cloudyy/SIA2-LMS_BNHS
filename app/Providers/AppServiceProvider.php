@@ -2,9 +2,16 @@
 
 namespace App\Providers;
 
+use App\Listeners\LogFailedLogin;
+use App\Listeners\LogLogout;
+use App\Listeners\LogSuccessfulLogin;
 use App\Models\SchoolNotification;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(Login::class, LogSuccessfulLogin::class);
+        Event::listen(Failed::class, LogFailedLogin::class);
+        Event::listen(Logout::class, LogLogout::class);
+
         RateLimiter::for('login', function (Request $request) {
             $email = (string) $request->input('email');
 

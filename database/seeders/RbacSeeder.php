@@ -28,6 +28,8 @@ class RbacSeeder extends Seeder
             'settings.manage_own' => 'Manage own profile/settings',
             'users.manage' => 'Manage users',
             'settings.manage' => 'Manage admin settings',
+            'activity_logs.view' => 'View activity logs and audit trail',
+            'activity_logs.manage' => 'Manage and terminate user sessions',
         ];
 
         foreach ($permissions as $name => $description) {
@@ -52,6 +54,7 @@ class RbacSeeder extends Seeder
             'report_cards.edit',
             'sms_logs.view',
             'settings.manage_own',
+            'activity_logs.view',
         ])->pluck('id')->all());
 
         $subjectTeacher->permissions()->sync(Permission::query()->whereIn('name', [
@@ -59,6 +62,7 @@ class RbacSeeder extends Seeder
             'gradebook.view',
             'gradebook.edit',
             'settings.manage_own',
+            'activity_logs.view',
         ])->pluck('id')->all());
 
         $user->permissions()->sync(Permission::query()->whereIn('name', [

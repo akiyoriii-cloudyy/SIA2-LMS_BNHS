@@ -16,9 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
             'auth.api' => \App\Http\Middleware\JwtAuthMiddleware::class,
+            'session.track' => \App\Http\Middleware\TrackUserSession::class,
+            'log.activity' => \App\Http\Middleware\LogUserActivity::class,
         ]);
 
         $middleware->appendToGroup('web', \App\Http\Middleware\LoadUserRoles::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\TrackUserSession::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
