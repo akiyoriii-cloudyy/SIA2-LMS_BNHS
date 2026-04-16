@@ -69,4 +69,40 @@
             </div>
         </div>
     </div>
+
+    @if (auth()->user()->hasRole('admin'))
+    <div class="dash-row-2" style="grid-template-columns: 1fr; margin-top:12px;">
+        <div class="dash-panel">
+            <div class="dash-panel-hd">
+                <div>
+                    <div class="dash-panel-title">Password</div>
+                    <div class="dash-panel-sub">Change your password</div>
+                </div>
+            </div>
+            <div class="dash-panel-body">
+                <form method="POST" action="{{ route('admin.settings.password.update') }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="grid-3" style="grid-template-columns: 1fr 1fr 1fr;">
+                        <div>
+                            <label>Current password</label>
+                            <input type="password" name="current_password" required>
+                        </div>
+                        <div>
+                            <label>New password</label>
+                            <input type="password" name="password" required>
+                        </div>
+                        <div>
+                            <label>Confirm new password</label>
+                            <input type="password" name="password_confirmation" required>
+                        </div>
+                        <div style="display:flex; align-items:flex-end;">
+                            <button class="btn btn-gold" type="submit" style="width:100%;">Update password</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
 @endsection
