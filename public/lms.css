@@ -3218,8 +3218,10 @@ body.lms.lms-login .auth-meta {
 .pagination li:first-child a,
 .pagination li:first-child span,
 .pagination li:last-child a,
-.pagination li:last-child span { font-size: 14px; padding: 0 6px; min-width: 28px; }
-.pagination li:first-child a::before { content: '‹'; }
-.pagination li:last-child a::before { content: '›'; }
-.pagination li:first-child span::before { content: '‹'; color: var(--text-muted); }
-.pagination li:last-child span::before { content: '›'; color: var(--text-muted); }
+.pagination li:last-child span { font-size: 16px; padding: 0 6px; min-width: 28px; line-height: 1; }
+.pagination li:first-child a::before,
+.pagination li:first-child span::before { content: '<'; }
+.pagination li:last-child a::before,
+.pagination li:last-child span::before { content: '>'; }
+.pagination li:first-child span::before,
+.pagination li:last-child span::before { color: var(--text-muted); }
