@@ -50,7 +50,7 @@ class ActivityLogController extends Controller
             $query->where('ip_address', 'like', '%' . $request->input('ip_address') . '%');
         }
 
-        $logs = $query->paginate(20);
+        $logs = $query->paginate(10);
         $actions = ActivityLog::distinct()->pluck('action');
 
         return view('admin.activity-logs.index', [
@@ -74,7 +74,7 @@ class ActivityLogController extends Controller
         $sessions = UserSession::with('user')
             ->where('is_active', true)
             ->orderBy('last_activity_at', 'desc')
-            ->paginate(20);
+            ->paginate(10);
 
         return view('admin.activity-logs.sessions', [
             'sessions' => $sessions,
@@ -89,7 +89,7 @@ class ActivityLogController extends Controller
 
         $sessions = UserSession::where('user_id', $userId)
             ->orderBy('started_at', 'desc')
-            ->paginate(20);
+            ->paginate(10);
 
         $activeCount = UserSession::where('user_id', $userId)
             ->where('is_active', true)

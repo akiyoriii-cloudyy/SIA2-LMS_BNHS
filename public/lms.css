@@ -3204,3 +3204,22 @@ body.lms.lms-login .auth-meta {
 .btn--danger:hover { background: #dc2626; }
 @media (max-width: 1024px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .grid-4 { grid-template-columns: 1fr; } }
+
+/* Pagination - Simple & Small Design */
+.pagination-wrap { margin-top: 20px; display: flex; justify-content: center; }
+.pagination { display: flex; align-items: center; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.pagination li { display: inline-flex; }
+.pagination li a,
+.pagination li span { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 8px; font-size: 12px; font-weight: 500; color: var(--text); text-decoration: none; border-radius: 6px; transition: all 0.2s; background: var(--white); border: 1px solid var(--border); }
+.pagination li a:hover { background: var(--sage); color: var(--white); border-color: var(--sage); }
+.pagination li.active span { background: var(--navy); color: var(--white); border-color: var(--navy); }
+.pagination li.disabled span { color: var(--text-muted); background: rgba(0,0,0,0.03); border-color: var(--border); cursor: not-allowed; }
+/* Simple Left/Right Arrows */
+.pagination li:first-child a,
+.pagination li:first-child span,
+.pagination li:last-child a,
+.pagination li:last-child span { font-size: 14px; padding: 0 6px; min-width: 28px; }
+.pagination li:first-child a::before { content: '‹'; }
+.pagination li:last-child a::before { content: '›'; }
+.pagination li:first-child span::before { content: '‹'; color: var(--text-muted); }
+.pagination li:last-child span::before { content: '›'; color: var(--text-muted); }
