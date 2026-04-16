@@ -134,6 +134,14 @@
                                 <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
                             @endif
                         </a>
+
+                        @if (auth()->user()->hasPermission('activity_logs.view'))
+                            <div class="group">Activity</div>
+                            <a href="{{ route('admin.activity-logs.index') }}" class="{{ request()->routeIs('admin.activity-logs.*') || request()->routeIs('admin.sessions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128220;</span>
+                                Activity Logs
+                            </a>
+                        @endif
                     @endif
 
                     @if ($sidebarIsAdviser)
@@ -192,6 +200,14 @@
                             <span class="icon">&#128242;</span>
                             RFID mobile app
                         </a>
+
+                        @if (auth()->user()->hasPermission('activity_logs.view'))
+                            <div class="group">Activity</div>
+                            <a href="{{ route('admin.activity-logs.index') }}" class="{{ request()->routeIs('admin.activity-logs.*') || request()->routeIs('admin.sessions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128220;</span>
+                                Activity Logs
+                            </a>
+                        @endif
                     @endif
                 </nav>
 
