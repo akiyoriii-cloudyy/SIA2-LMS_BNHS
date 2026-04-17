@@ -1,0 +1,396 @@
+/* EduTrack Mobile – aligned to 3-key-screens reference (1st image) */
+:root {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --ink: #000000;
+    --ink-soft: #333333;
+    --muted: #777777;
+    --line: rgba(0, 0, 0, 0.15);
+    --line2: rgba(0, 0, 0, 0.25);
+    --black: #333333;
+    --header-bg: #ffffff;
+    --ok: #16a34a;
+    --offline-dot: #6b7280;
+    --bad: #dc2626;
+    --radius: 12px;
+    --nav-active: #333333;
+    --chip-bg: #333333;
+    --orange: #ea580c;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+}
+
+.app {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+}
+
+/* ─── Header (white background, black text – 1st image) ─── */
+.top {
+    background: var(--header-bg);
+    color: var(--ink);
+    padding: 14px 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid var(--line);
+}
+
+.top-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.brand { display: grid; gap: 2px; }
+.brand .title {
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+}
+.brand .sub {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* Online/Offline pill – dark grey bg, white text (1st image) */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--chip-bg);
+    border: none;
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+    color: #fff;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 99px;
+    background: var(--ok);
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25);
+}
+.dot.off {
+    background: var(--offline-dot);
+    box-shadow: none;
+}
+
+.top-btn {
+    appearance: none;
+    border: 1px solid var(--line2);
+    background: transparent;
+    color: var(--ink);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* ─── Main content – white screen (1st image) ─── */
+.content {
+    padding: 12px 14px 88px;
+    flex: 1;
+    background: var(--bg);
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+}
+
+.card.soft {
+    border-style: dashed;
+    border-color: var(--line2);
+}
+
+.muted { color: var(--muted); }
+.row { display: flex; gap: 10px; align-items: center; }
+.row.between { justify-content: space-between; }
+
+/* Primary button – full-width black, white text */
+.btn {
+    appearance: none;
+    border: none;
+    background: var(--black);
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    font-weight: 700;
+    width: 100%;
+    cursor: pointer;
+    font-size: 14px;
+}
+.btn.ghost {
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line2);
+}
+.btn.small {
+    width: auto;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line2);
+    background: #fff;
+    outline: none;
+    font-size: 14px;
+}
+
+/* ─── Alert banner – dashed border, red triangle ▲ (1st image) ─── */
+.banner {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 2px dashed var(--line2);
+    background: var(--card);
+    margin-bottom: 12px;
+}
+.banner .ic {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    border: 1px solid var(--bad);
+    color: var(--bad);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    flex: 0 0 auto;
+    font-size: 12px;
+}
+
+.list { display: grid; gap: 10px; }
+
+/* ─── Student card – white avatar with dark initials, P/A/L (1st image) ─── */
+.student {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    background: var(--card);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.student-left {
+    display: grid;
+    grid-template-columns: 42px 1fr;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+}
+
+/* Avatar – white circle, dark initials (1st image) */
+.avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 99px;
+    background: #fff;
+    color: var(--ink-soft);
+    border: 1px solid var(--line2);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.sname {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+}
+.slrn { font-size: 12px; color: var(--muted); }
+
+/* P/A/L – inactive: white bg, black text, light grey border; active: black bg, white text */
+.status-buttons { display: flex; gap: 8px; align-items: center; }
+
+.sb {
+    width: 32px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--line2);
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+}
+.sb.active {
+    background: var(--black);
+    color: #fff;
+    border-color: var(--black);
+}
+.sb.badge {
+    width: auto;
+    height: auto;
+    padding: 5px 10px;
+    font-size: 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line2);
+    background: #fff;
+    color: var(--ink);
+}
+
+/* ─── Bottom navigation – 4 items, icons + labels, active highlighted ─── */
+.bottom {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--card);
+    border-top: 1px solid var(--line);
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+}
+
+.nav {
+    max-width: 520px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.nav button {
+    border: none;
+    background: transparent;
+    padding: 8px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.nav .ico {
+    display: block;
+    font-size: 20px;
+    line-height: 1;
+}
+.nav button.active {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--nav-active);
+}
+
+.hidden { display: none !important; }
+.title2 { font-weight: 700; font-size: 15px; }
+
+/* Pills / offline status */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: #f1f5f9;
+    font-size: 12px;
+    font-weight: 600;
+    width: 100%;
+    margin-bottom: 10px;
+}
+.pill .pill-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 99px;
+    background: var(--orange);
+    flex-shrink: 0;
+}
+
+.note {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 0 2px;
+    margin: 12px 0;
+    text-align: center;
+}
+
+details.card > summary {
+    cursor: pointer;
+    list-style: none;
+}
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary.title2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+details.card > summary.title2::after {
+    content: "▾";
+    color: var(--muted);
+    font-weight: 700;
+}
+details[open].card > summary.title2::after { content: "▴"; }
+
+/* ─── Profile screen – student card, parent card, week grid ─── */
+.profile-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.week {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.day {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 4px;
+    text-align: center;
+    font-weight: 700;
+    background: #fff;
+    font-size: 12px;
+}
+.day .d { font-size: 11px; color: var(--muted); font-weight: 600; }
+.day .v { font-size: 12px; margin-top: 2px; }
+
+/* Offline banner styling to match mockup */
+#offline-banner.banner {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+}
