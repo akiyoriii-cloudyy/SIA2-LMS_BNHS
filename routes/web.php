@@ -1,26 +1,25 @@
 <?php
 
-use App\Http\Controllers\GradebookController;
-use App\Http\Controllers\ReportCardController;
+use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
+use App\Http\Controllers\Admin\PermissionManagementController;
+use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\SystemManagementController as AdminSystemManagementController;
+use App\Http\Controllers\Admin\UsersController as AdminUsersController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\MfaController;
-use App\Http\Controllers\PasswordResetController;
-
-use App\Http\Controllers\Admin\UsersController as AdminUsersController;
-use App\Http\Controllers\Admin\SystemManagementController as AdminSystemManagementController;
-use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
-use App\Http\Controllers\Admin\RoleManagementController;
-use App\Http\Controllers\Admin\PermissionManagementController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GradebookController;
 use App\Http\Controllers\MasterSheetController;
+use App\Http\Controllers\MfaController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ReportCardController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SmsLogController;
 use App\Http\Controllers\StudentController;
-use App\Http\Controllers\SubjectTeacherController;
 use App\Http\Controllers\SubjectController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SubjectTeacherController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -46,6 +45,7 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::middleware(['role:admin,adviser,subject_teacher', 'permission:dashboard.view'])->group(function (): void {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('/notifications/{schoolNotification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     });

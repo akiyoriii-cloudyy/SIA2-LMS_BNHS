@@ -10,14 +10,6 @@
             <span class="dash-topbar-bc">Subject teacher</span>
         </div>
         <div class="dash-topbar-actions">
-            <a class="btn btn-outline btn-sm" href="{{ route('notifications.index') }}">
-                Notifications
-                @if (($inAppUnreadCount ?? $inAppUnreadNotifications ?? 0) > 0)
-                    <span class="nav-badge" style="margin-left:6px;">
-                        {{ (int) ($inAppUnreadCount ?? $inAppUnreadNotifications ?? 0) > 99 ? '99+' : (int) ($inAppUnreadCount ?? $inAppUnreadNotifications ?? 0) }}
-                    </span>
-                @endif
-            </a>
             <a class="btn btn-outline btn-sm" href="{{ route('subject-teacher.index', $periodQuery ?? ['term' => ($term ?? $quarterInSemester)]) }}">Subject load</a>
             <a class="btn btn-primary btn-sm" href="{{ route('gradebook.index', ['subject_category' => 'core', 'term' => ($term ?? $quarterInSemester)]) }}">Open gradebook</a>
         </div>

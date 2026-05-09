@@ -47,11 +47,24 @@ class InAppNotificationTest extends TestCase
             'read_at' => null,
         ]);
 
-        $response = $this->actingAs($admin)->get(route('notifications.index'));
+        $response = $this->actingAs($admin)->get(route('notifications.feed'));
 
         $response->assertOk();
-        $response->assertSee('Yours', false);
-        $response->assertDontSee('Secret', false);
+        $response->assertJsonFragment(['title' => 'Yours']);
+        $response->assertJsonMissing(['title' => 'Theirs']);
+    }
+
+    public function test_notifications_index_redirects_to_dashboard_with_modal_flash(): void
+    {
+        $this->seed(RbacSeeder::class);
+
+        $admin = User::factory()->create(['email' => 'admin@example.com']);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->value('id')]);
+
+        $this->actingAs($admin)
+            ->get(route('notifications.index'))
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('open_notifications_modal', true);
     }
 
     public function test_mark_read_sets_read_at(): void

@@ -15,12 +15,6 @@
                 <span class="dash-topbar-bc">Admin dashboard</span>
             </div>
             <div class="dash-topbar-actions">
-                <a class="btn btn-outline btn-sm" href="{{ route('notifications.index') }}">
-                    Notifications
-                    @if (($adminUnreadNotifications ?? 0) > 0)
-                        <span class="nav-badge" style="margin-left:6px;">{{ (int) $adminUnreadNotifications > 99 ? '99+' : (int) $adminUnreadNotifications }}</span>
-                    @endif
-                </a>
                 <a class="btn btn-outline btn-sm" href="{{ route('admin.users.index') }}">User management</a>
                 <a class="btn btn-outline btn-sm" href="{{ route('mobile.app') }}">RFID mobile app</a>
                 <a class="btn btn-primary btn-sm" href="{{ route('sms-logs.index') }}">SMS logs</a>
@@ -94,13 +88,13 @@
                                     <span class="admin-qcard-desc">Accounts, roles, and profiles</span>
                                 </span>
                             </a>
-                            <a class="admin-qcard" href="{{ route('notifications.index') }}">
+                            <button type="button" class="admin-qcard admin-qcard--btn js-open-notifications">
                                 <span class="admin-qcard-icon">🔔</span>
                                 <span class="admin-qcard-body">
                                     <span class="admin-qcard-label">Notifications</span>
                                     <span class="admin-qcard-desc">System and assignment alerts</span>
                                 </span>
-                            </a>
+                            </button>
                             <a class="admin-qcard" href="{{ route('admin.settings') }}">
                                 <span class="admin-qcard-icon">⚙️</span>
                                 <span class="admin-qcard-body">

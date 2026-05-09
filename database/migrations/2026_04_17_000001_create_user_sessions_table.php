@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('browser', 50)->nullable();
             $table->string('os', 50)->nullable();
             $table->string('location', 100)->nullable();
-            $table->timestamp('started_at');
-            $table->timestamp('last_activity_at');
+            $table->timestamp('started_at')->useCurrent();
+            $table->timestamp('last_activity_at')->useCurrent();
             $table->boolean('is_active')->default(true);
             $table->timestamp('ended_at')->nullable();
             $table->string('end_reason', 50)->nullable();

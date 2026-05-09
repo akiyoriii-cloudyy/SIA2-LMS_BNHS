@@ -228,6 +228,155 @@ body.lms:not(.lms-login)::before {
     line-height: 1;
 }
 
+.notif-badge--hidden {
+    display: none !important;
+}
+
+button.topbar-notify,
+button.admin-strip-notify {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.admin-qcard--btn {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+}
+
+/* Notifications modal (admin / teacher / adviser) */
+.notif-modal[hidden] {
+    display: none !important;
+}
+
+.notif-modal:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px;
+    box-sizing: border-box;
+}
+
+.notif-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.notif-modal__panel {
+    position: relative;
+    width: min(520px, 100%);
+    max-height: min(640px, calc(100vh - 48px));
+    margin-top: 40px;
+    background: #fff;
+    border-radius: 16px;
+    border: 2px solid rgba(15, 23, 42, 0.85);
+    box-shadow: 0 24px 48px rgba(10, 22, 40, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.notif-modal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(30, 53, 87, 0.04);
+}
+
+.notif-modal__title {
+    margin: 0;
+    font-family: "DM Serif Display", serif;
+    font-size: 18px;
+    color: var(--navy);
+}
+
+.notif-modal__x {
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--navy);
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.notif-modal__x:hover {
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.notif-modal__toolbar {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.notif-modal__body {
+    overflow-y: auto;
+    padding: 12px 16px 16px;
+    flex: 1;
+    outline: none;
+}
+
+.notif-modal-card {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+    background: #f8fafc;
+}
+
+.notif-modal-card--read {
+    opacity: 0.78;
+    background: #fff;
+}
+
+.notif-modal-card__main {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-modal-card__title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--navy);
+    margin-bottom: 4px;
+}
+
+.notif-modal-card__msg {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.notif-modal-card__meta {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--lms-muted);
+}
+
+.notif-modal-card__readlbl {
+    align-self: center;
+    font-size: 12px;
+}
+
 .notif-list {
     display: flex;
     flex-direction: column;
@@ -394,6 +543,93 @@ body.lms-guest .main{ margin-left: 0; }
     top: 0;
     z-index: 40;
     border-bottom: 2px solid rgba(15, 23, 42, 0.85);
+}
+
+/* Admin notifications (sidebar removed); bell in mobile topbar + desktop strip */
+.topbar-notify {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 38px;
+    border-radius: 12px;
+    border: 2px solid rgba(15, 23, 42, 0.85);
+    background: #ffffff;
+    color: inherit;
+    text-decoration: none;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.topbar-notify:hover {
+    background: rgba(15, 23, 42, 0.04);
+}
+
+.topbar-notify.is-active {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px hsla(var(--lms-h) 70% 50% / 0.2);
+}
+
+.topbar-notify-icon { font-size: 18px; line-height: 1; }
+
+.topbar-notify .topbar-notify-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    margin-left: 0;
+    min-width: 18px;
+    text-align: center;
+}
+
+.admin-strip-desktop {
+    display: none;
+}
+
+@media (min-width: 901px) {
+    .admin-strip-desktop {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 18px 30px 0;
+        max-width: 1240px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+.admin-strip-notify {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 2px solid rgba(15, 23, 42, 0.85);
+    background: #ffffff;
+    color: var(--navy);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.admin-strip-notify:hover {
+    background: rgba(15, 23, 42, 0.04);
+}
+
+.admin-strip-notify.is-active {
+    border-color: var(--gold);
+    background: hsla(var(--lms-h) 70% 50% / 0.12);
+}
+
+.admin-strip-notify-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.admin-strip-notify .nav-badge {
+    margin-left: 0;
 }
 
 .toggle-btn {

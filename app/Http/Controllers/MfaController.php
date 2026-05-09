@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\SessionTracker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,7 +40,7 @@ class MfaController extends Controller
 
         $ok = false;
         if (preg_match('/^\d{6}$/', $raw)) {
-            $g2fa = new Google2FA();
+            $g2fa = new Google2FA;
             $ok = $user->mfa_secret ? $g2fa->verifyKey((string) $user->mfa_secret, $raw) : false;
         } else {
             // Recovery code flow.
@@ -63,6 +64,8 @@ class MfaController extends Controller
         $request->session()->forget('mfa.pending_user_id');
         $request->session()->regenerate();
 
+        app(SessionTracker::class)->startSession((int) $user->id, session()->getId());
+
         return redirect()->route('dashboard');
     }
 
@@ -71,7 +74,7 @@ class MfaController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
-        $g2fa = new Google2FA();
+        $g2fa = new Google2FA;
         $secret = $g2fa->generateSecretKey();
         $issuer = 'BNHS LMS';
         $label = (string) $user->email;
@@ -94,7 +97,7 @@ class MfaController extends Controller
             'code' => ['required', 'string'],
         ]);
 
-        $g2fa = new Google2FA();
+        $g2fa = new Google2FA;
         $code = preg_replace('/\D+/', '', trim((string) $validated['code'])) ?? '';
 
         if (! preg_match('/^\d{6}$/', $code)) {
@@ -142,4 +145,3 @@ class MfaController extends Controller
         return redirect()->route('settings')->with('status', 'MFA disabled.');
     }
 }
-

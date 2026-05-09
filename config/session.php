@@ -156,7 +156,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => env('SESSION_DOMAIN') ?: null,
 
     /*
     |--------------------------------------------------------------------------
@@ -167,9 +167,15 @@ return [
     | to the server if the browser has a HTTPS connection. This will keep
     | the cookie from being sent to you when it can't be done securely.
     |
+    | For local HTTP (e.g. http://127.0.0.1:8000), secure cookies are not sent;
+    | without a session cookie POST login fails CSRF ("419 Page Expired").
+    |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => filter_var(
+        env('SESSION_SECURE_COOKIE') ?? (env('APP_ENV') !== 'local'),
+        FILTER_VALIDATE_BOOLEAN
+    ),
 
     /*
     |--------------------------------------------------------------------------

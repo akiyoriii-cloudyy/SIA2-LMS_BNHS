@@ -70,15 +70,6 @@
                             Dashboard
                         </a>
 
-                        <a href="{{ route('notifications.index') }}"
-                            class="{{ request()->routeIs('notifications.*') ? 'active' : '' }}">
-                            <span class="icon">&#128276;</span>
-                            Notifications
-                            @if (($inAppUnreadCount ?? 0) > 0)
-                                <span class="nav-badge">{{ $inAppUnreadCount > 99 ? '99+' : $inAppUnreadCount }}</span>
-                            @endif
-                        </a>
-
                         <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                             <span class="icon">&#128100;</span>
                             User Management
@@ -125,17 +116,6 @@
                             <span class="icon">&#128200;</span>
                             Dashboard
                         </a>
-
-                        @if ($sidebarIsAdviser || $sidebarIsSubjectTeacher)
-                            <a href="{{ route('notifications.index') }}"
-                                class="{{ request()->routeIs('notifications.*') ? 'active' : '' }}">
-                                <span class="icon">&#128276;</span>
-                                Notifications
-                                @if (($inAppUnreadCount ?? 0) > 0)
-                                    <span class="nav-badge">{{ $inAppUnreadCount > 99 ? '99+' : $inAppUnreadCount }}</span>
-                                @endif
-                            </a>
-                        @endif
                     @endif
 
                     @if ($sidebarIsSubjectTeacher && ! $sidebarIsAdviser)
@@ -228,12 +208,7 @@
                         href="{{ route('profile.show') }}">
                         <span class="icon">&#128100;</span> My Profile
                     </a>
-                    @if (auth()->user()->hasRole('admin'))
-                        <a class="sidebar-footer-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}"
-                            href="{{ route('admin.settings') }}">
-                            <span class="icon">&#9881;</span> Settings
-                        </a>
-                    @elseif ($sidebarIsSubjectTeacher && !$sidebarIsAdviser)
+                    @if ($sidebarIsSubjectTeacher && !$sidebarIsAdviser)
                         <a class="sidebar-footer-link {{ request()->routeIs('settings*') ? 'active' : '' }}"
                             href="{{ route('settings') }}">
                             <span class="icon">&#9881;</span> Settings
@@ -264,12 +239,80 @@
                 <div class="topbar">
                     <label class="toggle-btn" for="nav-toggle">&#9776;</label>
                     <div style="font-weight:900;">EduTrack</div>
-                    <div style="width:42px;"></div>
+                    @if (auth()->user()->hasRole('admin', 'adviser', 'subject_teacher'))
+                        <button type="button"
+                            class="topbar-notify js-open-notifications {{ request()->routeIs('notifications.*') ? 'is-active' : '' }}"
+                            aria-label="Notifications"
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
+                            data-notif-expanded="false">
+                            <span class="topbar-notify-icon" aria-hidden="true">&#128276;</span>
+                            @php $mobCt = (int) ($inAppUnreadCount ?? 0); @endphp
+                            <span class="nav-badge topbar-notify-badge js-notif-badge {{ $mobCt > 0 ? '' : 'notif-badge--hidden' }}">{{ $mobCt > 99 ? '99+' : $mobCt }}</span>
+                        </button>
+                    @else
+                        <div style="width:42px;"></div>
+                    @endif
                 </div>
+
+                @if (auth()->user()->hasRole('admin', 'adviser', 'subject_teacher'))
+                    <div class="admin-strip-desktop">
+                        <button type="button"
+                            class="admin-strip-notify js-open-notifications {{ request()->routeIs('notifications.*') ? 'is-active' : '' }}"
+                            aria-label="Notifications"
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
+                            data-notif-expanded="false">
+                            <span class="admin-strip-notify-icon" aria-hidden="true">&#128276;</span>
+                            @php $stripCt = (int) ($inAppUnreadCount ?? 0); @endphp
+                            <span class="nav-badge js-notif-badge {{ $stripCt > 0 ? '' : 'notif-badge--hidden' }}">{{ $stripCt > 99 ? '99+' : $stripCt }}</span>
+                        </button>
+                    </div>
+                @endif
 
                 <div class="container">
                     @yield('content')
                 </div>
+
+                @if (auth()->user()->hasRole('admin', 'adviser', 'subject_teacher'))
+                    <div id="lms-notif-modal" class="notif-modal" hidden aria-hidden="true">
+                        <div class="notif-modal__backdrop js-notif-close" tabindex="-1"></div>
+                        <div class="notif-modal__panel" role="dialog" aria-modal="true" aria-labelledby="lms-notif-modal-title">
+                            <div class="notif-modal__head">
+                                <h2 id="lms-notif-modal-title" class="notif-modal__title">Notifications</h2>
+                                <button type="button" class="notif-modal__x js-notif-close" aria-label="Close">&times;</button>
+                            </div>
+                            <div class="notif-modal__toolbar">
+                                <button type="button" class="btn btn-outline btn-sm js-notif-mark-all" disabled>Mark all as read</button>
+                            </div>
+                            <div class="notif-modal__body js-notif-list" tabindex="-1">
+                                <p class="muted js-notif-loading" style="margin:0;">Loading…</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    @php
+                        $__lmsNotificationsConfig = [
+                            'feedUrl' => route('notifications.feed'),
+                            'readAllUrl' => route('notifications.read-all'),
+                            'notificationsUrlPrefix' => url('/notifications'),
+                            'csrf' => csrf_token(),
+                        ];
+                    @endphp
+                    <script>
+                        window.LMS_NOTIFICATIONS = @json($__lmsNotificationsConfig);
+                    </script>
+                    <script src="{{ asset('notifications-modal.js') }}?v={{ filemtime(public_path('notifications-modal.js')) }}" defer></script>
+                    @if (session('open_notifications_modal'))
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                if (typeof window.LMSNotificationsOpen === 'function') {
+                                    window.LMSNotificationsOpen();
+                                }
+                            });
+                        </script>
+                    @endif
+                @endif
             </main>
         </div>
     @else
