@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Settings')
+@section('title', 'Profile')
 
 @section('content')
     <div class="dash-topbar">
         <div class="dash-topbar-left">
             <span class="dash-topbar-title">EduTrack</span>
             <span class="dash-topbar-sep">/</span>
-            <span class="dash-topbar-bc">Settings</span>
+            <span class="dash-topbar-bc">Profile</span>
         </div>
     </div>
 

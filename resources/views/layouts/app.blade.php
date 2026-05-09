@@ -106,10 +106,6 @@
                                 Permissions
                             </a>
                         @endif
-                        <a href="{{ route('admin.settings') }}" class="{{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
-                            <span class="icon">&#9881;</span>
-                            Settings
-                        </a>
                     @else
                         <a href="{{ ($sidebarIsAdviser || $sidebarIsSubjectTeacher) ? route('dashboard', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) : route('dashboard') }}"
                             class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
@@ -204,10 +200,14 @@
                 </nav>
 
                 <div class="sidebar-footer">
-                    @if ($sidebarIsAdviser || $sidebarIsSubjectTeacher)
-                        <a class="sidebar-footer-link {{ request()->routeIs('settings', 'profile.show', 'settings.mfa') ? 'active' : '' }}"
+                    @if (auth()->user()->hasRole('admin') || $sidebarIsAdviser || $sidebarIsSubjectTeacher)
+                        <a class="sidebar-footer-link {{ request()->routeIs('settings', 'profile.show') ? 'active' : '' }}"
                             href="{{ route('settings') }}">
-                            <span class="icon">&#9881;</span> Settings
+                            <span class="icon">&#128100;</span> Profile
+                        </a>
+                        <a class="sidebar-footer-link {{ request()->routeIs('security', 'settings.mfa') ? 'active' : '' }}"
+                            href="{{ route('security') }}">
+                            <span class="icon">&#128274;</span> Security
                         </a>
                     @endif
 

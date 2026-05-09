@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\ApiToken;
 use App\Models\Enrollment;
 use App\Models\Role;
 use App\Models\SchoolYear;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\JwtService;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,13 +24,7 @@ class RfidScanApiTest extends TestCase
         $teacher = User::factory()->create();
         $teacher->roles()->sync([Role::query()->where('name', 'adviser')->value('id')]);
 
-        $plainToken = 'rfid-test-token';
-        ApiToken::query()->create([
-            'user_id' => $teacher->id,
-            'name' => 'mobile',
-            'token_hash' => hash('sha256', $plainToken),
-            'expires_at' => now()->addDay(),
-        ]);
+        $plainToken = app(JwtService::class)->issueForUser($teacher);
 
         $schoolYear = SchoolYear::query()->create([
             'name' => '2025-2026',

@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Role;
 use App\Models\SchoolNotification;
+use App\Models\SchoolYear;
+use App\Models\Section;
 use App\Models\User;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -138,9 +140,22 @@ class InAppNotificationTest extends TestCase
             'category' => 'core',
         ]);
 
+        $schoolYear = SchoolYear::query()->create([
+            'name' => '2025-2026',
+            'is_active' => true,
+        ]);
+
+        $section = Section::query()->create([
+            'name' => 'HUMSS A',
+            'grade_level' => 11,
+            'strand' => 'HUMSS',
+        ]);
+
         $this->actingAs($admin)->post(route('admin.system.subjects.assign-teacher'), [
             'teacher_id' => $teacher->id,
             'subject_id' => $subject->id,
+            'school_year_id' => $schoolYear->id,
+            'section_id' => $section->id,
         ])->assertRedirect();
 
         $this->assertGreaterThanOrEqual(1, SchoolNotification::query()->where('user_id', $admin->id)->count());

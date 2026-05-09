@@ -95,11 +95,11 @@
                                     <span class="admin-qcard-desc">System and assignment alerts</span>
                                 </span>
                             </button>
-                            <a class="admin-qcard" href="{{ route('admin.settings') }}">
-                                <span class="admin-qcard-icon">⚙️</span>
+                            <a class="admin-qcard" href="{{ route('settings') }}">
+                                <span class="admin-qcard-icon">👤</span>
                                 <span class="admin-qcard-body">
-                                    <span class="admin-qcard-label">Admin settings</span>
-                                    <span class="admin-qcard-desc">Password and profile</span>
+                                    <span class="admin-qcard-label">Profile</span>
+                                    <span class="admin-qcard-desc">Your account and password</span>
                                 </span>
                             </a>
                         </div>

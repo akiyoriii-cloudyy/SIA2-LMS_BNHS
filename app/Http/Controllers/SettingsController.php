@@ -56,7 +56,7 @@ class SettingsController extends Controller
             ]
         );
 
-        return back()->with('status', 'Settings updated.');
+        return back()->with('status', 'Profile updated.');
     }
 
     public function updatePassword(Request $request): RedirectResponse

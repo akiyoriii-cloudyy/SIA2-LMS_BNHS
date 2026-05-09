@@ -69,6 +69,16 @@ class MfaController extends Controller
         return redirect()->route('dashboard');
     }
 
+    public function securityHome(Request $request): View
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        return view('security', [
+            'user' => $user,
+        ]);
+    }
+
     public function setup(Request $request): View
     {
         $user = $request->user();
@@ -127,7 +137,7 @@ class MfaController extends Controller
 
         $request->session()->flash('recovery_codes', $plainList ?? []);
 
-        return redirect()->route('settings')->with('status', 'MFA enabled. Save your recovery codes.');
+        return redirect()->route('security')->with('status', 'MFA enabled. Save your recovery codes.');
     }
 
     public function disable(Request $request): RedirectResponse
@@ -142,6 +152,6 @@ class MfaController extends Controller
             'mfa_confirmed_at' => null,
         ])->save();
 
-        return redirect()->route('settings')->with('status', 'MFA disabled.');
+        return redirect()->route('security')->with('status', 'MFA disabled.');
     }
 }

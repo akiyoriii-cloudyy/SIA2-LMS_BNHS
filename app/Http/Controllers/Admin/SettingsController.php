@@ -8,18 +8,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
-
 class SettingsController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): RedirectResponse
     {
-        $user = $request->user();
-        $user?->loadMissing(['profile', 'roles']);
-
-        return view('admin.settings', [
-            'user' => $user,
-        ]);
+        return redirect()->route('settings');
     }
 
     public function updateProfile(Request $request): RedirectResponse

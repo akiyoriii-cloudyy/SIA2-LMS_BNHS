@@ -31,7 +31,6 @@ class Student extends Model
     protected $casts = [
         'age' => 'integer',
         'date_of_birth' => 'date',
-        'rfid_uid' => 'encrypted',
     ];
 
     public function enrollments(): HasMany

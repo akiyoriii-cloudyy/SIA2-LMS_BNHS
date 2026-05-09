@@ -10,7 +10,7 @@
             <span class="dash-topbar-bc">MFA Setup</span>
         </div>
         <div class="dash-topbar-actions">
-            <a class="btn btn-outline btn-sm" href="{{ route('settings') }}">Back</a>
+            <a class="btn btn-outline btn-sm" href="{{ route('security') }}">Back</a>
         </div>
     </div>
 
