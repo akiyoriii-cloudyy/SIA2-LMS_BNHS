@@ -53,12 +53,15 @@ Route::middleware(['auth'])->group(function (): void {
     Route::get('/courses', [CourseController::class, 'index'])->middleware(['role:adviser', 'permission:courses.view'])->name('courses.index');
 
     Route::get('/settings', [SettingsController::class, 'index'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings');
-    Route::get('/security', [MfaController::class, 'securityHome'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('security');
     Route::redirect('/profile', '/settings')->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('profile.show');
     Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.profile.update');
-    Route::get('/settings/mfa', [MfaController::class, 'setup'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa');
-    Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa.enable');
-    Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.mfa.disable');
+
+    Route::middleware(['role:admin'])->group(function (): void {
+        Route::get('/security', [MfaController::class, 'securityHome'])->name('security');
+        Route::get('/settings/mfa', [MfaController::class, 'setup'])->name('settings.mfa');
+        Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
+        Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+    });
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function (): void {
         Route::middleware('permission:users.manage')->group(function (): void {

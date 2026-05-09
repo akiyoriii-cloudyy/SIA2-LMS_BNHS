@@ -205,6 +205,8 @@
                             href="{{ route('settings') }}">
                             <span class="icon">&#128100;</span> Profile
                         </a>
+                    @endif
+                    @if (auth()->user()->hasRole('admin'))
                         <a class="sidebar-footer-link {{ request()->routeIs('security', 'settings.mfa') ? 'active' : '' }}"
                             href="{{ route('security') }}">
                             <span class="icon">&#128274;</span> Security
