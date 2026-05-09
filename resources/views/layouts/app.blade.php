@@ -204,12 +204,8 @@
                 </nav>
 
                 <div class="sidebar-footer">
-                    <a class="sidebar-footer-link {{ request()->routeIs('profile.show') ? 'active' : '' }}"
-                        href="{{ route('profile.show') }}">
-                        <span class="icon">&#128100;</span> My Profile
-                    </a>
-                    @if ($sidebarIsSubjectTeacher && !$sidebarIsAdviser)
-                        <a class="sidebar-footer-link {{ request()->routeIs('settings*') ? 'active' : '' }}"
+                    @if ($sidebarIsAdviser || $sidebarIsSubjectTeacher)
+                        <a class="sidebar-footer-link {{ request()->routeIs('settings', 'profile.show', 'settings.mfa') ? 'active' : '' }}"
                             href="{{ route('settings') }}">
                             <span class="icon">&#9881;</span> Settings
                         </a>
@@ -230,7 +226,10 @@
                     </div>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button class="btn" type="submit">Logout</button>
+                        <button class="btn sidebar-logout-btn" type="submit">
+                            <span class="icon sidebar-logout-ico" aria-hidden="true">&#128682;</span>
+                            <span class="sidebar-logout-label">Logout</span>
+                        </button>
                     </form>
                 </div>
             </aside>
