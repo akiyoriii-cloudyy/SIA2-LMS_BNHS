@@ -41,29 +41,29 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware(['auth'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['role:admin,adviser,subject_teacher', 'permission:dashboard.view'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
 
-    Route::middleware(['role:admin,adviser,subject_teacher', 'permission:dashboard.view'])->group(function (): void {
+    Route::middleware('permission:dashboard.view')->group(function (): void {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('/notifications/{schoolNotification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     });
 
-    Route::get('/courses', [CourseController::class, 'index'])->middleware(['role:adviser', 'permission:courses.view'])->name('courses.index');
+    Route::get('/courses', [CourseController::class, 'index'])->middleware('permission:courses.view')->name('courses.index');
 
-    Route::get('/settings', [SettingsController::class, 'index'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings');
-    Route::redirect('/profile', '/settings')->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('profile.show');
-    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware(['role:admin,adviser,subject_teacher', 'permission:settings.manage_own,settings.manage'])->name('settings.profile.update');
+    Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.manage_own,settings.manage')->name('settings');
+    Route::redirect('/profile', '/settings')->middleware('permission:settings.manage_own,settings.manage')->name('profile.show');
+    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->middleware('permission:settings.manage_own,settings.manage')->name('settings.profile.update');
 
-    Route::middleware(['role:admin'])->group(function (): void {
+    Route::middleware('permission:settings.manage')->group(function (): void {
         Route::get('/security', [MfaController::class, 'securityHome'])->name('security');
         Route::get('/settings/mfa', [MfaController::class, 'setup'])->name('settings.mfa');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
     });
 
-    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function (): void {
+    Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::middleware('permission:users.manage')->group(function (): void {
             Route::get('/users', [AdminUsersController::class, 'index'])->name('users.index');
             Route::post('/users', [AdminUsersController::class, 'store'])->name('users.store');
@@ -109,6 +109,7 @@ Route::middleware(['auth'])->group(function (): void {
             Route::get('/roles/{role}/edit', [RoleManagementController::class, 'edit'])->name('roles.edit');
             Route::put('/roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');
             Route::delete('/roles/{role}', [RoleManagementController::class, 'destroy'])->name('roles.destroy');
+            Route::post('/roles/{id}/restore', [RoleManagementController::class, 'restore'])->name('roles.restore');
             Route::post('/roles/{role}/permissions', [RoleManagementController::class, 'assignPermissions'])->name('roles.permissions.assign');
         });
 
@@ -120,11 +121,12 @@ Route::middleware(['auth'])->group(function (): void {
             Route::get('/permissions/{permission}/edit', [PermissionManagementController::class, 'edit'])->name('permissions.edit');
             Route::put('/permissions/{permission}', [PermissionManagementController::class, 'update'])->name('permissions.update');
             Route::delete('/permissions/{permission}', [PermissionManagementController::class, 'destroy'])->name('permissions.destroy');
+            Route::post('/permissions/{id}/restore', [PermissionManagementController::class, 'restore'])->name('permissions.restore');
             Route::post('/permissions/{permission}/roles', [PermissionManagementController::class, 'assignToRoles'])->name('permissions.roles.assign');
         });
     });
 
-    Route::middleware(['role:admin,adviser,subject_teacher', 'permission:activity_logs.view'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::middleware('permission:activity_logs.view')->prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/activity-logs', [AdminActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::get('/activity-logs/stats', [AdminActivityLogController::class, 'stats'])->name('activity-logs.stats');
         Route::get('/activity-logs/export', [AdminActivityLogController::class, 'export'])->name('activity-logs.export');
@@ -133,7 +135,7 @@ Route::middleware(['auth'])->group(function (): void {
         Route::put('/activity-logs/{activityLog}/custom-action', [AdminActivityLogController::class, 'updateCustomAction'])->name('activity-logs.custom-action.update');
         Route::get('/users/{userId}/sessions', [AdminActivityLogController::class, 'userSessions'])->name('activity-logs.user-sessions');
 
-        Route::middleware(['role:admin', 'permission:activity_logs.manage'])->group(function (): void {
+        Route::middleware('permission:activity_logs.manage')->group(function (): void {
             Route::get('/sessions/active', [AdminActivityLogController::class, 'activeSessions'])->name('sessions.active');
             Route::delete('/sessions/{sessionId}/terminate', [AdminActivityLogController::class, 'terminateSession'])->name('sessions.terminate');
             Route::delete('/activity-logs/{activityLog}', [AdminActivityLogController::class, 'destroy'])->name('activity-logs.destroy');
@@ -146,11 +148,11 @@ Route::middleware(['auth'])->group(function (): void {
         Route::post('/gradebook', [GradebookController::class, 'store'])->middleware('permission:gradebook.edit')->name('gradebook.store');
     });
 
-    Route::middleware(['role:admin,adviser', 'permission:sms_logs.view'])->group(function (): void {
+    Route::middleware('permission:sms_logs.view')->group(function (): void {
         Route::get('/sms-logs', [SmsLogController::class, 'index'])->name('sms-logs.index');
     });
 
-    Route::middleware(['role:admin,adviser'])->group(function (): void {
+    Route::middleware('permission:sms_logs.view')->group(function (): void {
         Route::view('/mobile-app', 'mobile-app')->name('mobile.app');
     });
 

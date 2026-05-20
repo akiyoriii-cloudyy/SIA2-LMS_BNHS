@@ -16,6 +16,7 @@ class RbacSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
+            'lms.portal' => 'Staff access to LMS web and API (sign-in gate)',
             'dashboard.view' => 'View dashboard',
             'courses.view' => 'View courses',
             'gradebook.view' => 'View gradebook',
@@ -38,14 +39,19 @@ class RbacSeeder extends Seeder
             Permission::firstOrCreate(['name' => $name], ['description' => $description]);
         }
 
-        $admin = Role::updateOrCreate(['name' => 'admin'], ['description' => 'School administrator', 'level' => 300]);
-        $adviser = Role::updateOrCreate(['name' => 'adviser'], ['description' => 'Class adviser / homeroom teacher', 'level' => 200]);
-        $subjectTeacher = Role::updateOrCreate(['name' => 'subject_teacher'], ['description' => 'Subject teacher (grade encoding for assigned subjects)', 'level' => 200]);
-        $user = Role::updateOrCreate(['name' => 'user'], ['description' => 'Limited user', 'level' => 100]);
+        $admin = Role::findRestoreOrCreate('admin', ['description' => 'School administrator', 'level' => 300]);
+        $admin->update(['description' => 'School administrator', 'level' => 300]);
+        $adviser = Role::findRestoreOrCreate('adviser', ['description' => 'Class adviser / homeroom teacher', 'level' => 200]);
+        $adviser->update(['description' => 'Class adviser / homeroom teacher', 'level' => 200]);
+        $subjectTeacher = Role::findRestoreOrCreate('subject_teacher', ['description' => 'Subject teacher (grade encoding for assigned subjects)', 'level' => 200]);
+        $subjectTeacher->update(['description' => 'Subject teacher (grade encoding for assigned subjects)', 'level' => 200]);
+        $user = Role::findRestoreOrCreate('user', ['description' => 'Limited user', 'level' => 100]);
+        $user->update(['description' => 'Limited user', 'level' => 100]);
 
         $admin->permissions()->sync(Permission::query()->pluck('id')->all());
 
         $adviser->permissions()->sync(Permission::query()->whereIn('name', [
+            'lms.portal',
             'dashboard.view',
             'courses.view',
             'gradebook.view',
@@ -60,12 +66,13 @@ class RbacSeeder extends Seeder
         ])->pluck('id')->all());
 
         $subjectTeacher->permissions()->sync(Permission::query()->whereIn('name', [
+            'lms.portal',
             'dashboard.view',
             'gradebook.view',
             'gradebook.edit',
             'settings.manage_own',
             'activity_logs.view',
-        ])->pluck('id')->all());
+       ])->pluck('id')->all());
 
         $user->permissions()->sync(Permission::query()->whereIn('name', [
             'dashboard.view',

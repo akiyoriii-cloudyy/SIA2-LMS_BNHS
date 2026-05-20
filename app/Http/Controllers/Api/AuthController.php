@@ -29,8 +29,8 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        $user->loadMissing('roles');
-        if (! $user->hasRole('admin', 'adviser', 'subject_teacher')) {
+        $user->loadMissing(['roles']);
+        if (! $user->hasPermission('lms.portal')) {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 

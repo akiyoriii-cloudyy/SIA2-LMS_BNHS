@@ -30,8 +30,27 @@
                         <input type="text" id="description" name="description" value="{{ old('description') }}">
                     </div>
                     <div class="form-group">
+                        <label for="parent_id">Hierarchy (reports to)</label>
+                        <select id="parent_id" name="parent_id">
+                            <option value="">None — top-level role</option>
+                            @foreach($hierarchyRoles as $hRole)
+                                <option value="{{ $hRole->id }}" data-level="{{ $hRole->level }}" @selected((string) old('parent_id') === (string) $hRole->id)>
+                                    {{ $hRole->name }}@if($hRole->description) — {{ $hRole->description }} @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <small style="display: block; margin-top: 6px; color: var(--text-muted);">RBAC hierarchy (reporting line only): parent role for organization charts. Permissions for users come only from this role’s checked permissions below—not from the parent.</small>
+                        @error('parent_id')
+                            <div class="error" style="margin-top: 8px;">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="form-group">
                         <label for="level">Level (Higher = More Privileges)</label>
-                        <input type="number" id="level" name="level" value="{{ old('level', 100) }}" min="0" required>
+                        <input type="number" id="level" name="level" value="{{ old('level') }}" min="0">
+                        <small id="level-help" style="display: block; margin-top: 6px; color: var(--text-muted);">Required when this is a top-level role (no parent). If you pick a parent above, the level is set automatically from that role.</small>
+                        @error('level')
+                            <div class="error" style="margin-top: 8px;">{{ $message }}</div>
+                        @enderror
                     </div>
                     <div class="form-group">
                         <label>Permissions</label>
@@ -53,4 +72,30 @@
             </div>
         </div>
     </div>
+    <script>
+        (function () {
+            var parentEl = document.getElementById('parent_id');
+            var levelEl = document.getElementById('level');
+            var helpEl = document.getElementById('level-help');
+            if (!parentEl || !levelEl) return;
+            function syncLevelFromParent() {
+                var opt = parentEl.selectedOptions[0];
+                var pl = opt && opt.getAttribute('data-level');
+                if (parentEl.value && pl != null && pl !== '') {
+                    levelEl.value = pl;
+                    levelEl.readOnly = true;
+                    levelEl.required = false;
+                    levelEl.removeAttribute('required');
+                    if (helpEl) helpEl.textContent = 'Level is set automatically from the parent role you selected.';
+                } else {
+                    levelEl.readOnly = false;
+                    levelEl.required = true;
+                    levelEl.setAttribute('required', 'required');
+                    if (helpEl) helpEl.textContent = 'Required when this is a top-level role (no parent).';
+                }
+            }
+            parentEl.addEventListener('change', syncLevelFromParent);
+            syncLevelFromParent();
+        })();
+    </script>
 @endsection

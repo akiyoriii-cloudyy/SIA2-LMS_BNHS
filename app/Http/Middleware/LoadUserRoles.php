@@ -14,7 +14,7 @@ class LoadUserRoles
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()) {
-            $request->user()->loadMissing('roles');
+            $request->user()->loadMissing(['roles.permissions']);
         }
 
         return $next($request);

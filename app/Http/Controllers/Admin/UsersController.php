@@ -93,7 +93,7 @@ class UsersController extends Controller
             'suffix' => $validated['suffix'] ?? null,
         ]);
 
-        $role = Role::firstOrCreate(['name' => $validated['role']], [
+        $role = Role::findRestoreOrCreate($validated['role'], [
             'description' => ucfirst($validated['role']).' account',
         ]);
         $user->roles()->sync([$role->id]);
@@ -160,7 +160,7 @@ class UsersController extends Controller
             ]
         );
 
-        $role = Role::firstOrCreate(['name' => $validated['role']], [
+        $role = Role::findRestoreOrCreate($validated['role'], [
             'description' => ucfirst($validated['role']).' account',
         ]);
         $user->roles()->sync([$role->id]);

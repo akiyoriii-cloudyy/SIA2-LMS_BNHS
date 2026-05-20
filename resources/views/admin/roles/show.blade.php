@@ -31,6 +31,21 @@
                         <div class="detail-value">{{ $role->description ?? '-' }}</div>
                     </div>
                     <div class="detail-item">
+                        <span class="detail-label">Hierarchy (reports to)</span>
+                        <div class="detail-value">
+                            @if($role->parent)
+                                @if($role->parent->trashed())
+                                    {{ $role->parent->name }}
+                                    <small style="color: var(--text-muted);"> (archived)</small>
+                                @else
+                                    <a href="{{ route('admin.roles.show', $role->parent) }}">{{ $role->parent->name }}</a>
+                                @endif
+                            @else
+                                —
+                            @endif
+                        </div>
+                    </div>
+                    <div class="detail-item">
                         <span class="detail-label">Level</span>
                         <div class="detail-value"><span class="nav-badge">{{ $role->level }}</span></div>
                     </div>

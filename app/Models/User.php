@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\Encryption\DecryptException;
 
 class User extends Authenticatable
@@ -84,7 +85,7 @@ class User extends Authenticatable
 
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'user_roles');
+        return $this->belongsToMany(Role::class, 'user_roles')->withTrashed();
     }
 
     public function teacher(): HasOne
@@ -124,17 +125,26 @@ class User extends Authenticatable
         return $this->roles()->whereIn('name', $roles)->exists();
     }
 
+    /**
+     * Whether the user has any of the given permissions via their directly assigned roles only.
+     * Hierarchy (parent role) does not grant permissions.
+     */
     public function hasPermission(string ...$permissions): bool
     {
-        if ($this->relationLoaded('roles') && $this->roles->every(fn ($role) => $role->relationLoaded('permissions'))) {
-            return $this->roles
-                ->flatMap(fn ($role) => $role->permissions)
-                ->whereIn('name', $permissions)
-                ->isNotEmpty();
+        if ($permissions === []) {
+            return false;
         }
 
-        return $this->roles()
-            ->whereHas('permissions', fn ($q) => $q->whereIn('name', $permissions))
+        $roleIds = $this->roles()->pluck('roles.id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+        if ($roleIds === []) {
+            return false;
+        }
+
+        return DB::table('role_permissions')
+            ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->whereNull('permissions.deleted_at')
+            ->whereIn('role_permissions.role_id', $roleIds)
+            ->whereIn('permissions.name', $permissions)
             ->exists();
     }
 

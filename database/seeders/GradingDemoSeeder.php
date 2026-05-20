@@ -20,9 +20,12 @@ class GradingDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['description' => 'School administrator']);
-        $adviserRole = Role::firstOrCreate(['name' => 'adviser'], ['description' => 'Class adviser']);
-        $subjectTeacherRole = Role::firstOrCreate(['name' => 'subject_teacher'], ['description' => 'Subject teacher']);
+        $adminRole = Role::findRestoreOrCreate('admin', ['description' => 'School administrator']);
+        $adminRole->update(['description' => 'School administrator']);
+        $adviserRole = Role::findRestoreOrCreate('adviser', ['description' => 'Class adviser']);
+        $adviserRole->update(['description' => 'Class adviser']);
+        $subjectTeacherRole = Role::findRestoreOrCreate('subject_teacher', ['description' => 'Subject teacher']);
+        $subjectTeacherRole->update(['description' => 'Subject teacher']);
 
         $adminUser = User::firstOrCreate(
             ['email' => 'admin@bnhs.local'],

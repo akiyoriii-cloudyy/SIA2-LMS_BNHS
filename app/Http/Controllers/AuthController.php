@@ -27,9 +27,9 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Invalid credentials.'])->onlyInput('email');
         }
 
-        if ($user && ! $user->hasRole('admin', 'adviser', 'subject_teacher')) {
+        if ($user && ! $user->hasPermission('lms.portal')) {
             return back()->withErrors([
-                'email' => 'Access denied. This portal is for admin, adviser, and subject teacher accounts only.',
+                'email' => 'Access denied. Your account does not have portal access. Ask an administrator to grant the LMS portal permission to your role.',
             ])->onlyInput('email');
         }
 

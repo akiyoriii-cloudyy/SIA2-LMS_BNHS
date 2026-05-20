@@ -55,7 +55,7 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('layouts.app', function ($view): void {
             $user = auth()->user();
-            if (! $user || ! $user->hasRole('admin', 'adviser', 'subject_teacher')) {
+            if (! $user || ! $user->hasPermission('lms.portal')) {
                 $view->with('inAppUnreadCount', 0);
 
                 return;
