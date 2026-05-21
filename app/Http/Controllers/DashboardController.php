@@ -691,6 +691,7 @@ class DashboardController extends Controller
             $quickLinks = array_merge($quickLinks, [
                 ['label' => 'Gradebook', 'route' => 'gradebook.index'],
                 ['label' => 'Attendance', 'route' => 'attendance.index'],
+                ['label' => 'Attendance Reports', 'route' => 'attendance-reports.index'],
                 ['label' => 'Report Cards', 'route' => 'report-cards.index'],
             ]);
         }

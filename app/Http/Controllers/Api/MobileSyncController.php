@@ -39,6 +39,15 @@ class MobileSyncController extends Controller
                 'is_active' => (bool) $activeSchoolYear->is_active,
             ] : null,
             'sections' => $sections,
+            'web_portal' => [
+                'base_url' => rtrim((string) config('app.url'), '/'),
+                'attendance_reports_url' => url('/attendance-reports'),
+                'daily_attendance_url' => url('/attendance'),
+            ],
+            'features' => [
+                'monthly_attendance_reports' => true,
+                'mobile_sync_attendance' => true,
+            ],
         ]);
     }
 

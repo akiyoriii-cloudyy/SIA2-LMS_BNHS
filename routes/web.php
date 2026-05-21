@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\SystemManagementController as AdminSystemManagementController;
 use App\Http\Controllers\Admin\UsersController as AdminUsersController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceMonthlyReportController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
@@ -178,6 +179,16 @@ Route::middleware(['auth'])->group(function (): void {
 
         Route::get('/attendance', [AttendanceController::class, 'index'])->middleware('permission:attendance.manage')->name('attendance.index');
         Route::post('/attendance', [AttendanceController::class, 'store'])->middleware('permission:attendance.manage')->name('attendance.store');
+
+        Route::middleware('permission:attendance.manage')->prefix('attendance-reports')->name('attendance-reports.')->group(function (): void {
+            Route::get('/', [AttendanceMonthlyReportController::class, 'index'])->name('index');
+            Route::post('/', [AttendanceMonthlyReportController::class, 'store'])->name('store');
+            Route::get('/{attendanceMonthlyReport}', [AttendanceMonthlyReportController::class, 'show'])->name('show');
+            Route::get('/{attendanceMonthlyReport}/print', [AttendanceMonthlyReportController::class, 'print'])->name('print');
+            Route::put('/{attendanceMonthlyReport}', [AttendanceMonthlyReportController::class, 'update'])->name('update');
+            Route::post('/{attendanceMonthlyReport}/refresh', [AttendanceMonthlyReportController::class, 'refresh'])->name('refresh');
+            Route::post('/{attendanceMonthlyReport}/send-email', [AttendanceMonthlyReportController::class, 'sendEmail'])->name('send-email');
+        });
 
         Route::get('/report-cards', [ReportCardController::class, 'index'])->middleware('permission:report_cards.view')->name('report-cards.index');
         Route::get('/report-cards/{enrollment}', [ReportCardController::class, 'show'])->middleware('permission:report_cards.view')->name('report-cards.show');

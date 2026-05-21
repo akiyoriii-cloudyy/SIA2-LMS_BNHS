@@ -37,8 +37,11 @@ class NotificationController extends Controller
         return response()->json([
             'notifications' => $notifications->map(static fn (SchoolNotification $n): array => [
                 'id' => $n->id,
+                'type' => $n->type,
                 'title' => $n->title,
                 'message' => $n->message,
+                'action_url' => is_array($n->meta) ? ($n->meta['action_url'] ?? null) : null,
+                'print_url' => is_array($n->meta) ? ($n->meta['print_url'] ?? null) : null,
                 'read_at' => $n->read_at?->toIso8601String(),
                 'created_at' => $n->created_at?->toIso8601String(),
             ]),

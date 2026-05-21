@@ -103,6 +103,15 @@
                 '</div>';
             article.appendChild(main);
 
+            if (n.action_url) {
+                const openBtn = document.createElement('a');
+                openBtn.className = 'btn btn-sm btn-primary';
+                openBtn.href = n.action_url;
+                openBtn.textContent = n.type === 'attendance_monthly_report' ? 'Open report' : 'Open';
+                openBtn.style.marginRight = '6px';
+                article.appendChild(openBtn);
+            }
+
             if (!n.read_at) {
                 const btn = document.createElement('button');
                 btn.type = 'button';

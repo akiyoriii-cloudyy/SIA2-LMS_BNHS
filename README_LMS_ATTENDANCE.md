@@ -7,6 +7,7 @@ This project now includes a single-school integrated LMS and mobile attendance m
 - Web LMS base (courses, materials, assignments, submissions)
 - Gradebook and report card automation
 - Attendance monitoring (daily status per student)
+- Monthly attendance reports (adviser dashboard: generate, email, edit, print — synced with mobile)
 - Weekly absence trigger (5 absences in one week)
 - SMS notification integration (Twilio-ready)
 - Offline-capable mobile sync API (batch sync when internet returns)
@@ -18,6 +19,7 @@ This project now includes a single-school integrated LMS and mobile attendance m
 - Web login: `GET /login`
 - Gradebook: `GET /gradebook`
 - Attendance: `GET /attendance`
+- Monthly attendance reports (adviser): `GET /attendance-reports` · print: `GET /attendance-reports/{id}/print`
 - Report cards: `GET /report-cards`
 - Mobile demo page: `GET /mobile-attendance.html`
 
@@ -27,6 +29,18 @@ This project now includes a single-school integrated LMS and mobile attendance m
 - `POST /api/auth/logout` (Bearer required)
 - `GET /api/mobile/roster?school_year_id={id}&section_id={id}` (Bearer + teacher/admin)
 - `POST /api/mobile/sync/attendance` (Bearer + teacher/admin)
+- `GET /api/mobile/attendance/monthly-reports` (Bearer + adviser; returns `web_url` / `print_url` linked to dashboard)
+- `GET /api/mobile/bootstrap` includes `web_portal.attendance_reports_url`
+
+## Monthly Reports (Web + Email + Mobile)
+
+1. **Mobile/web daily attendance** → `attendance_records` (same table for RFID app and web).
+2. **Adviser** → Attendance Reports → generate month → optional **email** (table + links).
+3. **Email** → “Open in Adviser Dashboard” and “Print Page” → same report ID in LMS.
+4. **In-app notification** (bell icon) → quick link to the report after email.
+5. Auto job (optional): `php artisan attendance:send-monthly-reports --send`
+
+Email uses `PHPM_MAIL_*` in `.env` (same as password reset). Set `APP_URL` to your XAMPP base (e.g. `http://localhost/LMS_BNHS`).
 
 ## SMS Setup
 

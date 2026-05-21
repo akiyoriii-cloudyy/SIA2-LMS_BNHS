@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AttendanceMonthlyReportController as ApiAttendanceMonthlyReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileRecordsController;
 use App\Http\Controllers\Api\MobileSyncController;
@@ -23,6 +24,11 @@ Route::middleware(['auth.api'])->group(function (): void {
             ->middleware('permission:attendance.manage');
         Route::post('/mobile/sync/attendance', [MobileSyncController::class, 'syncAttendance'])
             ->middleware('permission:attendance.manage');
+
+        Route::middleware('permission:attendance.manage')->prefix('mobile/attendance')->group(function (): void {
+            Route::get('/monthly-reports', [ApiAttendanceMonthlyReportController::class, 'index']);
+            Route::get('/monthly-reports/{attendanceMonthlyReport}', [ApiAttendanceMonthlyReportController::class, 'show']);
+        });
 
         Route::middleware('permission:records.manage')->prefix('mobile/records')->group(function (): void {
             Route::get('/students', [MobileRecordsController::class, 'index']);
