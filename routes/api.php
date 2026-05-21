@@ -1,13 +1,18 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MobileRecordsController;
 use App\Http\Controllers\Api\MobileSyncController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('throttle:api-login')->post('/auth/login', [AuthController::class, 'login']);
+Route::middleware('throttle:api-login')->group(function (): void {
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+});
 
 Route::middleware(['auth.api'])->group(function (): void {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/auth/rbac', [AuthController::class, 'rbacProfile']);
 
     Route::middleware('permission:lms.portal')->group(function (): void {
         Route::get('/mobile/bootstrap', [MobileSyncController::class, 'bootstrap']);
@@ -18,5 +23,12 @@ Route::middleware(['auth.api'])->group(function (): void {
             ->middleware('permission:attendance.manage');
         Route::post('/mobile/sync/attendance', [MobileSyncController::class, 'syncAttendance'])
             ->middleware('permission:attendance.manage');
+
+        Route::middleware('permission:records.manage')->prefix('mobile/records')->group(function (): void {
+            Route::get('/students', [MobileRecordsController::class, 'index']);
+            Route::post('/students', [MobileRecordsController::class, 'store']);
+            Route::put('/students/{student}', [MobileRecordsController::class, 'update']);
+            Route::delete('/students/{student}', [MobileRecordsController::class, 'destroy']);
+        });
     });
 });

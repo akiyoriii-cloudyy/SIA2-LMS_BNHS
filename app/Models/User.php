@@ -135,17 +135,29 @@ class User extends Authenticatable
             return false;
         }
 
+        return count(array_intersect($permissions, $this->resolvedPermissionNames())) > 0;
+    }
+
+    /**
+     * All permission names granted by the user's directly assigned roles.
+     *
+     * @return list<string>
+     */
+    public function resolvedPermissionNames(): array
+    {
         $roleIds = $this->roles()->pluck('roles.id')->map(fn ($id) => (int) $id)->unique()->values()->all();
         if ($roleIds === []) {
-            return false;
+            return [];
         }
 
         return DB::table('role_permissions')
             ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
             ->whereNull('permissions.deleted_at')
             ->whereIn('role_permissions.role_id', $roleIds)
-            ->whereIn('permissions.name', $permissions)
-            ->exists();
+            ->pluck('permissions.name')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function getDisplayNameAttribute(): string

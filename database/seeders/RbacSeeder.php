@@ -45,6 +45,8 @@ class RbacSeeder extends Seeder
         $adviser->update(['description' => 'Class adviser / homeroom teacher', 'level' => 200]);
         $subjectTeacher = Role::findRestoreOrCreate('subject_teacher', ['description' => 'Subject teacher (grade encoding for assigned subjects)', 'level' => 200]);
         $subjectTeacher->update(['description' => 'Subject teacher (grade encoding for assigned subjects)', 'level' => 200]);
+        $securityGuard = Role::findRestoreOrCreate('security_guard', ['description' => 'Gate security / RFID entrance', 'level' => 150]);
+        $securityGuard->update(['description' => 'Gate security / RFID entrance', 'level' => 150]);
         $user = Role::findRestoreOrCreate('user', ['description' => 'Limited user', 'level' => 100]);
         $user->update(['description' => 'Limited user', 'level' => 100]);
 
@@ -73,6 +75,13 @@ class RbacSeeder extends Seeder
             'settings.manage_own',
             'activity_logs.view',
        ])->pluck('id')->all());
+
+        $securityGuard->permissions()->sync(Permission::query()->whereIn('name', [
+            'lms.portal',
+            'dashboard.view',
+            'attendance.manage',
+            'settings.manage_own',
+        ])->pluck('id')->all());
 
         $user->permissions()->sync(Permission::query()->whereIn('name', [
             'dashboard.view',

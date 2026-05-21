@@ -39,6 +39,13 @@ class GradingDemoSeeder extends Seeder
         );
         $adviserUser->roles()->syncWithoutDetaching([$adviserRole->id]);
 
+        $securityRole = Role::findRestoreOrCreate('security_guard', ['description' => 'Gate security / RFID entrance']);
+        $securityUser = User::firstOrCreate(
+            ['email' => 'security@bnhs.local'],
+            ['name' => 'Gate Security', 'password' => Hash::make('password'), 'phone' => '+639333333333']
+        );
+        $securityUser->roles()->syncWithoutDetaching([$securityRole->id]);
+
         $adviser = Teacher::firstOrCreate(
             ['user_id' => $adviserUser->id],
             ['first_name' => 'Adviser', 'last_name' => 'One']

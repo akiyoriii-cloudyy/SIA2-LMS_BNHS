@@ -65,6 +65,26 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bnhs.edutrack.auth.AuthRepository
+import com.bnhs.edutrack.auth.AuthSession
+import com.bnhs.edutrack.auth.AuthUiState
+import com.bnhs.edutrack.auth.AuthViewModel
+import com.bnhs.edutrack.auth.ForgotPasswordScreen
+import com.bnhs.edutrack.auth.LoginScreen
+import com.bnhs.edutrack.records.AdviserRecordsScreen
+import com.bnhs.edutrack.records.AttendanceRecordsRepository
+import com.bnhs.edutrack.records.GateRecordsScreen
+import com.bnhs.edutrack.records.RecordsRepository
+import com.bnhs.edutrack.records.rememberAdviserRecordsViewModel
+import com.bnhs.edutrack.records.rememberGateRecordsViewModel
+import com.bnhs.edutrack.rbac.RbacAccessDenied
+import com.bnhs.edutrack.rbac.RbacEnforcer
+import com.bnhs.edutrack.securityaudit.SecurityAlertNotifier
+import com.bnhs.edutrack.rbac.RbacPermission
+import com.bnhs.edutrack.records.rememberRecordsViewModel
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -150,6 +170,7 @@ private fun ensureNotificationChannels(context: Context) {
             NotificationManager.IMPORTANCE_HIGH
         ).apply { description = "When a learner is absent 7 consecutive calendar days" }
     )
+    SecurityAlertNotifier.ensureChannel(context)
 }
 
 private fun postAttendanceLoggedNotification(context: Context, studentName: String, detail: String) {
@@ -295,90 +316,11 @@ class MainActivity : ComponentActivity() {
                 )
             ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AttendanceApp()
+                    AppRoot()
                 }
             }
         }
     }
-}
-
-private data class Student(
-    val id: Int,
-    val name: String,
-    val lrn: String,
-    val rfidUid: String,
-    val parentName: String,
-    val parentContact: String
-)
-
-private data class AttendanceRecord(
-    val studentId: Int,
-    val date: LocalDate,
-    val loggedAt: LocalDateTime,
-    val status: String,
-    val loggedBy: String
-)
-
-private fun upsertAttendanceRecord(
-    records: MutableList<AttendanceRecord>,
-    studentId: Int,
-    date: LocalDate,
-    loggedAt: LocalDateTime,
-    status: String,
-    loggedBy: String
-) {
-    records.removeAll { it.studentId == studentId && it.date == date }
-    records.add(
-        AttendanceRecord(
-            studentId = studentId,
-            date = date,
-            loggedAt = loggedAt,
-            status = status,
-            loggedBy = loggedBy
-        )
-    )
-}
-
-private fun ensureDailyAbsenceDefaults(
-    students: List<Student>,
-    records: MutableList<AttendanceRecord>,
-    date: LocalDate
-) {
-    val now = philippinesDateTimeForAttendanceDay(date)
-    students.forEach { s ->
-        val existing = decisiveRecordForDay(records, s.id, date)
-        if (existing == null) {
-            records.add(
-                AttendanceRecord(
-                    studentId = s.id,
-                    date = date,
-                    loggedAt = now,
-                    status = "ABSENT",
-                    loggedBy = "SYSTEM"
-                )
-            )
-        }
-    }
-}
-
-private fun decisiveRecordForDay(records: List<AttendanceRecord>, studentId: Int, date: LocalDate): AttendanceRecord? =
-    records.filter { it.studentId == studentId && it.date == date }.maxByOrNull { it.loggedAt }
-
-private fun consecutiveAbsentCalendarDaysEndingOn(
-    records: List<AttendanceRecord>,
-    studentId: Int,
-    endOn: LocalDate,
-): Int {
-    var streak = 0
-    var d = endOn
-    while (true) {
-        val rec = decisiveRecordForDay(records, studentId, d) ?: break
-        if (rec.status.uppercase() == "ABSENT") {
-            streak++
-            d = d.minusDays(1)
-        } else break
-    }
-    return streak
 }
 
 @Composable
@@ -502,42 +444,186 @@ private fun MeshBackground() {
 }
 
 @Composable
-private fun AttendanceApp() {
+private fun AppRoot() {
+    val context = LocalContext.current
+    val authRepository = remember { AuthRepository.getInstance(context) }
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(authRepository))
+    var showForgotPassword by remember { mutableStateOf(false) }
+
+    when (val state = authViewModel.uiState) {
+        AuthUiState.Checking -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = PrimaryMain)
+            }
+        }
+        AuthUiState.Unauthenticated -> {
+            if (showForgotPassword) {
+                ForgotPasswordScreen(
+                    viewModel = authViewModel,
+                    onBack = { showForgotPassword = false },
+                )
+            } else {
+                LoginScreen(
+                    viewModel = authViewModel,
+                    onForgotPassword = { showForgotPassword = true },
+                )
+            }
+        }
+        is AuthUiState.Authenticated -> {
+            AttendanceApp(
+                session = state.session,
+                onAccountLogout = { authViewModel.logout() },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttendanceApp(
+    session: AuthSession,
+    onAccountLogout: () -> Unit,
+) {
     val context = LocalContext.current
     val activity = remember(context) { context as? ComponentActivity }
-    var currentRole by remember { mutableStateOf<Role?>(null) }
-    var teacherTab by remember { mutableStateOf(TeacherTab.MONITOR) }
+    val authRepository = remember { AuthRepository.getInstance(context) }
+    val rbac = remember(session) { RbacEnforcer.from(session) }
+    val mobileRole = remember(session, rbac) { rbac.mobileAppRole() }
+    var adminTab by remember { mutableStateOf(AdminTab.OVERVIEW) }
+    var securityTab by remember { mutableStateOf(SecurityTab.SCAN) }
+    var adviserTab by remember { mutableStateOf(AdviserTab.ROSTER) }
     var rfidInput by remember { mutableStateOf("") }
-    var statusMessage by remember { mutableStateOf("Ready to secure BNHS.") }
+    var statusMessage by remember(mobileRole) {
+        mutableStateOf(
+            when (mobileRole) {
+                MobileAppRole.ADMIN -> "Admin dashboard ready."
+                MobileAppRole.SECURITY -> "Security gate ready."
+                MobileAppRole.ADVISER -> "Adviser portal ready."
+                MobileAppRole.UNSUPPORTED -> "This account has no mobile role."
+            },
+        )
+    }
     var showTopControls by remember { mutableStateOf(true) }
     var attendanceWorkingDate by remember { mutableStateOf(nowInPhilippines().toLocalDate()) }
     var showClearHistoryConfirm by remember { mutableStateOf(false) }
     var lastScannedStudent by remember { mutableStateOf<Student?>(null) }
+    val showAttendanceDateBar = mobileRole == MobileAppRole.SECURITY || mobileRole == MobileAppRole.ADVISER
+    val showParentAlertCard = mobileRole == MobileAppRole.ADVISER && rbac.canManageAttendance()
 
-    fun exitPortalToSplash() {
-        currentRole = null
-        teacherTab = TeacherTab.MONITOR
-        rfidInput = ""
-        attendanceWorkingDate = nowInPhilippines().toLocalDate()
-        statusMessage = "Ready to secure BNHS."
+    LaunchedEffect(session.user.id) {
+        authRepository.touchSessionActivity()
     }
 
-    val students = remember {
-        mutableStateListOf(
-            Student(1, "Santos, Ana", "1111110001", "RFID-ANA-001", "Santos, Maria", "09943621529"),
-            Student(2, "Cruz, Bryan", "1111110002", "RFID-BRY-002", "Cruz, Ricardo", "09178234561"),
-            Student(3, "Dela Cruz, Ivan", "1111110003", "RFID-IVA-003", "Dela Cruz, Nora", "09663549820")
-        )
+    LaunchedEffect(mobileRole, session.user.roles, session.user.permissions) {
+        if (mobileRole == MobileAppRole.ADMIN) {
+            val allowed = buildList {
+                if (rbac.canViewDashboard()) add(AdminTab.OVERVIEW)
+                if (rbac.canManageStudentRecords()) add(AdminTab.RECORDS)
+                add(AdminTab.SYSTEM)
+            }
+            if (allowed.isNotEmpty() && adminTab !in allowed) {
+                adminTab = allowed.first()
+            }
+        }
+        if (mobileRole == MobileAppRole.SECURITY) {
+            val allowed = buildList {
+                if (rbac.canManageAttendance()) {
+                    add(SecurityTab.SCAN)
+                    add(SecurityTab.RECORDS)
+                    add(SecurityTab.SCAN_LOG)
+                }
+            }
+            if (allowed.isNotEmpty() && securityTab !in allowed) securityTab = allowed.first()
+        }
+        if (mobileRole == MobileAppRole.ADVISER) {
+            val allowed = buildList {
+                if (rbac.canManageAttendance()) {
+                    add(AdviserTab.ROSTER)
+                    add(AdviserTab.RECORDS)
+                    add(AdviserTab.HISTORY)
+                    add(AdviserTab.ALERTS)
+                    add(AdviserTab.PARENTS)
+                }
+            }
+            if (allowed.isNotEmpty() && adviserTab !in allowed) adviserTab = allowed.first()
+        }
     }
-    val validRfidSet = remember(students) { students.map { it.rfidUid.uppercase() }.toSet() }
+
+    val students = remember { mutableStateListOf<Student>() }
+    val scope = rememberCoroutineScope()
+    val recordsRepository = remember { RecordsRepository.get(context) }
+    val attendanceRepository = remember { AttendanceRecordsRepository.get(context) }
+    val recordsViewModel = rememberRecordsViewModel(recordsRepository, session.user.email)
+    val gateRecordsViewModel = rememberGateRecordsViewModel(attendanceRepository, session.user.email)
+    val adviserRecordsViewModel = rememberAdviserRecordsViewModel(attendanceRepository, session.user.email)
+
     val records = remember { mutableStateListOf<AttendanceRecord>() }
 
-    LaunchedEffect(attendanceWorkingDate, students.size) {
-        ensureDailyAbsenceDefaults(
-            students = students,
-            records = records,
-            date = attendanceWorkingDate
-        )
+    fun reloadStudentsFromDb() {
+        scope.launch {
+            students.clear()
+            students.addAll(recordsRepository.loadAppStudents())
+        }
+    }
+
+    fun reloadAttendanceFromDb() {
+        scope.launch {
+            records.clear()
+            records.addAll(attendanceRepository.loadAppAttendance())
+        }
+    }
+
+    fun persistAttendance(record: AttendanceRecord) {
+        scope.launch {
+            attendanceRepository.upsertAppRecord(record, session.user.email)
+            reloadAttendanceFromDb()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        recordsRepository.ensureSeedData()
+        students.clear()
+        students.addAll(recordsRepository.loadAppStudents())
+        records.clear()
+        records.addAll(attendanceRepository.loadAppAttendance())
+        recordsViewModel.onRecordsChanged = { loaded ->
+            students.clear()
+            students.addAll(loaded)
+            reloadAttendanceFromDb()
+        }
+        gateRecordsViewModel.onDataChanged = {
+            reloadAttendanceFromDb()
+            reloadStudentsFromDb()
+        }
+        gateRecordsViewModel.filterDate = attendanceWorkingDate
+        adviserRecordsViewModel.onDataChanged = {
+            reloadAttendanceFromDb()
+            reloadStudentsFromDb()
+        }
+        adviserRecordsViewModel.filterDate = attendanceWorkingDate
+    }
+
+    LaunchedEffect(attendanceWorkingDate) {
+        gateRecordsViewModel.filterDate = attendanceWorkingDate
+        adviserRecordsViewModel.filterDate = attendanceWorkingDate
+        if (mobileRole == MobileAppRole.SECURITY && securityTab == SecurityTab.RECORDS) {
+            gateRecordsViewModel.refresh()
+        }
+        if (mobileRole == MobileAppRole.ADVISER && adviserTab == AdviserTab.RECORDS) {
+            adviserRecordsViewModel.refresh()
+        }
+    }
+
+    val validRfidSet = remember(students) { students.map { it.rfidUid.uppercase() }.toSet() }
+
+    LaunchedEffect(attendanceWorkingDate, students.size, mobileRole) {
+        if (mobileRole == MobileAppRole.ADVISER) {
+            ensureDailyAbsenceDefaults(
+                students = students,
+                records = records,
+                date = attendanceWorkingDate,
+                now = philippinesDateTimeForAttendanceDay(attendanceWorkingDate),
+            )
+        }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -551,38 +637,43 @@ private fun AttendanceApp() {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                ElegantHeader(
-                    role = currentRole,
-                    onSelectRole = { if (it == null) exitPortalToSplash() else currentRole = it },
+                RoleDashboardHeader(
+                    mobileRole = mobileRole,
+                    userLabel = session.user.name,
+                    onAccountLogout = onAccountLogout,
                     attendanceDate = attendanceWorkingDate,
+                    showDateLine = showAttendanceDateBar,
                     showTopControls = showTopControls,
                     onToggleTopControls = { showTopControls = !showTopControls },
-                    onBack = if (currentRole != null) { { exitPortalToSplash() } } else null
                 )
             },
             bottomBar = {
-                if (currentRole == Role.TEACHER) {
-                    FloatingNavBar(selectedTab = teacherTab, onTabSelect = { teacherTab = it })
+                when (mobileRole) {
+                    MobileAppRole.ADMIN -> AdminBottomNav(adminTab, rbac) { adminTab = it }
+                    MobileAppRole.SECURITY -> SecurityBottomNav(securityTab, rbac) { securityTab = it }
+                    MobileAppRole.ADVISER -> AdviserBottomNav(adviserTab, rbac) { adviserTab = it }
+                    MobileAppRole.UNSUPPORTED -> Unit
                 }
             }
         ) { padding ->
-            BackHandler(enabled = currentRole != null) { exitPortalToSplash() }
             Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 AnimatedVisibility(visible = showTopControls) {
                     Column {
-                        ParentAlertPermissionCard(
-                            context = context,
-                            onRequestPermissions = { permissionLauncher.launch(permissionsNeededForParentAlerts(context)) },
-                            onOpenAppSettings = {
-                                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                    data = Uri.fromParts("package", context.packageName, null)
-                                })
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        if (currentRole != null) {
+                        if (showParentAlertCard) {
+                            ParentAlertPermissionCard(
+                                context = context,
+                                onRequestPermissions = { permissionLauncher.launch(permissionsNeededForParentAlerts(context)) },
+                                onOpenAppSettings = {
+                                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    })
+                                },
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        if (showAttendanceDateBar) {
                             AttendanceRecordingDateBar(
                                 attendanceWorkingDate = attendanceWorkingDate,
                                 onPickDate = {
@@ -600,33 +691,55 @@ private fun AttendanceApp() {
                     }
                 }
 
-                AnimatedContent(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    targetState = currentRole,
-                    label = "RoleTransition"
-                ) { role ->
-                    Box(Modifier.fillMaxSize()) {
-                        when (role) {
-                            null -> SplashPortal(onSelect = { currentRole = it })
-                            Role.SECURITY_GUARD -> GateTerminal(
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    when (mobileRole) {
+                        MobileAppRole.ADMIN -> AdminDashboard(
+                            tab = adminTab,
+                            session = session,
+                            rbac = rbac,
+                            recordsViewModel = recordsViewModel,
+                            students = students,
+                            records = records,
+                            statusMessage = { statusMessage = it },
+                            onDataRestored = {
+                                scope.launch {
+                                    reloadStudentsFromDb()
+                                    reloadAttendanceFromDb()
+                                    recordsViewModel.refresh()
+                                }
+                            },
+                        )
+                        MobileAppRole.SECURITY -> when (securityTab) {
+                            SecurityTab.RECORDS -> GateRecordsScreen(
+                                viewModel = gateRecordsViewModel,
+                                rbac = rbac,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            SecurityTab.SCAN -> if (rbac.canManageAttendance()) {
+                                GateTerminal(
                                 rfidInput = rfidInput,
                                 onRfidChange = { rfidInput = it },
                                 knownRfids = validRfidSet,
                                 lastScannedStudent = lastScannedStudent,
                                 attendanceDate = attendanceWorkingDate,
                                 onClearHistory = { showClearHistoryConfirm = true },
-                                onScan = { uid ->
+                                onScan = scan@{ uid ->
+                                    if (!rbac.canManageAttendance()) {
+                                        statusMessage = rbac.denyReason(RbacPermission.ATTENDANCE_MANAGE)
+                                        return@scan
+                                    }
                                     val s = students.firstOrNull { it.rfidUid.equals(uid.trim(), true) }
                                     if (s != null) {
-                                        upsertAttendanceRecord(
-                                            records = records,
+                                        val rec = AttendanceRecord(
                                             studentId = s.id,
                                             date = attendanceWorkingDate,
                                             loggedAt = philippinesDateTimeForAttendanceDay(attendanceWorkingDate),
                                             status = "PRESENT",
-                                            loggedBy = "GATE"
+                                            loggedBy = "GATE",
                                         )
-                                        statusMessage = "Access: ${s.name}"
+                                        upsertAttendanceRecord(records, rec.studentId, rec.date, rec.loggedAt, rec.status, rec.loggedBy)
+                                        persistAttendance(rec)
+                                        statusMessage = "Access granted: ${s.name}"
                                         rfidInput = ""
                                         lastScannedStudent = s
                                         gateAccessFeedback(context, true)
@@ -634,45 +747,84 @@ private fun AttendanceApp() {
                                         true
                                     } else {
                                         gateAccessFeedback(context, false)
-                                        statusMessage = "Invalid RFID"
+                                        statusMessage = "Invalid RFID card"
                                         lastScannedStudent = null
                                         false
                                     }
-                                }
+                                },
                             )
-                            Role.TEACHER -> AcademicDashboard(
-                                tab = teacherTab,
+                            } else {
+                                RbacAccessDenied(RbacPermission.ATTENDANCE_MANAGE, rbac, Modifier.fillMaxSize())
+                            }
+                            SecurityTab.SCAN_LOG -> if (rbac.canManageAttendance()) {
+                                SecurityScanLogTab(
                                 students = students,
                                 records = records,
                                 attendanceDate = attendanceWorkingDate,
                                 onClearHistory = { showClearHistoryConfirm = true },
-                                onMark = { s, st ->
-                                    upsertAttendanceRecord(
-                                        records = records,
-                                        studentId = s.id,
-                                        date = attendanceWorkingDate,
-                                        loggedAt = philippinesDateTimeForAttendanceDay(attendanceWorkingDate),
-                                        status = st,
-                                        loggedBy = "TEACHER"
-                                    )
-                                    if (st == "ABSENT") {
-                                        if (consecutiveAbsentCalendarDaysEndingOn(records, s.id, attendanceWorkingDate) == PARENT_ALERT_CONSECUTIVE_ABSENT_DAYS) {
-                                            postParentAbsenceAlerts(context, s.name, s.parentName, s.parentContact) { statusMessage = it }
-                                        }
+                            )
+                            } else {
+                                RbacAccessDenied(RbacPermission.ATTENDANCE_MANAGE, rbac, Modifier.fillMaxSize())
+                            }
+                        }
+                        MobileAppRole.ADVISER -> when (adviserTab) {
+                            AdviserTab.RECORDS -> AdviserRecordsScreen(
+                                viewModel = adviserRecordsViewModel,
+                                rbac = rbac,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            else -> if (rbac.canManageAttendance()) {
+                                AdviserDashboard(
+                            tab = adviserTab,
+                            students = students,
+                            records = records,
+                            attendanceDate = attendanceWorkingDate,
+                            onClearHistory = { showClearHistoryConfirm = true },
+                            onMark = mark@{ s, st ->
+                                if (!rbac.canManageAttendance()) {
+                                    statusMessage = rbac.denyReason(RbacPermission.ATTENDANCE_MANAGE)
+                                    return@mark
+                                }
+                                val rec = AttendanceRecord(
+                                    studentId = s.id,
+                                    date = attendanceWorkingDate,
+                                    loggedAt = philippinesDateTimeForAttendanceDay(attendanceWorkingDate),
+                                    status = st,
+                                    loggedBy = "ADVISER",
+                                )
+                                upsertAttendanceRecord(records, rec.studentId, rec.date, rec.loggedAt, rec.status, rec.loggedBy)
+                                persistAttendance(rec)
+                                if (st == "ABSENT") {
+                                    if (consecutiveAbsentCalendarDaysEndingOn(records, s.id, attendanceWorkingDate) == PARENT_ALERT_CONSECUTIVE_ABSENT_DAYS) {
+                                        postParentAbsenceAlerts(context, s.name, s.parentName, s.parentContact) { statusMessage = it }
                                     }
-                                },
+                                }
+                            },
                                 onUpdateParentDetails = { studentId, newParentName, newParentContact ->
+                                    scope.launch {
+                                        com.bnhs.edutrack.data.BnhsRepository.get(context)
+                                            .updateGuardianContact(studentId.toLong(), newParentName, newParentContact)
+                                        reloadStudentsFromDb()
+                                    }
                                     val idx = students.indexOfFirst { it.id == studentId }
                                     if (idx >= 0) {
                                         students[idx] = students[idx].copy(
                                             parentName = newParentName.trim(),
-                                            parentContact = newParentContact.trim()
+                                            parentContact = newParentContact.trim(),
                                         )
                                         statusMessage = "Parent details updated for ${students[idx].name}"
                                     }
                                 },
                             )
+                            } else {
+                                RbacAccessDenied(RbacPermission.ATTENDANCE_MANAGE, rbac, Modifier.fillMaxSize())
+                            }
                         }
+                        MobileAppRole.UNSUPPORTED -> UnsupportedRoleScreen(
+                            roles = session.user.roles,
+                            permissions = session.user.permissions,
+                            onLogout = onAccountLogout,
+                        )
                     }
                 }
                 QuickStatus(message = statusMessage)
@@ -688,16 +840,39 @@ private fun AttendanceApp() {
             title = { Text("Clear attendance history?") },
             text = {
                 Text(
-                    "This will delete all attendance records from Security and Teacher views for all dates. Parent details will stay.",
-                    color = TextSubtitle
+                    when (mobileRole) {
+                        MobileAppRole.SECURITY -> "Clear gate scan history for this device?"
+                        MobileAppRole.ADVISER -> "Clear adviser attendance marks for this device? Parent details stay."
+                        else -> "Clear local attendance cache on this device?"
+                    },
+                    color = TextSubtitle,
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        records.clear()
-                        lastScannedStudent = null
-                        statusMessage = "Attendance history cleared."
+                        when (mobileRole) {
+                            MobileAppRole.SECURITY -> {
+                                scope.launch {
+                                    com.bnhs.edutrack.data.BnhsDatabase.get(context).attendanceDao().deleteAllForRole("GATE")
+                                    reloadAttendanceFromDb()
+                                }
+                                lastScannedStudent = null
+                                statusMessage = "Gate scan history cleared."
+                            }
+                            MobileAppRole.ADVISER -> {
+                                scope.launch {
+                                    com.bnhs.edutrack.data.BnhsDatabase.get(context).attendanceDao().deleteAllForRole("ADVISER")
+                                    com.bnhs.edutrack.data.BnhsDatabase.get(context).attendanceDao().deleteAllForRole("TEACHER")
+                                    reloadAttendanceFromDb()
+                                }
+                                statusMessage = "Adviser attendance history cleared."
+                            }
+                            else -> {
+                                records.clear()
+                                statusMessage = "Local cache cleared."
+                            }
+                        }
                         showClearHistoryConfirm = false
                     }
                 ) { Text("Clear", color = ErrorMain, fontWeight = FontWeight.Bold) }
@@ -710,77 +885,141 @@ private fun AttendanceApp() {
 }
 
 @Composable
-private fun ElegantHeader(
-    role: Role?,
-    onSelectRole: (Role?) -> Unit,
+private fun RoleDashboardHeader(
+    mobileRole: MobileAppRole,
+    userLabel: String,
+    onAccountLogout: () -> Unit,
     attendanceDate: LocalDate,
+    showDateLine: Boolean,
     showTopControls: Boolean,
     onToggleTopControls: () -> Unit,
-    onBack: (() -> Unit)? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxWidth().shadow(12.dp, RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)),
         color = PrimaryDark,
-        shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+        shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
     ) {
         Column(modifier = Modifier.padding(start = 24.dp, end = 16.dp, top = 20.dp, bottom = 24.dp).statusBarsPadding()) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (onBack != null) {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
-                }
-                Column(modifier = Modifier.weight(1f).clickable { if (role != null) menuExpanded = true }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("BNHSTrack Pro", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = Color.White)
-                        if (role != null) Icon(Icons.Default.ArrowDropDown, null, tint = SecondaryMain)
-                    }
-                    Text("Bawing National High School", style = MaterialTheme.typography.labelMedium, color = SecondaryMain)
-
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        modifier = Modifier.background(Color.White).border(1.dp, BgEnd, RoundedCornerShape(12.dp))
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Gate Security", fontWeight = FontWeight.Bold) },
-                            onClick = { onSelectRole(Role.SECURITY_GUARD); menuExpanded = false },
-                            leadingIcon = { Icon(Icons.Default.Security, null, tint = PrimaryMain) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Academic Portal", fontWeight = FontWeight.Bold) },
-                            onClick = { onSelectRole(Role.TEACHER); menuExpanded = false },
-                            leadingIcon = { Icon(Icons.Default.School, null, tint = SecondaryMain) }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        DropdownMenuItem(
-                            text = { Text("Sign Out", color = ErrorMain, fontWeight = FontWeight.Bold) },
-                            onClick = { onSelectRole(null); menuExpanded = false },
-                            leadingIcon = { Icon(Icons.Default.Logout, null, tint = ErrorMain) }
-                        )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("BNHSTrack Pro", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = Color.White)
+                    Text(mobileRole.title, style = MaterialTheme.typography.labelMedium, color = SecondaryMain)
+                    Text(mobileRole.subtitle, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
+                    if (userLabel.isNotBlank()) {
+                        Text(userLabel, style = MaterialTheme.typography.labelSmall, color = AccentMain, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
-                Surface(
-                    modifier = Modifier.size(36.dp),
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.12f)
-                ) {
-                    IconButton(
-                        onClick = onToggleTopControls,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
+                if (mobileRole != MobileAppRole.UNSUPPORTED) {
+                    IconButton(onClick = onToggleTopControls) {
                         Icon(
                             if (showTopControls) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             null,
-                            tint = Color.White
+                            tint = Color.White,
                         )
                     }
                 }
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, null, tint = Color.White)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Sign out", color = ErrorMain, fontWeight = FontWeight.Bold) },
+                        onClick = { menuExpanded = false; onAccountLogout() },
+                        leadingIcon = { Icon(Icons.Default.Logout, null, tint = ErrorMain) },
+                    )
+                }
             }
-            if (role != null) {
+            if (showDateLine) {
                 Text(attendanceDate.format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")), color = Color.White.copy(0.9f), fontSize = 13.sp)
             }
         }
+    }
+}
+
+@Composable
+private fun UnsupportedRoleScreen(roles: List<String>, permissions: List<String>, onLogout: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(Icons.Default.LockPerson, null, tint = ErrorMain, modifier = Modifier.size(56.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Mobile access not available", fontWeight = FontWeight.Bold, color = PrimaryDark, fontSize = 18.sp)
+        Text(
+            "Signed-in roles: ${roles.joinToString().ifBlank { "none" }}.\n" +
+                "Permissions: ${permissions.joinToString().ifBlank { "none" }}.\n" +
+                "Use admin@bnhs.local, security@bnhs.local, or adviser@bnhs.local.",
+            textAlign = TextAlign.Center,
+            color = TextSubtitle,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+        )
+        Button(onClick = onLogout) { Text("Sign out") }
+    }
+}
+
+@Composable
+private fun SecurityScanLogTab(
+    students: List<Student>,
+    records: List<AttendanceRecord>,
+    attendanceDate: LocalDate,
+    onClearHistory: () -> Unit,
+) {
+    val gateRecords = records.filter { it.loggedBy == "GATE" && it.date == attendanceDate }
+        .sortedByDescending { it.loggedAt }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Today's gate log", fontWeight = FontWeight.Bold, color = PrimaryDark)
+            TextButton(onClick = onClearHistory) {
+                Text("Clear", color = ErrorMain, fontSize = 12.sp)
+            }
+        }
+        if (gateRecords.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No gate scans for this date.", color = TextSubtitle)
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(gateRecords, key = { "${it.studentId}_${it.loggedAt}" }) { rec ->
+                    val name = students.firstOrNull { it.id == rec.studentId }?.name ?: "Unknown"
+                    AttendanceTableRow(rec, name)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SecurityBottomNav(selected: SecurityTab, rbac: RbacEnforcer, onSelect: (SecurityTab) -> Unit) {
+    val items = buildList {
+        if (rbac.canManageAttendance()) {
+            add(Triple(SecurityTab.SCAN, Icons.Default.Nfc, "Scan"))
+            add(Triple(SecurityTab.RECORDS, Icons.Default.FolderShared, "Records"))
+            add(Triple(SecurityTab.SCAN_LOG, Icons.Default.ListAlt, "Log"))
+        }
+    }
+    if (items.isNotEmpty()) {
+        DashboardBottomNav(items = items, selected = selected, onSelect = onSelect)
+    }
+}
+
+@Composable
+fun AdviserBottomNav(selected: AdviserTab, rbac: RbacEnforcer, onSelect: (AdviserTab) -> Unit) {
+    val items = buildList {
+        if (rbac.canManageAttendance()) {
+            add(Triple(AdviserTab.ROSTER, Icons.Default.FactCheck, "Roster"))
+            add(Triple(AdviserTab.RECORDS, Icons.Default.FolderShared, "Records"))
+            add(Triple(AdviserTab.HISTORY, Icons.Default.History, "History"))
+            add(Triple(AdviserTab.ALERTS, Icons.Default.NotificationsActive, "Alerts"))
+            add(Triple(AdviserTab.PARENTS, Icons.Default.FamilyRestroom, "Parents"))
+        }
+    }
+    if (items.isNotEmpty()) {
+        DashboardBottomNav(items = items, selected = selected, onSelect = onSelect)
     }
 }
 
@@ -802,40 +1041,6 @@ private fun AttendanceRecordingDateBar(
                 IconButton(onClick = onPickDate) { Icon(Icons.Default.EditCalendar, null, tint = PrimaryMain) }
                 IconButton(onClick = onJumpToday) { Icon(Icons.Default.Today, null, tint = SecondaryMain) }
             }
-        }
-    }
-}
-
-@Composable
-private fun SplashPortal(onSelect: (Role) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(modifier = Modifier.size(100.dp), shape = CircleShape, color = PrimaryMain, shadowElevation = 8.dp) {
-            Icon(Icons.Default.Fingerprint, null, tint = Color.White, modifier = Modifier.padding(24.dp))
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Executive Access", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-        Text("Bawing National High School Attendance", color = Color.Gray, fontSize = 13.sp, modifier = Modifier.padding(bottom = 32.dp))
-
-        SplashCard("Security Gate", "RFID Entrance Terminal", Icons.Default.Security, PrimaryMain) { onSelect(Role.SECURITY_GUARD) }
-        Spacer(modifier = Modifier.height(16.dp))
-        SplashCard("Academic Portal", "Monitoring & Alerts", Icons.Default.AutoStories, SecondaryMain) { onSelect(Role.TEACHER) }
-    }
-}
-
-@Composable
-private fun SplashCard(title: String, sub: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(24.dp)), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp), color = color.copy(0.1f)) {
-                Icon(icon, null, tint = color, modifier = Modifier.padding(12.dp))
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Text(sub, fontSize = 12.sp, color = Color.Gray)
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, null, tint = color.copy(0.5f))
         }
     }
 }
@@ -975,8 +1180,8 @@ private fun GateTerminal(
 }
 
 @Composable
-private fun AcademicDashboard(
-    tab: TeacherTab,
+private fun AdviserDashboard(
+    tab: AdviserTab,
     students: List<Student>,
     records: List<AttendanceRecord>,
     attendanceDate: LocalDate,
@@ -990,7 +1195,7 @@ private fun AcademicDashboard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Teacher Tools", color = PrimaryDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Adviser — Class Attendance", color = PrimaryDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             TextButton(onClick = onClearHistory) {
                 Icon(Icons.Default.DeleteSweep, null, tint = ErrorMain, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
@@ -1000,7 +1205,8 @@ private fun AcademicDashboard(
         Spacer(modifier = Modifier.height(4.dp))
 
         when (tab) {
-            TeacherTab.MONITOR -> {
+            AdviserTab.RECORDS -> Unit
+            AdviserTab.ROSTER -> {
                 Text(
                     "Mark status for ${attendanceDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}.",
                     fontSize = 12.sp,
@@ -1018,7 +1224,7 @@ private fun AcademicDashboard(
                 }
             }
 
-            TeacherTab.HISTORY -> {
+            AdviserTab.HISTORY -> {
                 val sorted = records.sortedByDescending { it.loggedAt }
                 if (sorted.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1041,7 +1247,7 @@ private fun AcademicDashboard(
                 }
             }
 
-            TeacherTab.ALERTS -> {
+            AdviserTab.ALERTS -> {
                 val atRisk = students.mapNotNull { s ->
                     val streak = consecutiveAbsentCalendarDaysEndingOn(records, s.id, attendanceDate)
                     if (streak >= PARENT_ALERT_CONSECUTIVE_ABSENT_DAYS) s to streak else null
@@ -1062,7 +1268,7 @@ private fun AcademicDashboard(
                 }
             }
 
-            TeacherTab.PARENTS -> {
+            AdviserTab.PARENTS -> {
                 ParentDetailsEditor(
                     students = students,
                     onSave = onUpdateParentDetails
@@ -1258,27 +1464,6 @@ private fun Pill(label: String, color: Color, active: Boolean, onClick: () -> Un
 }
 
 @Composable
-private fun FloatingNavBar(selectedTab: TeacherTab, onTabSelect: (TeacherTab) -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-        Surface(modifier = Modifier.shadow(16.dp, CircleShape), shape = CircleShape, color = PrimaryDark) {
-            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                NavItem(Icons.Default.Dashboard, selectedTab == TeacherTab.MONITOR) { onTabSelect(TeacherTab.MONITOR) }
-                NavItem(Icons.Default.History, selectedTab == TeacherTab.HISTORY) { onTabSelect(TeacherTab.HISTORY) }
-                NavItem(Icons.Default.NotificationsActive, selectedTab == TeacherTab.ALERTS) { onTabSelect(TeacherTab.ALERTS) }
-                NavItem(Icons.Default.Edit, selectedTab == TeacherTab.PARENTS) { onTabSelect(TeacherTab.PARENTS) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NavItem(icon: ImageVector, active: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.background(if (active) Color.White.copy(0.1f) else Color.Transparent, CircleShape)) {
-        Icon(icon, null, tint = if (active) SecondaryMain else Color.White.copy(0.5f))
-    }
-}
-
-@Composable
 private fun QuickStatus(message: String) {
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = PrimaryDark.copy(0.04f)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1289,5 +1474,3 @@ private fun QuickStatus(message: String) {
     }
 }
 
-private enum class Role { SECURITY_GUARD, TEACHER }
-private enum class TeacherTab { MONITOR, HISTORY, ALERTS, PARENTS }
