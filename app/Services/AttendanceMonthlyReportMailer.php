@@ -73,7 +73,7 @@ class AttendanceMonthlyReportMailer
             ."School year: {$schoolYear}\n"
             ."Report ID: #{$report->id}\n"
             ."Total student absences recorded: {$absentTotal}\n\n"
-            ."View & edit in BNHS LMS (adviser dashboard):\n{$reportUrl}\n\n"
+            ."View & edit in BNHS LMS (web) or export from the EduTrack mobile app:\n{$reportUrl}\n\n"
             ."Print-ready page:\n{$printUrl}\n\n"
             ."Daily attendance from the web and mobile app is synced to this report.";
 

@@ -1,5 +1,8 @@
 package com.bnhs.edutrack.tracking
 
+import com.bnhs.edutrack.ui.*
+import com.bnhs.edutrack.ui.LmsColors
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,11 +21,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val PrimaryDark = Color(0xFF1E1B4B)
-private val PrimaryMain = Color(0xFF4338CA)
-private val SuccessMain = Color(0xFF10B981)
-private val ErrorMain = Color(0xFFF43F5E)
-private val TextSubtitle = Color(0xFF64748B)
 
 @Composable
 fun SessionActivityPanel(modifier: Modifier = Modifier) {
@@ -49,7 +47,7 @@ fun SessionActivityPanel(modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF)),
+        colors = CardDefaults.cardColors(containerColor = LmsColors.CreamDark),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {

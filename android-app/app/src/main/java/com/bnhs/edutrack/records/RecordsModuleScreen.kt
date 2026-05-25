@@ -1,5 +1,7 @@
 package com.bnhs.edutrack.records
 
+import com.bnhs.edutrack.ui.*
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,12 +23,6 @@ import com.bnhs.edutrack.rbac.RbacAccessDenied
 import com.bnhs.edutrack.rbac.RbacEnforcer
 import com.bnhs.edutrack.rbac.RbacPermission
 
-private val PrimaryDark = Color(0xFF1E1B4B)
-private val PrimaryMain = Color(0xFF4338CA)
-private val SecondaryMain = Color(0xFF06B6D4)
-private val SuccessMain = Color(0xFF10B981)
-private val ErrorMain = Color(0xFFF43F5E)
-private val TextSubtitle = Color(0xFF64748B)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

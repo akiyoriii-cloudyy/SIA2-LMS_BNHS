@@ -10,7 +10,6 @@
             <span class="dash-topbar-bc">Attendance Reports</span>
         </div>
         <div class="dash-topbar-actions">
-            <a class="btn btn-outline btn-sm" href="{{ route('attendance.index') }}">Daily Attendance</a>
         </div>
     </div>
 

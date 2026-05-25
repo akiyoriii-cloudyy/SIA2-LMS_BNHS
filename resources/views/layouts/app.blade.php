@@ -160,17 +160,6 @@
                             DepEd Report Card
                         </a>
 
-                        @if (auth()->user()->hasPermission('attendance.manage'))
-                            <a href="{{ route('attendance-reports.index') }}" class="{{ request()->routeIs('attendance-reports.*') ? 'active' : '' }}">
-                                <span class="icon">&#128197;</span>
-                                Attendance Reports
-                            </a>
-                            <a href="{{ route('attendance.index') }}" class="{{ request()->routeIs('attendance.index', 'attendance.store') ? 'active' : '' }}">
-                                <span class="icon">&#9989;</span>
-                                Daily Attendance
-                            </a>
-                        @endif
-
                         <div class="group">Records</div>
                         <a href="{{ route('students.index') }}" class="{{ request()->routeIs('students.*') ? 'active' : '' }}">
                             <span class="icon">&#128101;</span>

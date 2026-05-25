@@ -6,6 +6,7 @@ data class AuthUser(
     val email: String,
     val roles: List<String>,
     val permissions: List<String> = emptyList(),
+    val phone: String? = null,
 )
 
 data class AuthSession(

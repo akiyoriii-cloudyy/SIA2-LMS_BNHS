@@ -1,5 +1,7 @@
 package com.bnhs.edutrack
 
+import com.bnhs.edutrack.ui.*
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,12 +31,6 @@ import com.bnhs.edutrack.rbac.RbacPermission
 import com.bnhs.edutrack.records.RecordsModuleScreen
 import com.bnhs.edutrack.records.RecordsViewModel
 
-private val PrimaryDark = Color(0xFF1E1B4B)
-private val PrimaryMain = Color(0xFF4338CA)
-private val SecondaryMain = Color(0xFF06B6D4)
-private val SuccessMain = Color(0xFF10B981)
-private val ErrorMain = Color(0xFFF43F5E)
-private val TextSubtitle = Color(0xFF64748B)
 
 @Composable
 fun AdminDashboard(
@@ -148,7 +144,7 @@ private fun AdminRbacSystemTab(
             onRestoreSuccess = onDataRestored,
         )
 
-        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F4FD))) {
+        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = BgEnd)) {
             Column(Modifier.padding(14.dp)) {
                 Text("Data security (schema v7)", fontWeight = FontWeight.Bold, color = PrimaryDark)
                 Text("• Business transactions: ACID commit/rollback log", fontSize = 12.sp, color = TextSubtitle)
@@ -177,7 +173,7 @@ private fun AdminRbacSystemTab(
         }
 
         if (rbac.canManageUsers()) {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEEF2FF))) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = BgEnd)) {
                 Column(Modifier.padding(14.dp)) {
                     Text("User management", fontWeight = FontWeight.Bold, color = PrimaryDark)
                     Text(
@@ -202,7 +198,7 @@ private fun AdminRbacSystemTab(
             }
         }
 
-        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED))) {
+        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = AccentMain.copy(alpha = 0.2f))) {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Sms, null, tint = SecondaryMain)

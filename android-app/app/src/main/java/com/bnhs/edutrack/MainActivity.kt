@@ -28,7 +28,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,8 +49,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -78,6 +75,15 @@ import com.bnhs.edutrack.records.GateRecordsScreen
 import com.bnhs.edutrack.records.RecordsRepository
 import com.bnhs.edutrack.records.rememberAdviserRecordsViewModel
 import com.bnhs.edutrack.records.rememberGateRecordsViewModel
+import com.bnhs.edutrack.profile.ProfileRepository
+import com.bnhs.edutrack.profile.ProfileScreen
+import com.bnhs.edutrack.profile.rememberProfileViewModel
+import com.bnhs.edutrack.reports.AdviserMonthlyReportsScreen
+import com.bnhs.edutrack.reports.MonthlyReportsRepository
+import com.bnhs.edutrack.reports.rememberMonthlyReportsViewModel
+import com.bnhs.edutrack.ui.*
+import com.bnhs.edutrack.ui.LmsMeshBackground
+import com.bnhs.edutrack.ui.lmsColorScheme
 import com.bnhs.edutrack.rbac.RbacAccessDenied
 import com.bnhs.edutrack.rbac.RbacEnforcer
 import com.bnhs.edutrack.securityaudit.SecurityAlertNotifier
@@ -96,15 +102,6 @@ import kotlin.jvm.Volatile
 import kotlinx.coroutines.delay
 
 // --- Header / BNHS brand palette ---
-private val PrimaryDark = Color(0xFF1E1B4B) // Indigo 950
-private val PrimaryMain = Color(0xFF4338CA) // Indigo 700
-private val SecondaryMain = Color(0xFF06B6D4) // Cyan 500
-private val AccentMain = Color(0xFFFACC15) // Yellow 400
-private val SuccessMain = Color(0xFF10B981) // Emerald 500
-private val ErrorMain = Color(0xFFF43F5E) // Rose 500
-private val BgStart = Color(0xFFFDFDFD)
-private val BgEnd = Color(0xFFF1F5F9)
-private val TextSubtitle = Color(0xFF64748B)
 private const val CHANNEL_ATTENDANCE = "edutrack_attendance"
 private const val CHANNEL_PARENT_ALERT = "edutrack_parent_alerts"
 private val PHILIPPINES_ZONE_ID: ZoneId = ZoneId.of("Asia/Manila")
@@ -307,14 +304,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ensureNotificationChannels(this)
         setContent {
-            MaterialTheme(
-                colorScheme = lightColorScheme(
-                    primary = PrimaryMain,
-                    secondary = SecondaryMain,
-                    surface = Color.White,
-                    background = BgStart
-                )
-            ) {
+            MaterialTheme(colorScheme = lmsColorScheme(MobileAppRole.ADVISER)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppRoot()
                 }
@@ -409,41 +399,6 @@ private fun ParentAlertPermissionCard(
 }
 
 @Composable
-private fun MeshBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "Mesh")
-    val xOffset1 by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 100f,
-        animationSpec = infiniteRepeatable(tween(10000, easing = LinearEasing), RepeatMode.Reverse), label = "x1"
-    )
-    val yOffset1 by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 150f,
-        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing), RepeatMode.Reverse), label = "y1"
-    )
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(brush = Brush.verticalGradient(listOf(BgStart, BgEnd)))
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(PrimaryMain.copy(alpha = 0.08f), Color.Transparent),
-                    center = Offset(200f + xOffset1, 300f + yOffset1),
-                    radius = 800f
-                ),
-                center = Offset(200f + xOffset1, 300f + yOffset1), radius = 800f
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(SecondaryMain.copy(alpha = 0.08f), Color.Transparent),
-                    center = Offset(size.width - 200f - xOffset1, size.height - 300f - yOffset1),
-                    radius = 1000f
-                ),
-                center = Offset(size.width - 200f - xOffset1, size.height - 300f - yOffset1), radius = 1000f
-            )
-        }
-    }
-}
-
-@Composable
 private fun AppRoot() {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository.getInstance(context) }
@@ -470,8 +425,10 @@ private fun AppRoot() {
             }
         }
         is AuthUiState.Authenticated -> {
+            var liveSession by remember { mutableStateOf(state.session) }
             AttendanceApp(
-                session = state.session,
+                session = liveSession,
+                onSessionUpdated = { liveSession = it },
                 onAccountLogout = { authViewModel.logout() },
             )
         }
@@ -481,6 +438,7 @@ private fun AppRoot() {
 @Composable
 private fun AttendanceApp(
     session: AuthSession,
+    onSessionUpdated: (AuthSession) -> Unit,
     onAccountLogout: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -539,6 +497,7 @@ private fun AttendanceApp(
                 if (rbac.canManageAttendance()) {
                     add(AdviserTab.ROSTER)
                     add(AdviserTab.RECORDS)
+                    add(AdviserTab.REPORTS)
                     add(AdviserTab.HISTORY)
                     add(AdviserTab.ALERTS)
                     add(AdviserTab.PARENTS)
@@ -555,6 +514,15 @@ private fun AttendanceApp(
     val recordsViewModel = rememberRecordsViewModel(recordsRepository, session.user.email)
     val gateRecordsViewModel = rememberGateRecordsViewModel(attendanceRepository, session.user.email)
     val adviserRecordsViewModel = rememberAdviserRecordsViewModel(attendanceRepository, session.user.email)
+    val monthlyReportsRepository = remember { MonthlyReportsRepository.get(context) }
+    val monthlyReportsViewModel = rememberMonthlyReportsViewModel(monthlyReportsRepository)
+    val profileRepository = remember { ProfileRepository.get(context) }
+    val profileViewModel = rememberProfileViewModel(profileRepository, session, mobileRole)
+    var showProfileScreen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(profileViewModel) {
+        profileViewModel.onSessionUpdated = onSessionUpdated
+    }
 
     val records = remember { mutableStateListOf<AttendanceRecord>() }
 
@@ -632,14 +600,24 @@ private fun AttendanceApp(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        MeshBackground()
+        LmsMeshBackground()
 
+        if (showProfileScreen) {
+            ProfileScreen(
+                viewModel = profileViewModel,
+                repository = profileRepository,
+                onBack = { showProfileScreen = false },
+                onStatus = { statusMessage = it },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
                 RoleDashboardHeader(
                     mobileRole = mobileRole,
                     userLabel = session.user.name,
+                    onOpenProfile = { showProfileScreen = true },
                     onAccountLogout = onAccountLogout,
                     attendanceDate = attendanceWorkingDate,
                     showDateLine = showAttendanceDateBar,
@@ -773,6 +751,12 @@ private fun AttendanceApp(
                                 rbac = rbac,
                                 modifier = Modifier.fillMaxSize(),
                             )
+                            AdviserTab.REPORTS -> AdviserMonthlyReportsScreen(
+                                viewModel = monthlyReportsViewModel,
+                                rbac = rbac,
+                                onStatus = { statusMessage = it },
+                                modifier = Modifier.fillMaxSize(),
+                            )
                             else -> if (rbac.canManageAttendance()) {
                                 AdviserDashboard(
                             tab = adviserTab,
@@ -831,6 +815,7 @@ private fun AttendanceApp(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+        }
     }
 
     if (showClearHistoryConfirm) {
@@ -888,6 +873,7 @@ private fun AttendanceApp(
 private fun RoleDashboardHeader(
     mobileRole: MobileAppRole,
     userLabel: String,
+    onOpenProfile: () -> Unit,
     onAccountLogout: () -> Unit,
     attendanceDate: LocalDate,
     showDateLine: Boolean,
@@ -895,21 +881,25 @@ private fun RoleDashboardHeader(
     onToggleTopControls: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val headerGreen = com.bnhs.edutrack.ui.LmsColors.Navy
+    val accentGreen = com.bnhs.edutrack.ui.LmsColors.GoldLight
 
     Surface(
-        modifier = Modifier.fillMaxWidth().shadow(12.dp, RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)),
-        color = PrimaryDark,
-        shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
+        modifier = Modifier.fillMaxWidth().shadow(6.dp),
+        color = headerGreen,
     ) {
-        Column(modifier = Modifier.padding(start = 24.dp, end = 16.dp, top = 20.dp, bottom = 24.dp).statusBarsPadding()) {
+        Column(modifier = Modifier.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 18.dp).statusBarsPadding()) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("BNHSTrack Pro", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = Color.White)
-                    Text(mobileRole.title, style = MaterialTheme.typography.labelMedium, color = SecondaryMain)
-                    Text(mobileRole.subtitle, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
-                    if (userLabel.isNotBlank()) {
-                        Text(userLabel, style = MaterialTheme.typography.labelSmall, color = AccentMain, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = com.bnhs.edutrack.ui.LmsColors.Gold, modifier = Modifier.size(40.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("ET", fontWeight = FontWeight.Black, color = headerGreen, fontSize = 14.sp)
                     }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("EduTrack", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 17.sp)
+                    Text("SHS MANAGEMENT SYSTEM", color = Color.White.copy(alpha = 0.75f), fontSize = 9.sp, letterSpacing = 0.5.sp)
+                    Text("${mobileRole.title} · $userLabel", color = accentGreen, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
                 }
                 if (mobileRole != MobileAppRole.UNSUPPORTED) {
                     IconButton(onClick = onToggleTopControls) {
@@ -924,6 +914,11 @@ private fun RoleDashboardHeader(
                     Icon(Icons.Default.MoreVert, null, tint = Color.White)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Profile", fontWeight = FontWeight.SemiBold) },
+                        onClick = { menuExpanded = false; onOpenProfile() },
+                        leadingIcon = { Icon(Icons.Default.Person, null, tint = headerGreen) },
+                    )
                     DropdownMenuItem(
                         text = { Text("Sign out", color = ErrorMain, fontWeight = FontWeight.Bold) },
                         onClick = { menuExpanded = false; onAccountLogout() },
@@ -1013,6 +1008,7 @@ fun AdviserBottomNav(selected: AdviserTab, rbac: RbacEnforcer, onSelect: (Advise
         if (rbac.canManageAttendance()) {
             add(Triple(AdviserTab.ROSTER, Icons.Default.FactCheck, "Roster"))
             add(Triple(AdviserTab.RECORDS, Icons.Default.FolderShared, "Records"))
+            add(Triple(AdviserTab.REPORTS, Icons.Default.Assessment, "Monthly"))
             add(Triple(AdviserTab.HISTORY, Icons.Default.History, "History"))
             add(Triple(AdviserTab.ALERTS, Icons.Default.NotificationsActive, "Alerts"))
             add(Triple(AdviserTab.PARENTS, Icons.Default.FamilyRestroom, "Parents"))
@@ -1205,7 +1201,7 @@ private fun AdviserDashboard(
         Spacer(modifier = Modifier.height(4.dp))
 
         when (tab) {
-            AdviserTab.RECORDS -> Unit
+            AdviserTab.RECORDS, AdviserTab.REPORTS -> Unit
             AdviserTab.ROSTER -> {
                 Text(
                     "Mark status for ${attendanceDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}.",
@@ -1373,7 +1369,12 @@ private fun AttendanceTableHeader() {
 
 @Composable
 private fun AttendanceTableRow(record: AttendanceRecord, studentName: String) {
-    val statusColor = if (record.status == "PRESENT") SuccessMain else ErrorMain
+    val statusColor = when (record.status.uppercase()) {
+        "PRESENT" -> SuccessMain
+        "LATE" -> LmsColors.Sage
+        "EXCUSED" -> TextSubtitle
+        else -> ErrorMain
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -1442,8 +1443,10 @@ private fun StudentCard(student: Student, status: String, onMark: (Student, Stri
                 Text("LRN: ${student.lrn}", fontSize = 11.sp, color = Color.Gray)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill("P", SuccessMain, status == "PRESENT") { onMark(student, "PRESENT") }
-                Pill("A", ErrorMain, status == "ABSENT") { onMark(student, "ABSENT") }
+                val normalized = status.uppercase()
+                Pill("P", SuccessMain, normalized == "PRESENT") { onMark(student, "PRESENT") }
+                Pill("L", LmsColors.Sage, normalized == "LATE") { onMark(student, "LATE") }
+                Pill("A", ErrorMain, normalized == "ABSENT") { onMark(student, "ABSENT") }
             }
         }
     }

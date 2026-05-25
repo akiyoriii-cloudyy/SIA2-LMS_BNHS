@@ -21,7 +21,7 @@
                         <td style="padding:24px;">
                             <p style="margin:0 0 12px 0;font-size:15px;">Hi {{ $name }},</p>
                             <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;">
-                                Your monthly attendance summary is saved in <strong>BNHS LMS</strong> (adviser dashboard).
+                                Your monthly attendance summary is saved in <strong>BNHS LMS</strong> and the EduTrack mobile app.
                                 Daily marks from the <strong>web system</strong> and <strong>mobile RFID app</strong> are included.
                                 School year: <strong>{{ $schoolYear }}</strong>.
                             </p>
@@ -52,10 +52,10 @@
                             </table>
 
                             <p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;">
-                                <strong>Connected to your adviser dashboard</strong> — open the report to edit values, then print.
+                                <strong>View in the mobile app</strong> — export CSV and email, or open the web report to edit and print.
                             </p>
                             <p style="margin:0 0 16px 0;">
-                                <a href="{{ $reportUrl }}" style="display:inline-block;background:#0b1f44;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin-right:8px;">Open in Adviser Dashboard</a>
+                                <a href="{{ $reportUrl }}" style="display:inline-block;background:#0b1f44;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin-right:8px;">Open Report on Web</a>
                                 <a href="{{ $printUrl }}" style="display:inline-block;background:#ffffff;color:#0b1f44;text-decoration:none;font-weight:700;padding:11px 17px;border-radius:8px;border:2px solid #0b1f44;">Print Page</a>
                             </p>
                             <p style="margin:0 0 8px 0;font-size:13px;line-height:1.6;color:#6b7280;">Dashboard link:</p>

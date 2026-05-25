@@ -21,12 +21,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bnhs.edutrack.ui.LmsColors
+import com.bnhs.edutrack.ui.LmsMeshBackground
+import com.bnhs.edutrack.ui.LmsPrimaryButton
 
-private val PrimaryDark = Color(0xFF1E1B4B)
-private val PrimaryMain = Color(0xFF4338CA)
-private val SecondaryMain = Color(0xFF06B6D4)
-private val ErrorMain = Color(0xFFF43F5E)
-private val TextSubtitle = Color(0xFF64748B)
+private val ErrorMain = Color(0xFFC94A3A)
 
 @Composable
 fun LoginScreen(
@@ -38,42 +37,44 @@ fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        LmsMeshBackground()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
         Spacer(modifier = Modifier.height(32.dp))
         Surface(
             modifier = Modifier.size(88.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = PrimaryMain,
+            shape = RoundedCornerShape(16.dp),
+            color = LmsColors.Gold,
             shadowElevation = 8.dp,
         ) {
-            Icon(
-                Icons.Default.Lock,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.padding(24.dp),
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Text("ET", fontWeight = FontWeight.Black, fontSize = 28.sp, color = LmsColors.Navy)
+            }
         }
         Spacer(modifier = Modifier.height(20.dp))
-        Text("BNHSTrack Pro", fontWeight = FontWeight.Black, fontSize = 24.sp, color = PrimaryDark)
+        Text("EduTrack", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = LmsColors.Navy)
+        Text("SHS MANAGEMENT SYSTEM", fontSize = 11.sp, color = LmsColors.TextMuted, letterSpacing = 0.5.sp)
         Text(
             "Sign in with your LMS account",
-            color = TextSubtitle,
+            color = LmsColors.TextMuted,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
         )
         Spacer(modifier = Modifier.height(28.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = LmsColors.White),
+            border = androidx.compose.foundation.BorderStroke(1.dp, LmsColors.Border),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
             Column(Modifier.padding(20.dp)) {
                 OutlinedTextField(
@@ -150,7 +151,7 @@ fun LoginScreen(
                     onClick = onForgotPassword,
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 ) {
-                    Text("Forgot password?", color = SecondaryMain, fontWeight = FontWeight.SemiBold)
+                    Text("Forgot password?", color = LmsColors.Navy, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -191,11 +192,12 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             "Demo accounts (password: password):\nadmin@bnhs.local · security@bnhs.local · adviser@bnhs.local",
-            color = TextSubtitle,
+            color = LmsColors.TextMuted,
             fontSize = 11.sp,
             textAlign = TextAlign.Center,
             lineHeight = 16.sp,
         )
+        }
     }
 }
 
@@ -219,10 +221,10 @@ fun ForgotPasswordScreen(
         IconButton(onClick = onBack) {
             Icon(Icons.Default.ArrowBack, contentDescription = "Back")
         }
-        Text("Password recovery", fontWeight = FontWeight.Black, fontSize = 22.sp, color = PrimaryDark)
+        Text("Password recovery", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = LmsColors.Navy)
         Text(
             "Enter your registered email. If it exists in the database, the server sends a reset link.",
-            color = TextSubtitle,
+            color = LmsColors.TextMuted,
             fontSize = 14.sp,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )

@@ -13,7 +13,7 @@
 
     <div class="dash-topbar amr-no-print">
         <div class="dash-topbar-left">
-            <span class="dash-topbar-title">EduGrade Pro</span>
+            <span class="dash-topbar-title">BNHS LMS</span>
             <span class="dash-topbar-sep">/</span>
             <a href="{{ route('attendance-reports.index', ['school_year_id' => $report->school_year_id]) }}" class="dash-topbar-bc">Attendance Reports</a>
             <span class="dash-topbar-sep">/</span>

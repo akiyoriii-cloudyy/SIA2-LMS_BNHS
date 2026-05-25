@@ -24,4 +24,4 @@ enum class AdminTab { OVERVIEW, RECORDS, SYSTEM }
 
 enum class SecurityTab { SCAN, RECORDS, SCAN_LOG }
 
-enum class AdviserTab { ROSTER, RECORDS, HISTORY, ALERTS, PARENTS }
+enum class AdviserTab { ROSTER, RECORDS, REPORTS, HISTORY, ALERTS, PARENTS }

@@ -3,6 +3,7 @@ package com.bnhs.edutrack.network
 import com.bnhs.edutrack.auth.AuthApiService
 import com.bnhs.edutrack.auth.ErrorBody
 import com.bnhs.edutrack.auth.SessionStore
+import okhttp3.Interceptor
 import com.google.gson.Gson
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -32,6 +33,37 @@ object ApiClient {
             .build()
 
         return retrofit.create(AuthApiService::class.java)
+    }
+
+    fun createLmsApi(sessionStore: SessionStore): LmsApiService {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BASIC
+        }
+        val authInterceptor = Interceptor { chain ->
+            val request = chain.request()
+            val bearer = sessionStore.bearerAuthorization()
+            val next = if (bearer != null) {
+                request.newBuilder().header("Authorization", bearer).build()
+            } else {
+                request
+            }
+            chain.proceed(next)
+        }
+        val client = OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(authInterceptor)
+            .addInterceptor(logging)
+            .build()
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl(sessionStore.getApiBaseUrl())
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+
+        return retrofit.create(LmsApiService::class.java)
     }
 
     fun parseErrorMessage(response: retrofit2.Response<*>): String {

@@ -1,5 +1,7 @@
 package com.bnhs.edutrack
 
+import com.bnhs.edutrack.ui.*
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,8 +16,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.shadow
 
-private val PrimaryDark = Color(0xFF1E1B4B)
-private val SecondaryMain = Color(0xFF06B6D4)
 
 @Composable
 fun <T> DashboardBottomNav(

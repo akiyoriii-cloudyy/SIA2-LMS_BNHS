@@ -1,5 +1,7 @@
 package com.bnhs.edutrack.backup
 
+import com.bnhs.edutrack.ui.*
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,11 +21,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val PrimaryDark = Color(0xFF1E1B4B)
-private val PrimaryMain = Color(0xFF4338CA)
-private val SuccessMain = Color(0xFF10B981)
-private val ErrorMain = Color(0xFFF43F5E)
-private val TextSubtitle = Color(0xFF64748B)
 
 @Composable
 fun DatabaseBackupPanel(

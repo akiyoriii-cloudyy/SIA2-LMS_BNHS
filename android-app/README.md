@@ -21,7 +21,7 @@ Each account opens its **own dashboard** (no shared role picker):
 |-------|----------|------------------|
 | `admin@bnhs.local` | `password` | Overview, **Records** (CRUD), system/audit |
 | `security@bnhs.local` | `password` | RFID gate scan + gate log only |
-| `adviser@bnhs.local` | `password` | Class roster, history, absence alerts, parents |
+| `adviser@bnhs.local` | `password` | Class roster, history, **monthly reports** (server sync), absence alerts, parents |
 
 ## Open in Android Studio
 
@@ -37,6 +37,16 @@ Each account opens its **own dashboard** (no shared role picker):
 | **Physical phone** (same Wi‑Fi as PC) | `http://YOUR_PC_IP/LMS_BNHS/public/api/` |
 
 Replace `YOUR_PC_IP` with your computer’s LAN address (e.g. `192.168.1.10`).
+
+## Adviser monthly reports (app ↔ web ↔ email)
+
+1. Daily attendance is saved on the **web** and **mobile** (`POST /api/mobile/sync/attendance`).
+2. The server builds **monthly reports** (adviser web: Attendance Reports).
+3. Reports can be **emailed** to the adviser (PHPMailer on Laravel).
+4. In the app, open adviser bottom nav **Reports** to load the same reports from:
+   - `GET /api/mobile/attendance/monthly-reports`
+   - `GET /api/mobile/attendance/monthly-reports/{id}` (student absence table per month)
+5. **Edit on Web** / **Print** buttons open the linked LMS URLs in the browser.
 
 ## App flow after login
 

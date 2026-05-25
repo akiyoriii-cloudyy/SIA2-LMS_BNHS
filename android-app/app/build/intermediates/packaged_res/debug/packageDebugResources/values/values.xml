@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">BNHSTrack Pro</string>
     <style name="Theme.BNHSTrack" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:windowBackground">#F7FAF7</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

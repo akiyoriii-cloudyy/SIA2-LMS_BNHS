@@ -11,7 +11,7 @@
 
     <div class="print-actions">
         <button type="button" class="btn btn-primary" onclick="window.print()">Print</button>
-        <a class="btn btn-outline" href="{{ $report->webUrl() }}">Back to Adviser Dashboard</a>
+        <a class="btn btn-outline" href="{{ $report->webUrl() }}">Back to Report</a>
     </div>
 
     <div class="print-doc-header">
@@ -64,6 +64,6 @@
     </table>
 
     <p style="margin-top:24px;font-size:12px;color:#6b7280;">
-        Printed from BNHS LMS · Same data as adviser dashboard and email report #{{ $report->id }}.
+        Printed from BNHS LMS · Same data as mobile app and email report #{{ $report->id }}.
     </p>
 @endsection

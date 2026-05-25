@@ -43,6 +43,7 @@ class SessionStore(context: Context) {
             .putString(KEY_USER_EMAIL, session.user.email)
             .putString(KEY_USER_ROLES, session.user.roles.joinToString(ROLE_DELIMITER))
             .putString(KEY_USER_PERMISSIONS, session.user.permissions.joinToString(PERM_DELIMITER))
+            .putString(KEY_USER_PHONE, session.user.phone.orEmpty())
             .apply()
     }
 
@@ -78,10 +79,12 @@ class SessionStore(context: Context) {
         val roles = if (rolesRaw.isBlank()) emptyList() else rolesRaw.split(ROLE_DELIMITER)
         val permsRaw = prefs.getString(KEY_USER_PERMISSIONS, "").orEmpty()
         val permissions = if (permsRaw.isBlank()) emptyList() else permsRaw.split(PERM_DELIMITER)
+        val phone = prefs.getString(KEY_USER_PHONE, null)?.trim()?.takeIf { it.isNotEmpty() }
+
         return AuthSession(
             token = token,
             tokenType = prefs.getString(KEY_TOKEN_TYPE, "Bearer") ?: "Bearer",
-            user = AuthUser(id = userId, name = name, email = email, roles = roles, permissions = permissions),
+            user = AuthUser(id = userId, name = name, email = email, roles = roles, permissions = permissions, phone = phone),
         )
     }
 
@@ -94,6 +97,7 @@ class SessionStore(context: Context) {
             .remove(KEY_USER_EMAIL)
             .remove(KEY_USER_ROLES)
             .remove(KEY_USER_PERMISSIONS)
+            .remove(KEY_USER_PHONE)
             .remove(KEY_TRACKING_SESSION_UUID)
             .remove(KEY_LAST_ACTIVITY_AT)
             .apply()
@@ -115,6 +119,7 @@ class SessionStore(context: Context) {
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_ROLES = "user_roles"
         private const val KEY_USER_PERMISSIONS = "user_permissions"
+        private const val KEY_USER_PHONE = "user_phone"
         private const val KEY_TRACKING_SESSION_UUID = "tracking_session_uuid"
         private const val KEY_LAST_ACTIVITY_AT = "last_activity_at"
         private const val ROLE_DELIMITER = "\u001F"
