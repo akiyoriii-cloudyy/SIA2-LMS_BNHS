@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>EduTrack Mobile</title>
+    <link rel="stylesheet" href="mobile-attendance.css" />
+</head>
+<body>
+    <div class="app">
+        <header class="top">
+            <div class="top-row" id="top-brand-row">
+                <div class="brand">
+                    <div class="title">EduTrack</div>
+                    <div class="sub" id="top-sub">Grade — · —</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button type="button" class="top-btn" id="header-settings-btn" onclick="openSettings()" aria-label="Settings" style="padding:6px 10px;">&#9881;</button>
+                    <div class="chip">
+                        <span class="dot" id="net-dot"></span>
+                        <span id="net-label">Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="top-row hidden" id="top-profile-row">
+                <div class="brand">
+                    <div class="title">Student Profile</div>
+                    <div class="sub" id="top-profile-sub">—</div>
+                </div>
+                <button class="top-btn" type="button" onclick="closeProfile()">&lt; Back</button>
+            </div>
+        </header>
+
+        <main class="content">
+            <section id="view-attend">
+                <div class="row" style="margin-bottom:10px; gap:8px;">
+                    <input id="attendance_date" type="date" style="flex:1; min-width:0;" />
+                    <button class="btn small ghost" type="button" onclick="refreshRoster()" title="Refresh roster">↻</button>
+                </div>
+                <div class="banner hidden" id="alert-banner">
+                    <div class="ic">▲</div>
+                    <div>
+                        <div id="alert-text" style="font-weight:700;">—</div>
+                        <div class="muted" id="alert-sub">—</div>
+                    </div>
+                </div>
+
+                <div class="list" id="roster-list"></div>
+
+                <div class="card">
+                    <button class="btn" type="button" onclick="submitAttendance()">Submit Attendance</button>
+                </div>
+            </section>
+
+            <section id="view-students" class="hidden">
+                <div class="card">
+                    <div class="row between">
+                        <div>
+                            <div class="title2">Students</div>
+                            <div class="muted" style="font-size:12px;">Tap a student to view profile.</div>
+                        </div>
+                        <button class="btn small ghost" type="button" onclick="refreshRoster()">↻</button>
+                    </div>
+                </div>
+                <div class="list" id="students-list"></div>
+            </section>
+
+            <section id="view-reports" class="hidden">
+                <div class="card">
+                    <div class="title2">Reports</div>
+                    <div class="muted" style="font-size:12px;">Absence alerts and SMS status (this week).</div>
+                </div>
+                <div class="list" id="reports-list"></div>
+            </section>
+
+            <section id="view-settings" class="hidden">
+                <input type="hidden" id="token" />
+                <input type="hidden" id="device_id" value="device-local-1" />
+                <input type="hidden" id="device_name" value="mobile-demo" />
+                <div class="row between" style="margin-bottom:12px; display:none;" id="settings-back-row">
+                    <button type="button" class="btn ghost small" onclick="closeSettings()">← Back to app</button>
+                </div>
+                <div class="card">
+                    <div class="title2">Login</div>
+                    <div class="muted" style="font-size:12px;">Sign in to load your sections and roster.</div>
+                    <div style="margin-top:10px;">
+                        <input id="email" placeholder="Email" value="teacher@bnhs.local" style="margin-bottom:8px;" />
+                        <input id="password" placeholder="Password" type="password" value="password" style="margin-bottom:8px;" />
+                        <button class="btn" type="button" onclick="login()">Login</button>
+                        <div class="muted" style="font-size:12px; margin-top:8px;" id="whoami"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="title2">Section &amp; Roster</div>
+                    <div class="muted" style="font-size:12px;">Choose section and load roster.</div>
+                    <div style="margin-top:10px;">
+                        <select id="section_id"></select>
+                        <div class="row" style="margin-top:10px; gap:8px;">
+                            <button class="btn ghost" type="button" onclick="loadBootstrap()">Refresh Sections</button>
+                            <button class="btn" type="button" onclick="loadRoster()">Load Roster</button>
+                        </div>
+                        <div class="muted" style="font-size:12px; margin-top:8px;" id="state"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-profile" class="hidden">
+                <div class="card">
+                    <div class="profile-head">
+                        <div>
+                            <div class="title2">Student Profile</div>
+                            <div class="muted" style="font-size:12px;" id="profile-sub">—</div>
+                        </div>
+                        <button class="btn small ghost" type="button" onclick="closeProfile()">&lt; Back</button>
+                    </div>
+
+                    <div class="card" style="margin:0;">
+                        <div class="row">
+                            <div class="avatar" id="profile-avatar">—</div>
+                            <div style="min-width:0;">
+                                <div class="sname" id="profile-name">—</div>
+                                <div class="slrn" id="profile-lrn">LRN: —</div>
+                                <div class="slrn" id="profile-sec">—</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:10px;" id="profile-guardian"></div>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <div class="title2" style="font-size:14px;">Attendance This Week</div>
+                        <div class="week" id="week-grid"></div>
+                        <div class="banner" style="margin-top:10px;">
+                            <div class="ic" id="profile-alert-ic">!</div>
+                            <div id="profile-alert-text">—</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="bottom" id="bottom-nav">
+        <div class="nav">
+            <button id="nav-attend" class="active" onclick="navTo('attend')">
+                <span class="ico">✓</span>Attend
+            </button>
+            <button id="nav-students" onclick="navTo('students')">
+                <span class="ico">👥</span>Students
+            </button>
+            <button id="nav-reports" onclick="navTo('reports')">
+                <span class="ico">📊</span>Reports
+            </button>
+        </div>
+    </div>
+
+    <script src="mobile-attendance.js"></script>
+</body>
+</html>

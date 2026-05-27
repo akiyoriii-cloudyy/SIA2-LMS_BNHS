@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'BNHS LMS')</title>
+    @php
+        $publicBase = rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?: '', '/');
+    @endphp
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ $publicBase }}/lms.css?v={{ time() }}">
+    <script>
+        window.__LMS_THEME_SEED = @json(auth()->check() ? (auth()->id().'|'.auth()->user()->email) : 'guest');
+    </script>
+    <script src="{{ $publicBase }}/lms-theme.js?v={{ time() }}" defer></script>
+</head>
+<body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }} {{ auth()->check() ? (auth()->user()->hasRole('admin') ? 'lms-role-admin' : (auth()->user()->hasRole('adviser') ? 'lms-role-adviser' : (auth()->user()->hasRole('subject_teacher') ? 'lms-role-subject-teacher' : 'lms-role-user'))) : '' }}">
+    @if (auth()->check())
+        @php
+            $sidebarMissingGrades = 0;
+            $sidebarPrintableReports = 0;
+
+            $sidebarIsAdviser = auth()->user()->hasRole('adviser');
+            $sidebarIsSubjectTeacher = auth()->user()->hasRole('subject_teacher');
+            if ($sidebarIsAdviser || $sidebarIsSubjectTeacher) {
+                $sidebarSemesterInput = (int) request()->integer('semester', 0);
+                $sidebarQuarterInput = (int) request()->integer('quarter', request()->integer('current_quarter', 0));
+
+                if (in_array($sidebarSemesterInput, [1, 2], true)) {
+                    $sidebarSemester = $sidebarSemesterInput;
+                    $sidebarQuarterInSemester = max(1, min(2, $sidebarQuarterInput > 0 ? $sidebarQuarterInput : 1));
+                    $sidebarQuarter = $sidebarSemester === 1 ? $sidebarQuarterInSemester : $sidebarQuarterInSemester + 2;
+                } else {
+                    $sidebarQuarter = max(1, min(4, (int) request()->integer('quarter', \App\Support\SidebarMetrics::currentQuarter())));
+                    $sidebarSemester = $sidebarQuarter <= 2 ? 1 : 2;
+                    $sidebarQuarterInSemester = $sidebarQuarter <= 2 ? $sidebarQuarter : $sidebarQuarter - 2;
+                }
+
+                $sidebarMissingGrades = \App\Support\SidebarMetrics::teacherMissingGradesCount(auth()->user(), $sidebarQuarter);
+                $sidebarPrintableReports = $sidebarIsAdviser
+                    ? \App\Support\SidebarMetrics::printableReportCardsCount(auth()->user())
+                    : 0;
+            }
+        @endphp
+
+        <input class="nav-toggle" type="checkbox" id="nav-toggle">
+        <label for="nav-toggle" class="nav-overlay" aria-hidden="true"></label>
+
+        <div class="shell">
+            <aside class="sidebar">
+                <div class="sidebar-logo">
+                    <div class="logo-badge">
+                        <div class="logo-icon">ET</div>
+                        <div>
+                            <div class="logo-text">EduTrack</div>
+                            <div class="logo-sub">SHS Management System</div>
+                        </div>
+                    </div>
+                    <div class="school-tag">
+                        Bawing District • Division of General Santos<br>
+                        Region XII – SOCCSKSARGEN
+                    </div>
+                    <label class="toggle-btn" for="nav-toggle" aria-label="Close menu">&#10005;</label>
+                </div>
+
+                <nav class="menu">
+                    <div class="group">Main</div>
+                    @if (auth()->user()->hasRole('admin'))
+                        <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="icon">&#128200;</span>
+                            Dashboard
+                        </a>
+
+                        <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                            <span class="icon">&#128100;</span>
+                            User Management
+                        </a>
+
+                        <div class="group">Communications</div>
+                        <a href="{{ $publicBase }}/download-app">
+                            <span class="icon">&#11015;</span>
+                            Download mobile app
+                        </a>
+
+                        <div class="group">Admin</div>
+                        @if (auth()->user()->hasPermission('activity_logs.view'))
+                            <a href="{{ route('admin.activity-logs.index') }}" class="{{ request()->routeIs('admin.activity-logs.*') || request()->routeIs('admin.sessions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128220;</span>
+                                Activity Logs
+                            </a>
+                        @endif
+                        @if (auth()->user()->hasPermission('roles.manage'))
+                            <a href="{{ route('admin.roles.index') }}" class="{{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
+                                <span class="icon">&#128101;</span>
+                                Role Management
+                            </a>
+                        @endif
+                        @if (auth()->user()->hasPermission('permissions.manage'))
+                            <a href="{{ route('admin.permissions.index') }}" class="{{ request()->routeIs('admin.permissions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128295;</span>
+                                Permissions
+                            </a>
+                        @endif
+                    @else
+                        <a href="{{ ($sidebarIsAdviser || $sidebarIsSubjectTeacher) ? route('dashboard', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) : route('dashboard') }}"
+                            class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="icon">&#128200;</span>
+                            Dashboard
+                        </a>
+                    @endif
+
+                    @if ($sidebarIsSubjectTeacher && ! $sidebarIsAdviser)
+                        <a href="{{ route('gradebook.index', ['subject_category' => 'core', 'semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
+                            <span class="icon">&#9999;</span>
+                            Grade Entry
+                            @if ($sidebarMissingGrades > 0)
+                                <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
+                            @endif
+                        </a>
+
+                        @if (auth()->user()->hasPermission('activity_logs.view'))
+                            <div class="group">Activity</div>
+                            <a href="{{ route('admin.activity-logs.index') }}" class="{{ request()->routeIs('admin.activity-logs.*') || request()->routeIs('admin.sessions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128220;</span>
+                                Activity Logs
+                            </a>
+                        @endif
+                    @endif
+
+                    @if ($sidebarIsAdviser)
+                        <a href="{{ route('gradebook.index', ['subject_category' => 'core', 'semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('gradebook.*') ? 'active' : '' }}">
+                            <span class="icon">&#9999;</span>
+                            Grade Entry
+                            @if ($sidebarMissingGrades > 0)
+                                <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
+                            @endif
+                        </a>
+
+                        <a href="{{ route('master-sheet.index', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('master-sheet.*') ? 'active' : '' }}">
+                            <span class="icon">&#128196;</span>
+                            Master Sheet
+                        </a>
+
+                        <a href="{{ route('subject-teacher.index', ['semester' => $sidebarSemester, 'quarter' => $sidebarQuarterInSemester]) }}" class="{{ request()->routeIs('subject-teacher.*') ? 'active' : '' }}">
+                            <span class="icon">&#127891;</span>
+                            Subject load
+                            @if ($sidebarMissingGrades > 0)
+                                <span class="nav-badge">{{ $sidebarMissingGrades }}</span>
+                            @endif
+                        </a>
+
+                        <a href="{{ route('report-cards.index') }}"
+                            class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
+                            <span class="icon">&#128221;</span>
+                            DepEd Report Card
+                        </a>
+
+                        @if (auth()->user()->hasPermission('attendance.manage'))
+                            <div class="group">Attendance</div>
+                            <a href="{{ route('attendance-reports.index') }}" class="{{ request()->routeIs('attendance-reports.*') ? 'active' : '' }}">
+                                <span class="icon">&#128202;</span>
+                                Monthly Reports
+                                @if (($sidebarMonthlyReportCount ?? 0) > 0)
+                                    <span class="nav-badge">{{ $sidebarMonthlyReportCount }}</span>
+                                @endif
+                            </a>
+                        @endif
+
+                        <div class="group">Records</div>
+                        <a href="{{ route('students.index') }}" class="{{ request()->routeIs('students.*') ? 'active' : '' }}">
+                            <span class="icon">&#128101;</span>
+                            Students
+                        </a>
+                        <a href="{{ route('subjects.index') }}" class="{{ request()->routeIs('subjects.*') ? 'active' : '' }}">
+                            <span class="icon">&#128218;</span>
+                            Subjects
+                        </a>
+                        <a href="{{ route('report-cards.index') }}" class="{{ request()->routeIs('report-cards.*') ? 'active' : '' }}">
+                            <span class="icon">&#128424;</span>
+                            Print Reports
+                            @if ($sidebarPrintableReports > 0)
+                                <span class="nav-badge">{{ $sidebarPrintableReports }}</span>
+                            @endif
+                        </a>
+
+                        <div class="group">Communications</div>
+                        <a href="{{ $publicBase }}/download-app">
+                            <span class="icon">&#11015;</span>
+                            Download mobile app
+                        </a>
+
+                        @if (auth()->user()->hasPermission('activity_logs.view'))
+                            <div class="group">Activity</div>
+                            <a href="{{ route('admin.activity-logs.index') }}" class="{{ request()->routeIs('admin.activity-logs.*') || request()->routeIs('admin.sessions.*') ? 'active' : '' }}">
+                                <span class="icon">&#128220;</span>
+                                Activity Logs
+                            </a>
+                        @endif
+                    @endif
+                </nav>
+
+                <div class="sidebar-footer">
+                    @if (auth()->user()->hasRole('admin') || $sidebarIsAdviser || $sidebarIsSubjectTeacher)
+                        <a class="sidebar-footer-link {{ request()->routeIs('settings', 'profile.show') ? 'active' : '' }}"
+                            href="{{ route('settings') }}">
+                            <span class="icon">&#128100;</span> Profile
+                        </a>
+                    @endif
+                    @if (auth()->user()->hasRole('admin'))
+                        <a class="sidebar-footer-link {{ request()->routeIs('security', 'settings.mfa') ? 'active' : '' }}"
+                            href="{{ route('security') }}">
+                            <span class="icon">&#128274;</span> Security
+                        </a>
+                    @endif
+
+                    <div class="teacher-card">
+                        <div class="teacher-avatar">{{ mb_substr((string) auth()->user()->name, 0, 1) }}</div>
+                        <div class="teacher-info">
+                            <div class="tname">{{ auth()->user()->name }}</div>
+                            <div class="trole">
+                                @php
+                                    $role = auth()->user()->roles->first()?->name ?? 'user';
+                                    $roleLabel = $role === 'subject_teacher' ? 'Subject teacher' : str_replace('_', ' ', $role);
+                                @endphp
+                                {{ ucfirst($roleLabel) }}
+                            </div>
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ $publicBase }}/logout">
+                        @csrf
+                        <button class="btn sidebar-logout-btn" type="submit">
+                            <span class="icon sidebar-logout-ico" aria-hidden="true">&#128682;</span>
+                            <span class="sidebar-logout-label">Logout</span>
+                        </button>
+                    </form>
+                </div>
+            </aside>
+
+            <main class="main">
+                <div class="topbar">
+                    <label class="toggle-btn" for="nav-toggle">&#9776;</label>
+                    <div style="font-weight:900;">EduTrack</div>
+                    @if (auth()->user()->hasRole('admin', 'adviser', 'subject_teacher'))
+                        <button type="button"
+                            class="topbar-notify js-open-notifications {{ request()->routeIs('notifications.*') ? 'is-active' : '' }}"
+                            aria-label="Notifications"
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
+                            data-notif-expanded="false">
+                            <span class="topbar-notify-icon" aria-hidden="true">&#128276;</span>
+                            @php $mobCt = (int) ($inAppUnreadCount ?? 0); @endphp
+                            <span class="nav-badge topbar-notify-badge js-notif-badge {{ $mobCt > 0 ? '' : 'notif-badge--hidden' }}">{{ $mobCt > 99 ? '99+' : $mobCt }}</span>
+                        </button>
+                    @else
+                        <div style="width:42px;"></div>
+                    @endif
+                </div>
+
+                @if (auth()->user()->hasRole('admin', 'adviser', 'subject_teacher'))
+                    <div class="admin-strip-desktop">
+                        <button type="button"
+                            class="admin-strip-notify js-open-notifications {{ request()->routeIs('notifications.*') ? 'is-active' : '' }}"
+                            aria-label="Notifications"
+                            aria-haspopup="dialog"
+                            aria-expanded="false"
+                            data-notif-expanded="false">
+                            <span class="admin-strip-notify-icon" aria-hidden="true">&#128276;</span>
+                            @php $stripCt = (int) ($inAppUnreadCount ?? 0); @endphp
+                            <span class="nav-badge js-notif-badge {{ $stripCt > 0 ? '' : 'notif-badge--hidden' }}">{{ $stripCt > 99 ? '99+' : $stripCt }}</span>
+                        </button>
+                    </div>
+                @endif
+
+                <div class="container">
+                    @yield('content')
+                </div>
+
+                @if (auth()->user()->hasRole('admin', 'adviser', 'subject_teacher'))
+                    <div id="lms-notif-modal" class="notif-modal" hidden aria-hidden="true">
+                        <div class="notif-modal__backdrop js-notif-close" tabindex="-1"></div>
+                        <div class="notif-modal__panel" role="dialog" aria-modal="true" aria-labelledby="lms-notif-modal-title">
+                            <div class="notif-modal__head">
+                                <h2 id="lms-notif-modal-title" class="notif-modal__title">Notifications</h2>
+                                <button type="button" class="notif-modal__x js-notif-close" aria-label="Close">&times;</button>
+                            </div>
+                            <div class="notif-modal__toolbar">
+                                <button type="button" class="btn btn-outline btn-sm js-notif-mark-all" disabled>Mark all as read</button>
+                            </div>
+                            <div class="notif-modal__body js-notif-list" tabindex="-1">
+                                <p class="muted js-notif-loading" style="margin:0;">Loading…</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    @php
+                        $__lmsNotificationsConfig = [
+                            'feedUrl' => route('notifications.feed'),
+                            'readAllUrl' => route('notifications.read-all'),
+                            'notificationsUrlPrefix' => url('/notifications'),
+                            'csrf' => csrf_token(),
+                        ];
+                    @endphp
+                    <script>
+                        window.LMS_NOTIFICATIONS = @json($__lmsNotificationsConfig);
+                    </script>
+                    <script src="{{ $publicBase }}/notifications-modal.js?v={{ time() }}" defer></script>
+                    @if (session('open_notifications_modal'))
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                if (typeof window.LMSNotificationsOpen === 'function') {
+                                    window.LMSNotificationsOpen();
+                                }
+                            });
+                        </script>
+                    @endif
+                @endif
+            </main>
+        </div>
+    @else
+        <main class="main main--guest">
+            <div class="container">
+                @yield('content')
+            </div>
+        </main>
+    @endif
+</body>
+</html>
