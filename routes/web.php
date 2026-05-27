@@ -27,6 +27,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Mobile app download page (login + dashboard links)
 Route::get('/download-app', function () {
     return view('download-app', [
         'apkAvailable' => file_exists(public_path('downloads/lms-bnhs-teacher.apk')),

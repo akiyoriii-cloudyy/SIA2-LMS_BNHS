@@ -37,6 +37,12 @@ Laravel is accessible, powerful, and provides tools required for large, robust a
 6. Start development server:
    - `php artisan serve`
 
+## Mobile App (Android)
+
+- Kotlin source: `android-app/`
+- LMS download page: `/download-app` (linked from login and dashboard)
+- APK served from: `public/downloads/lms-bnhs-teacher.apk`
+
 ## Laboratory Deliverables (2-4)
 
 - Detailed implementation mapping is in:

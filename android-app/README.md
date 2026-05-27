@@ -2,6 +2,8 @@
 
 Kotlin + Jetpack Compose app for BNHS attendance monitoring, integrated with the Laravel LMS API.
 
+Aligned with LMS `main` (mobile download page, dashboard link, and API sync).
+
 ## Login module (laboratory activity)
 
 | Requirement | Implementation |

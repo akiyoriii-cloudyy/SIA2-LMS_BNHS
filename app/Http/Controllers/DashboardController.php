@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
+/** Web dashboard; includes quick link to the Android app download page. */
 class DashboardController extends Controller
 {
     public function index(Request $request): View

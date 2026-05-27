@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>LMS BNHS Mobile Access</title>
+    <title>LMS BNHS Mobile App Download</title>
     @php($publicBase = rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?: '', '/'))
     <link rel="stylesheet" href="{{ $publicBase }}/lms.css?v={{ time() }}">
     <script>
