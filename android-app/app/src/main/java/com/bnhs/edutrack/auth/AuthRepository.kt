@@ -2,6 +2,7 @@ package com.bnhs.edutrack.auth
 
 import android.content.Context
 import com.bnhs.edutrack.network.ApiClient
+import com.bnhs.edutrack.network.ApiUrlResolver
 import com.bnhs.edutrack.tracking.ActivityAction
 import com.bnhs.edutrack.tracking.ActivityCategory
 import com.bnhs.edutrack.tracking.ActivityLogger
@@ -36,6 +37,7 @@ class AuthRepository private constructor(
     }
 
     suspend fun login(email: String, password: String): LoginResult = withContext(Dispatchers.IO) {
+        sessionStore.repairSavedApiBaseUrl()
         val trimmedEmail = email.trim()
         if (trimmedEmail.isEmpty() || password.isEmpty()) {
             return@withContext LoginResult.Error("Email and password are required.")
@@ -92,10 +94,7 @@ class AuthRepository private constructor(
             if (fallback != null) {
                 fallback
             } else {
-                val msg =
-                    "Connection timed out. Start Apache in XAMPP, open Server settings, and use:\n" +
-                        "• Emulator: http://10.0.2.2/LMS_BNHS/public/api/\n" +
-                        "• Phone (same Wi‑Fi): http://YOUR_PC_IP/LMS_BNHS/public/api/"
+                val msg = "Connection timed out. ${ApiUrlResolver.connectionHelpMessage()}"
                 logLoginFailure(trimmedEmail, msg)
                 LoginResult.Error(msg)
             }
@@ -188,35 +187,8 @@ class AuthRepository private constructor(
         return LoginResult.Success(session)
     }
 
-    private fun candidateApiUrls(currentUrl: String): List<String> {
-        val normalizedCurrent = SessionStore.normalizeBaseUrl(currentUrl)
-        val candidates = linkedSetOf<String>()
-
-        // Common Laravel paths in XAMPP and php artisan serve.
-        candidates += SessionStore.normalizeBaseUrl("http://10.0.2.2/LMS_BNHS/public/api/")
-        candidates += SessionStore.normalizeBaseUrl("http://10.0.2.2/LMS_BNHS/api/")
-        candidates += SessionStore.normalizeBaseUrl("http://10.0.2.2:8000/api/")
-
-        if (normalizedCurrent.contains("/public/api/")) {
-            candidates += SessionStore.normalizeBaseUrl(normalizedCurrent.replace("/public/api/", "/api/"))
-        }
-        if (normalizedCurrent.contains("/api/") && !normalizedCurrent.contains("/public/api/")) {
-            candidates += SessionStore.normalizeBaseUrl(normalizedCurrent.replace("/api/", "/public/api/"))
-        }
-
-        // If user is on physical phone, allow localhost-style host override examples.
-        if (!normalizedCurrent.contains("10.0.2.2")) {
-            val noScheme = normalizedCurrent.removePrefix("http://").removePrefix("https://")
-            val hostAndPath = noScheme.trimEnd('/')
-            if (hostAndPath.contains("/")) {
-                val path = hostAndPath.substringAfter("/")
-                candidates += SessionStore.normalizeBaseUrl("http://127.0.0.1/$path/")
-            }
-        }
-
-        candidates.remove(normalizedCurrent)
-        return candidates.toList()
-    }
+    private fun candidateApiUrls(currentUrl: String): List<String> =
+        ApiUrlResolver.loginCandidateUrls(currentUrl)
 
     private suspend fun logLoginFailure(email: String, details: String) {
         activityLogger.log(
@@ -282,11 +254,7 @@ class AuthRepository private constructor(
         }
     }
 
-    private fun connectionHelpMessage(): String =
-        "Cannot reach the server. Start Apache/MySQL in XAMPP, confirm Laravel works in browser, " +
-            "then use API URL:\n" +
-            "• Emulator: http://10.0.2.2/LMS_BNHS/public/api/\n" +
-            "• Phone (same Wi-Fi): http://YOUR_PC_IP/LMS_BNHS/public/api/"
+    private fun connectionHelpMessage(): String = ApiUrlResolver.connectionHelpMessage()
 
     companion object {
         @Volatile

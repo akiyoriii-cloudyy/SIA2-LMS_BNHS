@@ -185,8 +185,27 @@ class RecordsRepository private constructor(
                 rfidUid = row.rfidUid,
                 parentName = row.parentName,
                 parentContact = row.parentContact,
+                enrollmentId = row.enrollmentId,
             )
         }
+
+    /** Adviser class roster: server-linked enrollments only, one row per enrollment. */
+    suspend fun loadAdviserRosterStudents(): List<Student> =
+        db.studentDao().getAll()
+            .filter { it.enrollmentId != null || it.serverStudentId != null }
+            .distinctBy { it.enrollmentId ?: it.serverStudentId }
+            .map { entity ->
+                val parent = db.parentDao().primaryForStudent(entity.id)?.let { guard.parentForDisplay(it) }
+                Student(
+                    id = entity.id.toInt(),
+                    name = entity.name,
+                    lrn = entity.lrn,
+                    rfidUid = entity.rfidUid,
+                    parentName = parent?.name.orEmpty(),
+                    parentContact = parent?.contact.orEmpty(),
+                    enrollmentId = entity.enrollmentId,
+                )
+            }
 
     private suspend fun entityToRecord(entity: StudentEntity): StudentRecord {
         val parent = db.parentDao().primaryForStudent(entity.id)?.let { guard.parentForDisplay(it) }

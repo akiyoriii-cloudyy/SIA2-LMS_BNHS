@@ -47,6 +47,14 @@ fun ensureDailyAbsenceDefaults(
 fun decisiveRecordForDay(records: List<AttendanceRecord>, studentId: Int, date: LocalDate): AttendanceRecord? =
     records.filter { it.studentId == studentId && it.date == date }.maxByOrNull { it.loggedAt }
 
+/** Class roster marks saved by the adviser (excludes in-memory SYSTEM placeholders). */
+fun decisiveAdviserRecordForDay(records: List<AttendanceRecord>, studentId: Int, date: LocalDate): AttendanceRecord? =
+    records.filter {
+        it.studentId == studentId &&
+            it.date == date &&
+            (it.loggedBy == "ADVISER" || it.loggedBy == "TEACHER")
+    }.maxByOrNull { it.loggedAt }
+
 fun consecutiveAbsentCalendarDaysEndingOn(
     records: List<AttendanceRecord>,
     studentId: Int,

@@ -36,9 +36,6 @@ class AuthViewModel(
     var forgotInProgress by mutableStateOf(false)
         private set
 
-    var apiBaseUrl by mutableStateOf(repository.getApiBaseUrl())
-        private set
-
     init {
         viewModelScope.launch {
             val session = repository.restoreSession()
@@ -47,23 +44,12 @@ class AuthViewModel(
             } else {
                 AuthUiState.Unauthenticated
             }
-            apiBaseUrl = repository.getApiBaseUrl()
         }
-    }
-
-    fun updateApiBaseUrl(url: String) {
-        apiBaseUrl = url
-    }
-
-    fun saveApiBaseUrl() {
-        repository.setApiBaseUrl(apiBaseUrl)
-        apiBaseUrl = repository.getApiBaseUrl()
     }
 
     fun login(email: String, password: String) {
         loginError = null
         loginInProgress = true
-        repository.setApiBaseUrl(apiBaseUrl)
         viewModelScope.launch {
             when (val result = repository.login(email, password)) {
                 is LoginResult.Success -> {
@@ -90,7 +76,6 @@ class AuthViewModel(
         forgotMessage = null
         forgotError = null
         forgotInProgress = true
-        repository.setApiBaseUrl(apiBaseUrl)
         viewModelScope.launch {
             when (val result = repository.requestPasswordReset(email)) {
                 is ForgotPasswordResult.Success -> forgotMessage = result.message

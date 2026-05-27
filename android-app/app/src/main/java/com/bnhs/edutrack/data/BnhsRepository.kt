@@ -38,6 +38,7 @@ class BnhsRepository private constructor(
         val parentId: Long,
         val parentName: String,
         val parentContact: String,
+        val enrollmentId: Long? = null,
     )
 
     data class AttendanceLog(
@@ -174,6 +175,7 @@ class BnhsRepository private constructor(
                 parentId = parent?.id ?: 0L,
                 parentName = parent?.name.orEmpty(),
                 parentContact = parent?.contact.orEmpty(),
+                enrollmentId = student.enrollmentId,
             )
         }
     }

@@ -381,6 +381,26 @@ button.admin-strip-notify {
     font-size: 12px;
 }
 
+.notif-modal-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.notif-btn-delete {
+    border: 1px solid #fecaca;
+    background: #fff;
+    color: #b91c1c;
+}
+
+.notif-btn-delete:hover {
+    border-color: #f87171;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
 .notif-list {
     display: flex;
     flex-direction: column;
@@ -430,9 +450,16 @@ button.admin-strip-notify {
     color: rgba(0, 77, 64, 0.65);
 }
 
+.notif-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    align-self: center;
+}
+
 .notif-card-action {
     margin: 0;
-    align-self: center;
 }
 
 .notif-card-read-label {

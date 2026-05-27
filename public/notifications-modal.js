@@ -103,13 +103,15 @@
                 '</div>';
             article.appendChild(main);
 
+            const actions = document.createElement('div');
+            actions.className = 'notif-modal-card__actions';
+
             if (n.action_url) {
                 const openBtn = document.createElement('a');
                 openBtn.className = 'btn btn-sm btn-primary';
                 openBtn.href = n.action_url;
                 openBtn.textContent = n.type === 'attendance_monthly_report' ? 'Open report' : 'Open';
-                openBtn.style.marginRight = '6px';
-                article.appendChild(openBtn);
+                actions.appendChild(openBtn);
             }
 
             if (!n.read_at) {
@@ -118,13 +120,22 @@
                 btn.className = 'btn btn-sm btn-outline js-notif-read-one';
                 btn.dataset.id = String(n.id);
                 btn.textContent = 'Mark as read';
-                article.appendChild(btn);
+                actions.appendChild(btn);
             } else {
                 const span = document.createElement('span');
                 span.className = 'muted notif-modal-card__readlbl';
                 span.textContent = 'Read';
-                article.appendChild(span);
+                actions.appendChild(span);
             }
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'btn btn-sm notif-btn-delete js-notif-delete-one';
+            deleteBtn.dataset.id = String(n.id);
+            deleteBtn.textContent = 'Delete';
+            actions.appendChild(deleteBtn);
+
+            article.appendChild(actions);
             frag.appendChild(article);
         });
         listEl.innerHTML = '';
@@ -133,13 +144,19 @@
         listEl.querySelectorAll('.js-notif-read-one').forEach((btn) => {
             btn.addEventListener('click', () => markOne(btn.dataset.id));
         });
+        listEl.querySelectorAll('.js-notif-delete-one').forEach((btn) => {
+            btn.addEventListener('click', () => deleteOne(btn.dataset.id));
+        });
     }
 
-    async function postForm(url) {
+    async function postForm(url, method) {
         const fd = new FormData();
         fd.append('_token', cfg.csrf);
+        if (method === 'DELETE') {
+            fd.append('_method', 'DELETE');
+        }
         const res = await fetch(url, {
-            method: 'POST',
+            method: method === 'DELETE' ? 'POST' : 'POST',
             body: fd,
             headers: {
                 Accept: 'application/json',
@@ -154,7 +171,7 @@
     async function markOne(id) {
         const url = cfg.notificationsUrlPrefix + '/' + encodeURIComponent(id) + '/read';
         try {
-            const data = await postForm(url);
+            const data = await postForm(url, 'POST');
             if (data.unread_count !== undefined) setBadges(data.unread_count);
             await loadFeed();
         } catch {
@@ -162,9 +179,23 @@
         }
     }
 
+    async function deleteOne(id) {
+        if (!window.confirm('Delete this notification?')) {
+            return;
+        }
+        const url = cfg.notificationsUrlPrefix + '/' + encodeURIComponent(id);
+        try {
+            const data = await postForm(url, 'DELETE');
+            if (data.unread_count !== undefined) setBadges(data.unread_count);
+            await loadFeed();
+        } catch {
+            window.alert('Could not delete notification.');
+        }
+    }
+
     async function markAll() {
         try {
-            const data = await postForm(cfg.readAllUrl);
+            const data = await postForm(cfg.readAllUrl, 'POST');
             if (data.unread_count !== undefined) setBadges(data.unread_count);
             await loadFeed();
         } catch {

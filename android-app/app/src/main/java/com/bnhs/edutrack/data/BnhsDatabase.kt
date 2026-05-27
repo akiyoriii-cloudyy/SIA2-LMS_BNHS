@@ -47,6 +47,8 @@ data class StudentEntity(
     /** ACTIVE or ARCHIVED */
     @ColumnInfo(name = "status") val status: String = "ACTIVE",
     @ColumnInfo(name = "sex") val sex: String = "",
+    @ColumnInfo(name = "enrollment_id") val enrollmentId: Long? = null,
+    @ColumnInfo(name = "server_student_id") val serverStudentId: Long? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
 )
@@ -342,6 +344,9 @@ interface AttendanceDao {
     @Query("DELETE FROM attendance_records WHERE logged_by = :loggedBy")
     suspend fun deleteAllForRole(loggedBy: String)
 
+    @Query("DELETE FROM attendance_records WHERE student_id = :studentId")
+    suspend fun deleteForStudent(studentId: Long)
+
     @Query("DELETE FROM attendance_records")
     suspend fun deleteAll()
 }
@@ -524,7 +529,7 @@ interface AlertLogDao {
         SecurityAuditReportEntity::class,
         BusinessTransactionEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class BnhsDatabase : RoomDatabase() {

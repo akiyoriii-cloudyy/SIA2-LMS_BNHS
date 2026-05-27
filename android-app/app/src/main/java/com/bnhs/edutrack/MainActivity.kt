@@ -73,6 +73,8 @@ import com.bnhs.edutrack.records.AdviserRecordsScreen
 import com.bnhs.edutrack.records.AttendanceRecordsRepository
 import com.bnhs.edutrack.records.GateRecordsScreen
 import com.bnhs.edutrack.records.RecordsRepository
+import com.bnhs.edutrack.records.AttendanceSyncRepository
+import com.bnhs.edutrack.records.AttendanceSyncResult
 import com.bnhs.edutrack.records.rememberAdviserRecordsViewModel
 import com.bnhs.edutrack.records.rememberGateRecordsViewModel
 import com.bnhs.edutrack.profile.ProfileRepository
@@ -511,11 +513,16 @@ private fun AttendanceApp(
     val scope = rememberCoroutineScope()
     val recordsRepository = remember { RecordsRepository.get(context) }
     val attendanceRepository = remember { AttendanceRecordsRepository.get(context) }
-    val recordsViewModel = rememberRecordsViewModel(recordsRepository, session.user.email)
+    val recordsViewModel = rememberRecordsViewModel(
+        recordsRepository,
+        session.user.email,
+        seedOnInit = mobileRole == MobileAppRole.ADMIN,
+    )
     val gateRecordsViewModel = rememberGateRecordsViewModel(attendanceRepository, session.user.email)
     val adviserRecordsViewModel = rememberAdviserRecordsViewModel(attendanceRepository, session.user.email)
     val monthlyReportsRepository = remember { MonthlyReportsRepository.get(context) }
     val monthlyReportsViewModel = rememberMonthlyReportsViewModel(monthlyReportsRepository)
+    val attendanceSyncRepository = remember { AttendanceSyncRepository.get(context) }
     val profileRepository = remember { ProfileRepository.get(context) }
     val profileViewModel = rememberProfileViewModel(profileRepository, session, mobileRole)
     var showProfileScreen by remember { mutableStateOf(false) }
@@ -526,10 +533,34 @@ private fun AttendanceApp(
 
     val records = remember { mutableStateListOf<AttendanceRecord>() }
 
+    suspend fun loadStudentsIntoList() {
+        val loaded = if (mobileRole == MobileAppRole.ADVISER) {
+            recordsRepository.loadAdviserRosterStudents()
+        } else {
+            recordsRepository.loadAppStudents()
+        }
+        students.clear()
+        students.addAll(loaded)
+    }
+
     fun reloadStudentsFromDb() {
-        scope.launch {
-            students.clear()
-            students.addAll(recordsRepository.loadAppStudents())
+        scope.launch { loadStudentsIntoList() }
+    }
+
+    suspend fun syncAdviserRosterAndReload(): AttendanceSyncResult {
+        return when (val result = attendanceSyncRepository.syncAdviserRosterFromServer()) {
+            is AttendanceSyncResult.Success -> {
+                loadStudentsIntoList()
+                result
+            }
+            is AttendanceSyncResult.Error -> {
+                loadStudentsIntoList()
+                result
+            }
+            AttendanceSyncResult.Skipped -> {
+                loadStudentsIntoList()
+                AttendanceSyncResult.Error("Not signed in. Sign in again to load your class roster.")
+            }
         }
     }
 
@@ -542,21 +573,84 @@ private fun AttendanceApp(
 
     fun persistAttendance(record: AttendanceRecord) {
         scope.launch {
-            attendanceRepository.upsertAppRecord(record, session.user.email)
+            val syncIssue = attendanceRepository.upsertAppRecord(record, session.user.email)
             reloadAttendanceFromDb()
+            if (syncIssue != null) {
+                statusMessage = syncIssue
+            } else if (mobileRole == MobileAppRole.ADVISER) {
+                statusMessage = "Attendance saved. Open Monthly to see updated totals."
+            }
+        }
+    }
+
+    fun persistAllAttendance(marks: List<AttendanceRecord>, successLabel: String) {
+        if (marks.isEmpty()) return
+        scope.launch {
+            var firstSyncIssue: String? = null
+            marks.forEach { record ->
+                val issue = attendanceRepository.upsertAppRecord(record, session.user.email)
+                if (firstSyncIssue == null && issue != null) {
+                    firstSyncIssue = issue
+                }
+            }
+            reloadAttendanceFromDb()
+            if (firstSyncIssue != null) {
+                statusMessage = firstSyncIssue!!
+            } else if (mobileRole == MobileAppRole.ADVISER) {
+                statusMessage = "$successLabel Open Monthly to see updated totals."
+            } else {
+                statusMessage = successLabel
+            }
+        }
+    }
+
+    LaunchedEffect(adviserTab) {
+        if (mobileRole != MobileAppRole.ADVISER) return@LaunchedEffect
+        when (adviserTab) {
+            AdviserTab.REPORTS -> monthlyReportsViewModel.refreshList(selectLatest = true)
+            AdviserTab.ROSTER -> {
+                if (students.isEmpty()) {
+                    loadStudentsIntoList()
+                    if (students.isEmpty()) {
+                        syncAdviserRosterAndReload()
+                    }
+                }
+            }
+            else -> Unit
         }
     }
 
     LaunchedEffect(Unit) {
-        recordsRepository.ensureSeedData()
-        students.clear()
-        students.addAll(recordsRepository.loadAppStudents())
+        if (mobileRole == MobileAppRole.ADVISER) {
+            when (val rosterResult = syncAdviserRosterAndReload()) {
+                is AttendanceSyncResult.Success -> {
+                    statusMessage = "Class attendance ready — ${students.size} student(s)."
+                }
+                is AttendanceSyncResult.Error -> {
+                    statusMessage = if (students.isEmpty()) {
+                        "${rosterResult.message} Check your connection and try again."
+                    } else {
+                        rosterResult.message
+                    }
+                }
+                AttendanceSyncResult.Skipped -> Unit
+            }
+        } else {
+            recordsRepository.ensureSeedData()
+            loadStudentsIntoList()
+        }
         records.clear()
         records.addAll(attendanceRepository.loadAppAttendance())
-        recordsViewModel.onRecordsChanged = { loaded ->
-            students.clear()
-            students.addAll(loaded)
-            reloadAttendanceFromDb()
+        recordsViewModel.onRecordsChanged = {
+            scope.launch {
+                if (mobileRole == MobileAppRole.ADVISER) {
+                    loadStudentsIntoList()
+                } else {
+                    students.clear()
+                    students.addAll(it)
+                }
+                reloadAttendanceFromDb()
+            }
         }
         gateRecordsViewModel.onDataChanged = {
             reloadAttendanceFromDb()
@@ -583,16 +677,6 @@ private fun AttendanceApp(
 
     val validRfidSet = remember(students) { students.map { it.rfidUid.uppercase() }.toSet() }
 
-    LaunchedEffect(attendanceWorkingDate, students.size, mobileRole) {
-        if (mobileRole == MobileAppRole.ADVISER) {
-            ensureDailyAbsenceDefaults(
-                students = students,
-                records = records,
-                date = attendanceWorkingDate,
-                now = philippinesDateTimeForAttendanceDay(attendanceWorkingDate),
-            )
-        }
-    }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         val allOk = result.values.all { it }
@@ -764,6 +848,27 @@ private fun AttendanceApp(
                             records = records,
                             attendanceDate = attendanceWorkingDate,
                             onClearHistory = { showClearHistoryConfirm = true },
+                            onMarkAll = markAll@{ status ->
+                                if (!rbac.canManageAttendance()) {
+                                    statusMessage = rbac.denyReason(RbacPermission.ATTENDANCE_MANAGE)
+                                    return@markAll
+                                }
+                                val marks = students.map { s ->
+                                    AttendanceRecord(
+                                        studentId = s.id,
+                                        date = attendanceWorkingDate,
+                                        loggedAt = philippinesDateTimeForAttendanceDay(attendanceWorkingDate),
+                                        status = status,
+                                        loggedBy = "ADVISER",
+                                    ).also { rec ->
+                                        upsertAttendanceRecord(records, rec.studentId, rec.date, rec.loggedAt, rec.status, rec.loggedBy)
+                                    }
+                                }
+                                persistAllAttendance(
+                                    marks,
+                                    "Marked ${marks.size} student(s) as $status",
+                                )
+                            },
                             onMark = mark@{ s, st ->
                                 if (!rbac.canManageAttendance()) {
                                     statusMessage = rbac.denyReason(RbacPermission.ATTENDANCE_MANAGE)
@@ -1182,6 +1287,7 @@ private fun AdviserDashboard(
     records: List<AttendanceRecord>,
     attendanceDate: LocalDate,
     onClearHistory: () -> Unit,
+    onMarkAll: (String) -> Unit,
     onMark: (Student, String) -> Unit,
     onUpdateParentDetails: (studentId: Int, parentName: String, parentContact: String) -> Unit
 ) {
@@ -1204,18 +1310,39 @@ private fun AdviserDashboard(
             AdviserTab.RECORDS, AdviserTab.REPORTS -> Unit
             AdviserTab.ROSTER -> {
                 Text(
-                    "Mark status for ${attendanceDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}.",
+                    "Mark attendance for ${attendanceDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}.",
                     fontSize = 12.sp,
                     color = TextSubtitle,
-                    modifier = Modifier.padding(bottom = 10.dp)
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
+                if (students.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { onMarkAll("ABSENT") },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorMain),
+                        ) {
+                            Text("Mark all absent", fontSize = 12.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { onMarkAll("PRESENT") },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = SuccessMain),
+                        ) {
+                            Text("Mark all present", fontSize = 12.sp)
+                        }
+                    }
+                }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(students, key = { it.id }) { s ->
-                        val rec = decisiveRecordForDay(records, s.id, attendanceDate)
-                        StudentCard(s, rec?.status ?: "ABSENT", onMark)
+                        val rec = decisiveAdviserRecordForDay(records, s.id, attendanceDate)
+                        StudentCard(s, rec?.status, onMark)
                     }
                 }
             }
@@ -1245,7 +1372,11 @@ private fun AdviserDashboard(
 
             AdviserTab.ALERTS -> {
                 val atRisk = students.mapNotNull { s ->
-                    val streak = consecutiveAbsentCalendarDaysEndingOn(records, s.id, attendanceDate)
+                    val streak = consecutiveAbsentCalendarDaysEndingOn(
+                        records.filter { it.loggedBy == "ADVISER" || it.loggedBy == "TEACHER" },
+                        s.id,
+                        attendanceDate,
+                    )
                     if (streak >= PARENT_ALERT_CONSECUTIVE_ABSENT_DAYS) s to streak else null
                 }
                 if (atRisk.isEmpty()) {
@@ -1281,8 +1412,20 @@ private fun ParentDetailsEditor(
 ) {
     var selectedStudentId by remember(students) { mutableStateOf(students.firstOrNull()?.id) }
     val selected = students.firstOrNull { it.id == selectedStudentId } ?: return
-    var parentNameInput by remember(selected.id, selected.parentName) { mutableStateOf(selected.parentName) }
-    var parentContactInput by remember(selected.id, selected.parentContact) { mutableStateOf(selected.parentContact) }
+    var isEditing by remember { mutableStateOf(false) }
+    var parentNameInput by remember(selected.id) { mutableStateOf(selected.parentName) }
+    var parentContactInput by remember(selected.id) { mutableStateOf(selected.parentContact) }
+
+    LaunchedEffect(selectedStudentId) {
+        isEditing = false
+    }
+
+    LaunchedEffect(selected.id, selected.parentName, selected.parentContact, isEditing) {
+        if (!isEditing) {
+            parentNameInput = selected.parentName
+            parentContactInput = selected.parentContact
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1316,37 +1459,104 @@ private fun ParentDetailsEditor(
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(Modifier.padding(14.dp)) {
-                Text("Student: ${selected.name}", color = PrimaryDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Spacer(modifier = Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = parentNameInput,
-                    onValueChange = { parentNameInput = it },
-                    label = { Text("Parent / Guardian Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = parentContactInput,
-                    onValueChange = { parentContactInput = it },
-                    label = { Text("Parent Phone Number") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        onSave(selected.id, parentNameInput, parentContactInput)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryDark)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.Save, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save Parent Details")
+                    Text(
+                        "Student: ${selected.name}",
+                        color = PrimaryDark,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (!isEditing) {
+                        OutlinedButton(
+                            onClick = {
+                                parentNameInput = selected.parentName
+                                parentContactInput = selected.parentContact
+                                isEditing = true
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp), tint = PrimaryMain)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Edit", fontSize = 12.sp, color = PrimaryDark)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (isEditing) {
+                    OutlinedTextField(
+                        value = parentNameInput,
+                        onValueChange = { parentNameInput = it },
+                        label = { Text("Parent / Guardian Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = parentContactInput,
+                        onValueChange = { parentContactInput = it },
+                        label = { Text("Parent Phone Number") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                val name = parentNameInput.trim()
+                                val contact = parentContactInput.trim()
+                                if (name.isBlank() || contact.isBlank()) return@Button
+                                onSave(selected.id, name, contact)
+                                isEditing = false
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryDark),
+                        ) {
+                            Icon(Icons.Default.Save, null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Save", fontSize = 13.sp)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                parentNameInput = selected.parentName
+                                parentContactInput = selected.parentContact
+                                isEditing = false
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text("Cancel", fontSize = 13.sp)
+                        }
+                    }
+                } else {
+                    ParentProfileField(label = "Parent / Guardian Name", value = selected.parentName.ifBlank { "—" })
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ParentProfileField(label = "Parent Phone Number", value = selected.parentContact.ifBlank { "—" })
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ParentProfileField(label: String, value: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PrimaryDark.copy(alpha = 0.04f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(label, fontSize = 11.sp, color = TextSubtitle)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = PrimaryDark)
     }
 }
 
@@ -1431,7 +1641,7 @@ private fun AbsenceAlertRow(student: Student, streak: Int) {
 }
 
 @Composable
-private fun StudentCard(student: Student, status: String, onMark: (Student, String) -> Unit) {
+private fun StudentCard(student: Student, status: String?, onMark: (Student, String) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(modifier = Modifier.size(44.dp), shape = CircleShape, color = PrimaryMain.copy(0.1f)) {
@@ -1440,10 +1650,14 @@ private fun StudentCard(student: Student, status: String, onMark: (Student, Stri
             Spacer(modifier = Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(student.name, fontWeight = FontWeight.Bold)
-                Text("LRN: ${student.lrn}", fontSize = 11.sp, color = Color.Gray)
+                Text(
+                    if (status.isNullOrBlank()) "LRN: ${student.lrn} · Not marked" else "LRN: ${student.lrn}",
+                    fontSize = 11.sp,
+                    color = if (status.isNullOrBlank()) TextSubtitle else Color.Gray,
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                val normalized = status.uppercase()
+                val normalized = status?.uppercase().orEmpty()
                 Pill("P", SuccessMain, normalized == "PRESENT") { onMark(student, "PRESENT") }
                 Pill("L", LmsColors.Sage, normalized == "LATE") { onMark(student, "LATE") }
                 Pill("A", ErrorMain, normalized == "ABSENT") { onMark(student, "ABSENT") }

@@ -127,7 +127,6 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val apiBaseUrl = remember(repository) { repository.apiBaseUrl() }
     val scroll = rememberScrollState()
     val roles = viewModel.profile?.roles ?: emptyList()
 
@@ -208,16 +207,10 @@ fun ProfileScreen(
                 title = "Connected to web",
                 subtitle = "Same profile as the LMS browser app",
             ) {
-                Text(
-                    "API: $apiBaseUrl",
-                    fontSize = 11.sp,
-                    color = LmsColors.TextMuted,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
                 OutlinedButton(
                     onClick = {
                         val url = viewModel.profile?.webProfileUrl
-                            ?: apiBaseUrl
+                            ?: repository.apiBaseUrl()
                                 .removeSuffix("/api/")
                                 .removeSuffix("/api")
                                 .let { "$it/settings" }

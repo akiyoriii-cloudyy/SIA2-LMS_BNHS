@@ -21,27 +21,44 @@ class AttendanceService
         ?string $remarks = null,
         ?User $recordedBy = null
     ): AttendanceRecord {
-        return DB::transaction(function () use ($enrollment, $attendanceDate, $status, $courseId, $remarks, $recordedBy): AttendanceRecord {
-            $record = AttendanceRecord::updateOrCreate(
-                [
+        $persist = function () use ($enrollment, $attendanceDate, $status, $courseId, $remarks, $recordedBy): AttendanceRecord {
+            $dateString = $attendanceDate->toDateString();
+            $values = [
+                'course_id' => $courseId,
+                'school_week_start' => $attendanceDate->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
+                'status' => $status,
+                'remarks' => $remarks,
+                'recorded_by' => $recordedBy?->id,
+            ];
+
+            // Use whereDate — SQLite may store dates as datetimes, which breaks updateOrCreate lookups.
+            $record = AttendanceRecord::query()
+                ->where('enrollment_id', $enrollment->id)
+                ->whereDate('attendance_date', $dateString)
+                ->first();
+
+            if ($record) {
+                $record->update($values);
+
+                $record = $record->fresh();
+            } else {
+                $record = AttendanceRecord::create([
                     'enrollment_id' => $enrollment->id,
-                    'attendance_date' => $attendanceDate->toDateString(),
-                ],
-                [
-                    'course_id' => $courseId,
-                    'school_week_start' => $attendanceDate->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
-                    'status' => $status,
-                    'remarks' => $remarks,
-                    'recorded_by' => $recordedBy?->id,
-                ]
-            );
+                    'attendance_date' => $dateString,
+                    ...$values,
+                ]);
+            }
 
             if ($status === 'absent') {
                 $this->triggerWeeklyAbsenceNotificationIfNeeded($enrollment, $attendanceDate);
             }
 
             return $record;
-        });
+        };
+
+        return DB::transactionLevel() > 0
+            ? $persist()
+            : DB::transaction($persist);
     }
 
     private function triggerWeeklyAbsenceNotificationIfNeeded(Enrollment $enrollment, Carbon $attendanceDate): void

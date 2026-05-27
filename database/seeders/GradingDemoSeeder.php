@@ -27,20 +27,20 @@ class GradingDemoSeeder extends Seeder
         $subjectTeacherRole = Role::findRestoreOrCreate('subject_teacher', ['description' => 'Subject teacher']);
         $subjectTeacherRole->update(['description' => 'Subject teacher']);
 
-        $adminUser = User::firstOrCreate(
+        $adminUser = User::updateOrCreate(
             ['email' => 'admin@bnhs.local'],
             ['name' => 'School Admin', 'password' => Hash::make('password'), 'phone' => '+639111111111']
         );
         $adminUser->roles()->syncWithoutDetaching([$adminRole->id]);
 
-        $adviserUser = User::firstOrCreate(
+        $adviserUser = User::updateOrCreate(
             ['email' => 'adviser@bnhs.local'],
             ['name' => 'Adviser One', 'password' => Hash::make('password'), 'phone' => '+639222222222']
         );
         $adviserUser->roles()->syncWithoutDetaching([$adviserRole->id]);
 
         $securityRole = Role::findRestoreOrCreate('security_guard', ['description' => 'Gate security / RFID entrance']);
-        $securityUser = User::firstOrCreate(
+        $securityUser = User::updateOrCreate(
             ['email' => 'security@bnhs.local'],
             ['name' => 'Gate Security', 'password' => Hash::make('password'), 'phone' => '+639333333333']
         );

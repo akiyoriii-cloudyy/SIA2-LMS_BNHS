@@ -93,6 +93,62 @@ class InAppNotificationTest extends TestCase
         $this->assertNotNull($n->fresh()->read_at);
     }
 
+    public function test_destroy_deletes_own_notification(): void
+    {
+        $this->seed(RbacSeeder::class);
+
+        $admin = User::factory()->create(['email' => 'admin@example.com']);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->value('id')]);
+
+        $n = SchoolNotification::query()->create([
+            'user_id' => $admin->id,
+            'student_id' => null,
+            'type' => 'test',
+            'channel' => 'in_app',
+            'title' => 'T',
+            'message' => 'M',
+            'meta' => null,
+            'sent_at' => now(),
+            'read_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->deleteJson(route('notifications.destroy', $n))
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+
+        $this->assertDatabaseMissing('notifications', ['id' => $n->id]);
+    }
+
+    public function test_cannot_destroy_another_users_notification(): void
+    {
+        $this->seed(RbacSeeder::class);
+
+        $admin = User::factory()->create(['email' => 'admin@example.com']);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->value('id')]);
+
+        $other = User::factory()->create(['email' => 'other@example.com']);
+        $other->roles()->sync([Role::query()->where('name', 'admin')->value('id')]);
+
+        $n = SchoolNotification::query()->create([
+            'user_id' => $other->id,
+            'student_id' => null,
+            'type' => 'test',
+            'channel' => 'in_app',
+            'title' => 'T',
+            'message' => 'M',
+            'meta' => null,
+            'sent_at' => now(),
+            'read_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->deleteJson(route('notifications.destroy', $n))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('notifications', ['id' => $n->id]);
+    }
+
     public function test_cannot_mark_another_users_notification(): void
     {
         $this->seed(RbacSeeder::class);

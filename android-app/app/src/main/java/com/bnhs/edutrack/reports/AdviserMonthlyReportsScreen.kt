@@ -35,6 +35,8 @@ import com.bnhs.edutrack.rbac.RbacEnforcer
 import com.bnhs.edutrack.rbac.RbacPermission
 import kotlinx.coroutines.launch
 import java.time.Month
+import java.time.YearMonth
+import java.util.Locale
 
 class MonthlyReportsViewModel(
     private val repository: MonthlyReportsRepository,
@@ -54,7 +56,7 @@ class MonthlyReportsViewModel(
                     if (reports.isEmpty()) {
                         selectedReportId = null
                         selectedReport = null
-                        statusMessage = "No monthly report yet. Mark daily attendance in Roster, then ask admin to generate the report on the server."
+                        statusMessage = "No monthly report yet. Mark daily attendance in Roster, then tap Generate Attendance Records."
                     } else {
                         val pick = if (selectLatest) reports.first().id else selectedReportId
                         pick?.let { loadDetail(it) }
@@ -168,6 +170,13 @@ fun AdviserMonthlyReportsScreen(
                 Icon(Icons.Default.Refresh, "Refresh", tint = PrimaryMain)
             }
         }
+
+        Text(
+            "Totals match class attendance automatically. Tap Generate Attendance Records to save the report on the web (print/email).",
+            fontSize = 11.sp,
+            color = TextSubtitle,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
 
         if (viewModel.reports.isNotEmpty()) {
             val selectedSummary = viewModel.reports.firstOrNull { it.id == viewModel.selectedReportId }
@@ -312,6 +321,11 @@ fun AdviserMonthlyReportsScreen(
                 )
             }
         } else {
+            val monthDays = run {
+                val y = report.reportYear
+                val m = report.reportMonth
+                if (y != null && m != null && m in 1..12) YearMonth.of(y, m).lengthOfMonth() else null
+            }
             Card(
                 Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -321,6 +335,7 @@ fun AdviserMonthlyReportsScreen(
                     Modifier.padding(12.dp).fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
+                    StatChip("Month days", "${monthDays ?: 0}")
                     StatChip("School days", "${report.schoolDaysTotal ?: 0}")
                     StatChip("Students", "${lines.size}")
                     StatChip("Total absent", "${report.totalAbsentDays ?: 0}", ErrorMain)
@@ -347,7 +362,8 @@ fun AdviserMonthlyReportsScreen(
                 MonthlyTableHeaderCell("Late", 0.45f)
                 MonthlyTableHeaderCell("Exc.", 0.45f)
                 MonthlyTableHeaderCell("Absent", 0.55f)
-                MonthlyTableHeaderCell("Remarks", 1.1f)
+                MonthlyTableHeaderCell("By day", 1.5f)
+                MonthlyTableHeaderCell("Remarks", 1.0f)
             }
 
             LazyColumn(
@@ -403,9 +419,28 @@ private fun MonthlyReportLineRow(line: MonthlyReportLineDto, scrollState: androi
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
-            MonthlyTableCell(line.remarks.orEmpty().ifBlank { "—" }, 1.1f, TextSubtitle)
+            MonthlyTableCell(formatAttendanceByDay(line.attendanceByDay), 1.5f, TextSubtitle)
+            MonthlyTableCell(line.remarks.orEmpty().ifBlank { "—" }, 1.0f, TextSubtitle)
         }
     }
+}
+
+private fun formatAttendanceByDay(attendanceByDay: Map<String, String>?): String {
+    if (attendanceByDay.isNullOrEmpty()) return "—"
+
+    return attendanceByDay
+        .toList()
+        .sortedBy { it.first.toIntOrNull() ?: Int.MAX_VALUE }
+        .joinToString(" ") { (day, status) ->
+            val marker = when (status.lowercase(Locale.ROOT)) {
+                "present" -> "P"
+                "late" -> "L"
+                "excused" -> "E"
+                "absent" -> "A"
+                else -> status.take(1).uppercase(Locale.ROOT)
+            }
+            "${day}:${marker}"
+        }
 }
 
 @Composable

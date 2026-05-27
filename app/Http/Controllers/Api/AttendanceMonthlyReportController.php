@@ -21,6 +21,7 @@ class AttendanceMonthlyReportController extends Controller
         }
 
         $schoolYearId = $request->integer('school_year_id') ?: null;
+        $service->ensureCurrentMonthReports($request->user(), $schoolYearId);
 
         $reports = AttendanceMonthlyReport::query()
             ->with(['section:id,name,grade_level', 'schoolYear:id,name'])
@@ -34,7 +35,7 @@ class AttendanceMonthlyReportController extends Controller
             ->get();
 
         return response()->json([
-            'data' => $reports->map(fn (AttendanceMonthlyReport $r): array => $this->serializeReport($r)),
+            'data' => $reports->map(fn (AttendanceMonthlyReport $r): array => $this->serializeReport($r, $service)),
             'web_portal_url' => url('/attendance-reports'),
         ]);
     }
@@ -48,27 +49,10 @@ class AttendanceMonthlyReportController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        if ($request->boolean('refresh')) {
-            $actor = $request->user();
-            $teacher = $actor?->teacher;
-            if ($teacher && (int) $teacher->id === (int) $attendanceMonthlyReport->teacher_id) {
-                $service->generateOrRefresh(
-                    $teacher,
-                    $attendanceMonthlyReport->section,
-                    $attendanceMonthlyReport->schoolYear,
-                    (int) $attendanceMonthlyReport->report_year,
-                    (int) $attendanceMonthlyReport->report_month,
-                    $actor,
-                    true,
-                );
-            }
-            $attendanceMonthlyReport->refresh();
-        }
-
         $attendanceMonthlyReport->load(['lines', 'section', 'schoolYear', 'teacher.user']);
 
         return response()->json([
-            'data' => $this->serializeReport($attendanceMonthlyReport, includeLines: true),
+            'data' => $this->serializeReport($attendanceMonthlyReport, $service, includeLines: true),
         ]);
     }
 
@@ -102,7 +86,7 @@ class AttendanceMonthlyReportController extends Controller
         );
 
         $emailMessage = null;
-        $shouldSendEmail = $request->boolean('send_email', true);
+        $shouldSendEmail = $request->boolean('send_email', false);
         if ($shouldSendEmail && ! empty($user->email)) {
             try {
                 $mailer->send($user, $report);
@@ -132,23 +116,26 @@ class AttendanceMonthlyReportController extends Controller
         );
 
         return response()->json([
-            'message' => $emailMessage ?? 'Attendance records generated. Check web adviser page to download Excel.',
-            'data' => $this->serializeReport($report, includeLines: true),
+            'message' => $emailMessage ?? 'Report generated. Open the adviser page on the web to view, print, or download.',
+            'data' => $this->serializeReport($report, $service, includeLines: true),
+            'web_portal_url' => $report->webUrl(),
         ]);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function serializeReport(AttendanceMonthlyReport $report, bool $includeLines = false): array
-    {
+    private function serializeReport(
+        AttendanceMonthlyReport $report,
+        AttendanceMonthlyReportService $service,
+        bool $includeLines = false,
+    ): array {
         $payload = [
             'id' => $report->id,
             'report_year' => $report->report_year,
             'report_month' => $report->report_month,
             'period_label' => $report->periodLabel(),
             'status' => $report->status,
-            'school_days_total' => $report->school_days_total,
             'notes' => $report->notes,
             'generated_at' => $report->generated_at?->toIso8601String(),
             'emailed_at' => $report->emailed_at?->toIso8601String(),
@@ -162,24 +149,26 @@ class AttendanceMonthlyReportController extends Controller
                 'name' => $report->schoolYear->name,
             ] : null,
             'lines_count' => $report->lines_count ?? $report->lines->count(),
-            'total_absent_days' => (int) ($report->total_absent_days ?? $report->lines->sum('absent_days')),
+            'total_absent_days' => $service->liveTotalAbsentDays($report),
+            'school_days_total' => $service->liveMonthSchoolDaysTotal($report),
+            'needs_generate' => ! $service->reportHasGeneratedTotals($report),
             'web_url' => $report->webUrl(),
             'print_url' => $report->printUrl(),
         ];
 
         if ($includeLines) {
-            $payload['lines'] = $report->lines->map(fn ($line): array => [
-                'id' => $line->id,
-                'enrollment_id' => $line->enrollment_id,
-                'student_name' => $line->student_name,
-                'lrn' => $line->lrn,
-                'school_days' => $line->school_days,
-                'present_days' => $line->present_days,
-                'absent_days' => $line->absent_days,
-                'late_days' => $line->late_days,
-                'excused_days' => $line->excused_days,
-                'remarks' => $line->remarks,
-            ])->values()->all();
+            $liveSummaries = $service->liveSummariesByEnrollmentId($report);
+            $attendanceByEnrollment = $service->attendanceByEnrollmentForReportMonth($report);
+
+            $payload['lines'] = $report->lines->map(function ($line) use ($service, $liveSummaries, $attendanceByEnrollment): array {
+                $enrollmentId = (int) $line->enrollment_id;
+
+                return $service->serializeLineForDisplay(
+                    $line,
+                    $liveSummaries[$enrollmentId] ?? [],
+                    $attendanceByEnrollment[$enrollmentId] ?? [],
+                );
+            })->values()->all();
         }
 
         return $payload;

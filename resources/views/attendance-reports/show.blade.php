@@ -6,7 +6,7 @@
     @php
         $section = $report->section;
         $schoolYear = $report->schoolYear;
-        $totalAbsent = (int) $report->lines->sum('absent_days');
+        $totalAbsent = (int) ($liveTotalAbsent ?? $report->lines->sum('absent_days'));
         $printUrl = $report->printUrl();
         $webUrl = $report->webUrl();
     @endphp
@@ -46,6 +46,7 @@
                 <h1 style="margin:0 0 6px 0;">Monthly Attendance Report</h1>
                 <p class="muted" style="margin:0;">Section: <strong>{{ $section?->name ?? '—' }}</strong> · Grade {{ $section?->grade_level ?? '—' }}</p>
                 <p class="muted" style="margin:4px 0 0 0;">School Year: <strong>{{ $schoolYear?->name ?? '—' }}</strong> · Period: <strong>{{ $report->periodLabel() }}</strong></p>
+                <p class="muted" style="margin:4px 0 0 0;">Coverage: <strong>{{ $coverageStart }} – {{ $coverageEnd }}</strong> · Calendar days: <strong>{{ $calendarDaysInMonth }}</strong></p>
                 <p class="muted amr-print-only-meta" style="margin:4px 0 0 0;display:none;">Report #{{ $report->id }} · Synced with web &amp; mobile daily attendance</p>
             </div>
             <div class="amr-meta-box amr-no-print">
@@ -82,9 +83,12 @@
                     <button class="btn btn-primary" type="button" onclick="window.print()">Print</button>
                 </div>
             </div>
-            <p class="muted amr-no-print">Counts come from daily attendance (web + mobile). Edit here before emailing or printing — daily records are not changed.</p>
+            <p class="muted amr-no-print">Counts below match class attendance (web + mobile) in real time. Use <strong>Generate</strong> on the app or <strong>Refresh from records</strong> on the reports list to save them into this report for print/email.</p>
+            <p class="muted amr-no-print amr-legend">
+                <strong>Day marks:</strong> P = Present · A = Absent · L = Late · E = Excused (per calendar day in {{ $report->periodLabel() }})
+            </p>
 
-            <div class="table-wrap">
+            <div class="table-wrap amr-table-scroll">
                 <table class="table amr-table">
                     <thead>
                         <tr>
@@ -96,20 +100,29 @@
                             <th>Late</th>
                             <th>Excused</th>
                             <th>Absent</th>
+                            <th>Daily attendance</th>
                             <th>Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($report->lines as $index => $line)
+                            @php
+                                $enrollmentId = (int) $line->enrollment_id;
+                                $byDay = $attendanceByEnrollment[$enrollmentId] ?? [];
+                                $live = $liveSummaries[$enrollmentId] ?? [];
+                            @endphp
                             <tr>
                                 <td>{{ $index + 1 }}</td>
                                 <td>{{ $line->student_name }}</td>
                                 <td>{{ $line->lrn ?? '—' }}</td>
-                                <td><input type="number" name="lines[{{ $index }}][school_days]" min="0" max="31" value="{{ old('lines.'.$index.'.school_days', $line->school_days) }}" class="amr-num-input"></td>
-                                <td><input type="number" name="lines[{{ $index }}][present_days]" min="0" max="31" value="{{ old('lines.'.$index.'.present_days', $line->present_days) }}" class="amr-num-input"></td>
-                                <td><input type="number" name="lines[{{ $index }}][late_days]" min="0" max="31" value="{{ old('lines.'.$index.'.late_days', $line->late_days) }}" class="amr-num-input"></td>
-                                <td><input type="number" name="lines[{{ $index }}][excused_days]" min="0" max="31" value="{{ old('lines.'.$index.'.excused_days', $line->excused_days) }}" class="amr-num-input"></td>
-                                <td><input type="number" name="lines[{{ $index }}][absent_days]" min="0" max="31" value="{{ old('lines.'.$index.'.absent_days', $line->absent_days) }}" class="amr-num-input amr-absent-input"></td>
+                                <td><input type="number" name="lines[{{ $index }}][school_days]" min="0" max="31" value="{{ old('lines.'.$index.'.school_days', $live['school_days'] ?? $line->school_days) }}" class="amr-num-input"></td>
+                                <td><input type="number" name="lines[{{ $index }}][present_days]" min="0" max="31" value="{{ old('lines.'.$index.'.present_days', $live['present_days'] ?? $line->present_days) }}" class="amr-num-input"></td>
+                                <td><input type="number" name="lines[{{ $index }}][late_days]" min="0" max="31" value="{{ old('lines.'.$index.'.late_days', $live['late_days'] ?? $line->late_days) }}" class="amr-num-input"></td>
+                                <td><input type="number" name="lines[{{ $index }}][excused_days]" min="0" max="31" value="{{ old('lines.'.$index.'.excused_days', $live['excused_days'] ?? $line->excused_days) }}" class="amr-num-input"></td>
+                                <td><input type="number" name="lines[{{ $index }}][absent_days]" min="0" max="31" value="{{ old('lines.'.$index.'.absent_days', $live['absent_days'] ?? $line->absent_days) }}" class="amr-num-input amr-absent-input"></td>
+                                <td class="amr-daily-cell">
+                                    @include('attendance-reports.partials.daily-attendance', ['byDay' => $byDay])
+                                </td>
                                 <td>
                                     <input type="hidden" name="lines[{{ $index }}][id]" value="{{ $line->id }}">
                                     <input type="text" name="lines[{{ $index }}][remarks]" value="{{ old('lines.'.$index.'.remarks', $line->remarks) }}" placeholder="Optional">
@@ -139,11 +152,15 @@
                         <th>Late</th>
                         <th>Excused</th>
                         <th>Absent</th>
+                        <th>Daily attendance</th>
                         <th>Remarks</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($report->lines as $index => $line)
+                        @php
+                            $byDay = $attendanceByEnrollment[(int) $line->enrollment_id] ?? [];
+                        @endphp
                         <tr>
                             <td>{{ $index + 1 }}</td>
                             <td>{{ $line->student_name }}</td>
@@ -153,6 +170,9 @@
                             <td>{{ $line->late_days }}</td>
                             <td>{{ $line->excused_days }}</td>
                             <td><strong>{{ $line->absent_days }}</strong></td>
+                            <td class="amr-daily-cell">
+                                @include('attendance-reports.partials.daily-attendance', ['byDay' => $byDay])
+                            </td>
                             <td>{{ $line->remarks ?? '—' }}</td>
                         </tr>
                     @endforeach
@@ -189,6 +209,24 @@
         .amr-num-input { width: 56px; padding: 4px 6px; text-align: center; }
         .amr-absent-input { font-weight: 700; }
         .amr-print-table-only { display: none; }
+        .amr-table-scroll { overflow-x: auto; }
+        .amr-daily-cell { min-width: 220px; max-width: 360px; font-size: 12px; line-height: 1.5; }
+        .amr-daily-attendance { display: flex; flex-wrap: wrap; gap: 4px; }
+        .amr-day-chip {
+            display: inline-block;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background: #eef2f7;
+            color: #334155;
+            font-family: ui-monospace, monospace;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .amr-day-present { background: #dcfce7; color: #166534; }
+        .amr-day-absent { background: #fee2e2; color: #991b1b; font-weight: 700; }
+        .amr-day-late { background: #fef3c7; color: #92400e; }
+        .amr-day-excused { background: #e0e7ff; color: #3730a3; }
+        .amr-legend { font-size: 13px; margin-bottom: 10px; }
         .amr-download-excel-btn {
             background: linear-gradient(135deg, #0f8f45 0%, #0a6b33 100%);
             border-color: #0a6b33;

@@ -86,6 +86,23 @@ class NotificationController extends Controller
         return back()->with('status', 'All notifications marked as read.');
     }
 
+    public function destroy(Request $request, SchoolNotification $schoolNotification): JsonResponse|RedirectResponse
+    {
+        abort_unless($schoolNotification->user_id === $request->user()->id, 403);
+        abort_unless($schoolNotification->channel === 'in_app', 403);
+
+        $schoolNotification->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'unread_count' => $this->unreadCountForUser($request),
+            ]);
+        }
+
+        return back()->with('status', 'Notification deleted.');
+    }
+
     private function unreadCountForUser(Request $request): int
     {
         return (int) SchoolNotification::query()

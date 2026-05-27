@@ -30,7 +30,10 @@
     <div class="card">
         <h2>Generate New Report</h2>
         <p class="muted" style="margin-bottom: 14px;">
-            Pulls data from daily attendance records for the selected calendar month. After generating, you can adjust counts and remarks, send email, and print.
+            Pulls data from daily attendance records for the selected calendar month.
+            Default period is <strong>{{ $currentPeriodLabel }}</strong> ({{ $calendarDaysInMonth }} calendar days).
+            Current-month reports for your sections are refreshed automatically when you open this page.
+            After generating, you can adjust counts, view day-by-day marks (P/A/L/E), send email, and print.
         </p>
         <form method="POST" action="{{ route('attendance-reports.store') }}">
             @csrf
@@ -97,6 +100,7 @@
                 <thead>
                     <tr>
                         <th>Period</th>
+                        <th>Calendar Days</th>
                         <th>Section</th>
                         <th>School Year</th>
                         <th>Students</th>
@@ -108,8 +112,19 @@
                 </thead>
                 <tbody>
                     @forelse ($reports as $report)
+                        @php
+                            $isCurrentMonth = (int) $report->report_year === (int) now()->year
+                                && (int) $report->report_month === (int) now()->month;
+                            $monthDays = \Carbon\Carbon::create((int) $report->report_year, (int) $report->report_month, 1)->daysInMonth;
+                        @endphp
                         <tr>
-                            <td>{{ $report->periodLabel() }}</td>
+                            <td>
+                                {{ $report->periodLabel() }}
+                                @if ($isCurrentMonth)
+                                    <span class="badge badge-success" style="margin-left:6px;">Current</span>
+                                @endif
+                            </td>
+                            <td>{{ $monthDays }}</td>
                             <td>{{ $report->section?->name ?? '—' }}</td>
                             <td>{{ $report->schoolYear?->name ?? '—' }}</td>
                             <td>{{ $report->lines_count }}</td>
@@ -129,7 +144,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="muted">No reports yet. Generate one above.</td>
+                            <td colspan="9" class="muted">No reports yet. Generate one above for {{ $currentPeriodLabel }}.</td>
                         </tr>
                     @endforelse
                 </tbody>

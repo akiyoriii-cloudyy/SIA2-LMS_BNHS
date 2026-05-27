@@ -36,7 +36,7 @@ class MonthlyReportsRepository(context: Context) {
         val auth = sessionStore.bearerAuthorization()
             ?: return ReportsResult.Error("Not signed in.")
         return try {
-            val response = api.getMonthlyReport(auth, reportId, refresh = 1)
+            val response = api.getMonthlyReport(auth, reportId, refresh = 0)
             if (response.isSuccessful) {
                 val data = response.body()?.data
                 if (data != null) {
@@ -56,13 +56,13 @@ class MonthlyReportsRepository(context: Context) {
         val auth = sessionStore.bearerAuthorization()
             ?: return ReportsResult.Error("Not signed in.")
         return try {
-            val response = api.generateMonthlyReport(auth, reportId, sendEmail = 1)
+            val response = api.generateMonthlyReport(auth, reportId, sendEmail = 0)
             if (response.isSuccessful) {
                 val body = response.body()
                 val data = body?.data
                 if (data != null) {
                     val msg = body.message?.ifBlank { null }
-                        ?: "Attendance records generated. Check web adviser page to download Excel."
+                        ?: "Report generated. Open the adviser page on the web to view or print."
                     ReportsResult.Success(msg to data)
                 } else {
                     ReportsResult.Error("Report generated but no data returned.")

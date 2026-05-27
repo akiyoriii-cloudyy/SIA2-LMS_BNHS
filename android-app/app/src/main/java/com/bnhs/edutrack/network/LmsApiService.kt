@@ -42,6 +42,18 @@ interface LmsApiService {
         @Path("id") reportId: Long,
         @Query("send_email") sendEmail: Int = 1,
     ): Response<MonthlyReportGenerateResponse>
+
+    @GET("mobile/adviser-roster")
+    suspend fun adviserRoster(
+        @Header("Authorization") authorization: String,
+        @Query("school_year_id") schoolYearId: Long? = null,
+    ): Response<AdviserRosterResponse>
+
+    @POST("mobile/sync/attendance")
+    suspend fun syncAttendance(
+        @Header("Authorization") authorization: String,
+        @Body body: SyncAttendanceRequest,
+    ): Response<SyncAttendanceResponse>
 }
 
 data class MobileProfileResponse(
@@ -137,6 +149,43 @@ data class ReportSchoolYearDto(
     val name: String?,
 )
 
+data class AdviserRosterResponse(
+    @SerializedName("school_year_id") val schoolYearId: Long?,
+    val data: List<AdviserRosterRowDto>?,
+)
+
+data class AdviserRosterRowDto(
+    @SerializedName("enrollment_id") val enrollmentId: Long?,
+    @SerializedName("student_id") val studentId: Long?,
+    @SerializedName("student_name") val studentName: String?,
+    val lrn: String?,
+    @SerializedName("rfid_uid") val rfidUid: String?,
+    @SerializedName("section_name") val sectionName: String?,
+    @SerializedName("grade_level") val gradeLevel: Int?,
+    @SerializedName("primary_guardian") val primaryGuardian: AdviserGuardianDto?,
+)
+
+data class AdviserGuardianDto(
+    val name: String?,
+    val phone: String?,
+)
+
+data class SyncAttendanceRequest(
+    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("batch_uuid") val batchUuid: String,
+    val records: List<SyncAttendanceRecordDto>,
+)
+
+data class SyncAttendanceRecordDto(
+    @SerializedName("enrollment_id") val enrollmentId: Long,
+    @SerializedName("attendance_date") val attendanceDate: String,
+    val status: String,
+)
+
+data class SyncAttendanceResponse(
+    val message: String?,
+)
+
 data class MonthlyReportLineDto(
     val id: Long?,
     @SerializedName("enrollment_id") val enrollmentId: Long?,
@@ -148,4 +197,5 @@ data class MonthlyReportLineDto(
     @SerializedName("late_days") val lateDays: Int?,
     @SerializedName("excused_days") val excusedDays: Int?,
     val remarks: String?,
+    @SerializedName("attendance_by_day") val attendanceByDay: Map<String, String>?,
 )

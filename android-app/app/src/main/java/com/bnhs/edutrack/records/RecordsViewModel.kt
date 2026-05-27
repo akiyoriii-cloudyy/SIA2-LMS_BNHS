@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 class RecordsViewModel(
     private val repository: RecordsRepository,
     private val actorEmail: String,
+    private val seedOnInit: Boolean = true,
 ) : ViewModel() {
 
     var records by mutableStateOf<List<StudentRecord>>(emptyList())
@@ -45,7 +46,9 @@ class RecordsViewModel(
 
     init {
         viewModelScope.launch {
-            repository.ensureSeedData()
+            if (seedOnInit) {
+                repository.ensureSeedData()
+            }
             reloadFilterOptions()
             refresh()
         }
@@ -147,11 +150,12 @@ class RecordsViewModel(
     class Factory(
         private val repository: RecordsRepository,
         private val actorEmail: String,
+        private val seedOnInit: Boolean = true,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(RecordsViewModel::class.java)) {
-                return RecordsViewModel(repository, actorEmail) as T
+                return RecordsViewModel(repository, actorEmail, seedOnInit) as T
             }
             throw IllegalArgumentException("Unknown ViewModel")
         }

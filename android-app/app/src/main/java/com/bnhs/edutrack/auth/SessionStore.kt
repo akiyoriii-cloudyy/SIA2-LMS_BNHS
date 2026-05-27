@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.bnhs.edutrack.BuildConfig
+import com.bnhs.edutrack.network.ApiUrlResolver
 
 /**
  * Encrypted token/session storage (token-based authentication).
@@ -24,19 +24,36 @@ class SessionStore(context: Context) {
         )
     }
 
+    init {
+        repairSavedApiBaseUrl()
+    }
+
     fun getApiBaseUrl(): String {
         val saved = prefs.getString(KEY_API_BASE_URL, null)?.trim().orEmpty()
-        if (saved.isNotEmpty()) {
-            // Auto-heal older tunnel/demo URLs that are often offline.
-            if (!saved.contains("trycloudflare.com", ignoreCase = true)) {
-                return normalizeBaseUrl(saved)
+        if (saved.isNotEmpty() && !saved.contains("trycloudflare.com", ignoreCase = true)) {
+            val normalized = normalizeBaseUrl(saved)
+            if (!ApiUrlResolver.isEmulatorOnlyHost(normalized) || ApiUrlResolver.isEmulator()) {
+                return normalized
             }
         }
-        return normalizeBaseUrl(BuildConfig.API_BASE_URL)
+        return ApiUrlResolver.defaultApiBaseUrl()
     }
 
     fun setApiBaseUrl(url: String) {
         prefs.edit().putString(KEY_API_BASE_URL, normalizeBaseUrl(url)).apply()
+    }
+
+    /** Drop emulator-only hosts saved on a physical phone (common cause of login failures). */
+    fun repairSavedApiBaseUrl() {
+        val saved = prefs.getString(KEY_API_BASE_URL, null)?.trim().orEmpty()
+        if (saved.isEmpty()) return
+        if (saved.contains("trycloudflare.com", ignoreCase = true)) {
+            prefs.edit().remove(KEY_API_BASE_URL).apply()
+            return
+        }
+        if (ApiUrlResolver.isEmulatorOnlyHost(saved) && !ApiUrlResolver.isEmulator()) {
+            prefs.edit().remove(KEY_API_BASE_URL).apply()
+        }
     }
 
     fun saveSession(session: AuthSession) {

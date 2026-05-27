@@ -34,14 +34,21 @@
                         {{ $notification->created_at?->format('Y-m-d H:i:s') }}
                     </div>
                 </div>
-                @if ($notification->read_at === null)
-                    <form method="POST" action="{{ route('notifications.read', $notification) }}" class="notif-card-action">
+                <div class="notif-card-actions">
+                    @if ($notification->read_at === null)
+                        <form method="POST" action="{{ route('notifications.read', $notification) }}" class="notif-card-action">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline">Mark as Read</button>
+                        </form>
+                    @else
+                        <span class="muted notif-card-read-label">Read</span>
+                    @endif
+                    <form method="POST" action="{{ route('notifications.destroy', $notification) }}" class="notif-card-action" onsubmit="return confirm('Delete this notification?');">
                         @csrf
-                        <button type="submit" class="btn btn-sm btn-outline">Mark as Read</button>
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm notif-btn-delete">Delete</button>
                     </form>
-                @else
-                    <span class="muted notif-card-read-label">Read</span>
-                @endif
+                </div>
             </article>
         @empty
             <p class="muted">No notifications yet.</p>

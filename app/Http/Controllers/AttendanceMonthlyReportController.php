@@ -9,6 +9,7 @@ use App\Models\Section;
 use App\Services\AttendanceMonthlyReportMailer;
 use App\Services\AttendanceMonthlyReportService;
 use App\Services\InAppNotificationService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -27,6 +28,10 @@ class AttendanceMonthlyReportController extends Controller
 
         $sectionIds = $service->adviserSectionIds($user, $selectedSchoolYear ?: null);
 
+        if ($user->teacher) {
+            $service->ensureCurrentMonthReports($user, $selectedSchoolYear ?: null);
+        }
+
         $sections = Section::query()
             ->orderedForDropdown()
             ->when($sectionIds->isNotEmpty(), fn ($q) => $q->whereIn('id', $sectionIds))
@@ -44,8 +49,11 @@ class AttendanceMonthlyReportController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $defaultMonth = (int) now()->subMonth()->month;
-        $defaultYear = (int) now()->subMonth()->year;
+        $now = now();
+        $defaultMonth = (int) $now->month;
+        $defaultYear = (int) $now->year;
+        $currentPeriodLabel = $now->format('F Y');
+        $calendarDaysInMonth = (int) $now->daysInMonth;
 
         return view('attendance-reports.index', [
             'schoolYears' => $schoolYears,
@@ -54,6 +62,8 @@ class AttendanceMonthlyReportController extends Controller
             'reports' => $reports,
             'defaultMonth' => $defaultMonth,
             'defaultYear' => $defaultYear,
+            'currentPeriodLabel' => $currentPeriodLabel,
+            'calendarDaysInMonth' => $calendarDaysInMonth,
         ]);
     }
 
@@ -117,9 +127,19 @@ class AttendanceMonthlyReportController extends Controller
 
         $attendanceMonthlyReport->load(['lines.enrollment.student', 'section', 'schoolYear', 'teacher.user']);
 
+        $liveSummaries = $service->liveSummariesByEnrollmentId($attendanceMonthlyReport);
+        $attendanceByEnrollment = $service->attendanceByEnrollmentForReportMonth($attendanceMonthlyReport);
+        $monthDate = Carbon::create((int) $attendanceMonthlyReport->report_year, (int) $attendanceMonthlyReport->report_month, 1);
+
         return view('attendance-reports.show', [
             'report' => $attendanceMonthlyReport,
             'openedFromEmail' => $request->query('from') === 'email',
+            'liveSummaries' => $liveSummaries,
+            'attendanceByEnrollment' => $attendanceByEnrollment,
+            'liveTotalAbsent' => $service->liveTotalAbsentDays($attendanceMonthlyReport),
+            'calendarDaysInMonth' => $monthDate->daysInMonth,
+            'coverageStart' => $monthDate->copy()->startOfMonth()->format('M j'),
+            'coverageEnd' => $monthDate->copy()->endOfMonth()->format('M j, Y'),
         ]);
     }
 
@@ -132,8 +152,18 @@ class AttendanceMonthlyReportController extends Controller
 
         $attendanceMonthlyReport->load(['lines', 'section', 'schoolYear']);
 
+        $liveSummaries = $service->liveSummariesByEnrollmentId($attendanceMonthlyReport);
+        $attendanceByEnrollment = $service->attendanceByEnrollmentForReportMonth($attendanceMonthlyReport);
+        $monthDate = Carbon::create((int) $attendanceMonthlyReport->report_year, (int) $attendanceMonthlyReport->report_month, 1);
+
         return view('attendance-reports.print', [
             'report' => $attendanceMonthlyReport,
+            'liveSummaries' => $liveSummaries,
+            'liveTotalAbsent' => $service->liveTotalAbsentDays($attendanceMonthlyReport),
+            'attendanceByEnrollment' => $attendanceByEnrollment,
+            'calendarDaysInMonth' => $monthDate->daysInMonth,
+            'coverageStart' => $monthDate->copy()->startOfMonth()->format('M j'),
+            'coverageEnd' => $monthDate->copy()->endOfMonth()->format('M j, Y'),
         ]);
     }
 
@@ -148,7 +178,17 @@ class AttendanceMonthlyReportController extends Controller
         }
 
         $attendanceMonthlyReport->load(['lines', 'section', 'schoolYear']);
-        $html = view('attendance-reports.export-excel', ['report' => $attendanceMonthlyReport])->render();
+        $liveSummaries = $service->liveSummariesByEnrollmentId($attendanceMonthlyReport);
+        $attendanceByEnrollment = $service->attendanceByEnrollmentForReportMonth($attendanceMonthlyReport);
+        $monthDate = Carbon::create((int) $attendanceMonthlyReport->report_year, (int) $attendanceMonthlyReport->report_month, 1);
+        $html = view('attendance-reports.export-excel', [
+            'report' => $attendanceMonthlyReport,
+            'liveSummaries' => $liveSummaries,
+            'attendanceByEnrollment' => $attendanceByEnrollment,
+            'calendarDaysInMonth' => $monthDate->daysInMonth,
+            'coverageStart' => $monthDate->copy()->startOfMonth()->format('M j'),
+            'coverageEnd' => $monthDate->copy()->endOfMonth()->format('M j, Y'),
+        ])->render();
 
         $safeSection = preg_replace('/[^A-Za-z0-9]+/', '_', (string) ($attendanceMonthlyReport->section?->name ?: 'section')) ?: 'section';
         $safePeriod = preg_replace('/[^A-Za-z0-9]+/', '_', (string) $attendanceMonthlyReport->periodLabel()) ?: 'report';

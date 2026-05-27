@@ -311,6 +311,7 @@ private fun FormField(
 fun rememberRecordsViewModel(
     repository: RecordsRepository,
     actorEmail: String,
+    seedOnInit: Boolean = true,
 ): RecordsViewModel {
-    return viewModel(factory = RecordsViewModel.Factory(repository, actorEmail))
+    return viewModel(factory = RecordsViewModel.Factory(repository, actorEmail, seedOnInit))
 }

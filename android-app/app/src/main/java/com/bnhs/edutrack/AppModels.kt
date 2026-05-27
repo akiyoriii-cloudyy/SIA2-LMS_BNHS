@@ -10,6 +10,7 @@ data class Student(
     val rfidUid: String,
     val parentName: String,
     val parentContact: String,
+    val enrollmentId: Long? = null,
 )
 
 data class AttendanceRecord(

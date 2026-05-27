@@ -35,7 +35,6 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    var showAdvanced by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         LmsMeshBackground()
@@ -153,39 +152,6 @@ fun LoginScreen(
                 ) {
                     Text("Forgot password?", color = LmsColors.Navy, fontWeight = FontWeight.SemiBold)
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        TextButton(onClick = { showAdvanced = !showAdvanced }) {
-            Icon(
-                if (showAdvanced) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Server settings", fontSize = 13.sp)
-        }
-        if (showAdvanced) {
-            OutlinedTextField(
-                value = viewModel.apiBaseUrl,
-                onValueChange = { viewModel.updateApiBaseUrl(it) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("API base URL") },
-                supportingText = {
-                    Text(
-                        "Emulator: http://10.0.2.2/LMS_BNHS/public/api/ — Phone: use your PC IP",
-                        fontSize = 11.sp,
-                    )
-                },
-                singleLine = true,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { viewModel.saveApiBaseUrl() },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Save API URL")
             }
         }
 

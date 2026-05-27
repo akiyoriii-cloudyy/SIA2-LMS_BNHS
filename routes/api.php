@@ -29,6 +29,10 @@ Route::middleware(['auth.api'])->group(function (): void {
         Route::post('/mobile/sync/attendance', [MobileSyncController::class, 'syncAttendance'])
             ->middleware('permission:attendance.manage');
 
+        Route::middleware('permission:attendance.manage')->group(function (): void {
+            Route::get('/mobile/adviser-roster', [MobileSyncController::class, 'adviserRoster']);
+        });
+
         Route::middleware('permission:attendance.manage')->prefix('mobile/attendance')->group(function (): void {
             Route::get('/monthly-reports', [ApiAttendanceMonthlyReportController::class, 'index']);
             Route::get('/monthly-reports/{attendanceMonthlyReport}', [ApiAttendanceMonthlyReportController::class, 'show']);

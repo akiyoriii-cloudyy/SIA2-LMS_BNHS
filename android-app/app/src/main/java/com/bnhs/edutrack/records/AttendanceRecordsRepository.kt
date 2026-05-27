@@ -32,7 +32,7 @@ class AttendanceRecordsRepository private constructor(
     suspend fun loadAppAttendance(): List<AttendanceRecord> =
         db.attendanceDao().getAll().mapNotNull { entityToApp(it) }
 
-    suspend fun upsertAppRecord(record: AttendanceRecord, actorEmail: String) {
+    suspend fun upsertAppRecord(record: AttendanceRecord, actorEmail: String): String? {
         db.attendanceDao().deleteForStudentOnDate(record.studentId.toLong(), isoDate.format(record.date), record.loggedBy)
         val id = db.attendanceDao().insert(
             AttendanceEntity(
@@ -44,6 +44,13 @@ class AttendanceRecordsRepository private constructor(
             ),
         )
         audit("UPSERT", id, actorEmail, "${record.loggedBy} ${record.status} student#${record.studentId}")
+
+        return when (val syncResult = AttendanceSyncRepository.get(context).syncAttendanceRecord(record, record.studentId)) {
+            is AttendanceSyncResult.Success -> null
+            is AttendanceSyncResult.Error -> syncResult.message
+            AttendanceSyncResult.Skipped ->
+                "Saved on device only. Open the app while online so the class list syncs from the server, then mark attendance again."
+        }
     }
 
     // --- Security (GATE) ---
@@ -253,6 +260,7 @@ class AttendanceRecordsRepository private constructor(
                 rfidUid = s.rfidUid,
                 parentName = p?.name.orEmpty(),
                 parentContact = p?.contact.orEmpty(),
+                enrollmentId = s.enrollmentId,
             )
         }
 

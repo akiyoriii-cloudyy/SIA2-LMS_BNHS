@@ -68,6 +68,7 @@ Route::middleware(['auth'])->group(function (): void {
         Route::get('/notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('/notifications/{schoolNotification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+        Route::delete('/notifications/{schoolNotification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
     });
 
     Route::get('/courses', [CourseController::class, 'index'])->middleware('permission:courses.view')->name('courses.index');

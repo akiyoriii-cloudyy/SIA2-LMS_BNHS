@@ -125,12 +125,24 @@ class AttendanceMonthlyReportService
             /** @var AttendanceMonthlyReportLine|null $line */
             $line = $existingLines->get($enrollment->id);
 
-            if ($line && ! $refreshFromRecords) {
-                $line->update([
-                    'student_name' => $student?->full_name ?? $line->student_name,
-                    'lrn' => $student?->lrn ?? $line->lrn,
-                    'sort_order' => $index + 1,
-                ]);
+            if (! $refreshFromRecords) {
+                AttendanceMonthlyReportLine::query()->updateOrCreate(
+                    [
+                        'attendance_monthly_report_id' => $report->id,
+                        'enrollment_id' => $enrollment->id,
+                    ],
+                    [
+                        'student_name' => $student?->full_name ?? 'Student',
+                        'lrn' => $student?->lrn,
+                        'school_days' => $line?->school_days ?? 0,
+                        'present_days' => $line?->present_days ?? 0,
+                        'absent_days' => $line?->absent_days ?? 0,
+                        'late_days' => $line?->late_days ?? 0,
+                        'excused_days' => $line?->excused_days ?? 0,
+                        'remarks' => $line?->remarks,
+                        'sort_order' => $index + 1,
+                    ],
+                );
 
                 continue;
             }
@@ -157,6 +169,95 @@ class AttendanceMonthlyReportService
         return $report->fresh(['lines', 'section', 'schoolYear', 'teacher.user']);
     }
 
+    public function reportHasGeneratedTotals(AttendanceMonthlyReport $report): bool
+    {
+        $report->loadMissing('lines');
+
+        return $report->lines->contains(
+            fn ($line): bool => (int) $line->school_days > 0
+                || (int) $line->present_days > 0
+                || (int) $line->absent_days > 0
+                || (int) $line->late_days > 0
+                || (int) $line->excused_days > 0,
+        );
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    public function enrollmentIdsForReport(AttendanceMonthlyReport $report): Collection
+    {
+        return Enrollment::query()
+            ->where('section_id', $report->section_id)
+            ->where('school_year_id', $report->school_year_id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+    }
+
+    /**
+     * Live totals from daily attendance_records (web + mobile class roster).
+     *
+     * @return array<int, array<string, int>> enrollment_id => summary
+     */
+    public function liveSummariesByEnrollmentId(AttendanceMonthlyReport $report): array
+    {
+        $year = (int) $report->report_year;
+        $month = (int) $report->report_month;
+        $summaries = [];
+
+        foreach ($this->enrollmentIdsForReport($report) as $enrollmentId) {
+            $enrollment = Enrollment::query()->find($enrollmentId);
+            if (! $enrollment) {
+                continue;
+            }
+
+            $summaries[$enrollmentId] = $this->summarizeEnrollmentMonth($enrollment, $year, $month);
+        }
+
+        return $summaries;
+    }
+
+    public function liveTotalAbsentDays(AttendanceMonthlyReport $report): int
+    {
+        return (int) collect($this->liveSummariesByEnrollmentId($report))->sum('absent_days');
+    }
+
+    public function liveMonthSchoolDaysTotal(AttendanceMonthlyReport $report): int
+    {
+        return (int) AttendanceRecord::query()
+            ->whereIn('enrollment_id', $this->enrollmentIdsForReport($report)->all())
+            ->whereBetween('attendance_date', [
+                Carbon::create((int) $report->report_year, (int) $report->report_month, 1)->startOfMonth()->toDateString(),
+                Carbon::create((int) $report->report_year, (int) $report->report_month, 1)->endOfMonth()->toDateString(),
+            ])
+            ->distinct('attendance_date')
+            ->count('attendance_date');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function serializeLineForDisplay(
+        AttendanceMonthlyReportLine $line,
+        array $liveSummary,
+        array $attendanceByDay,
+    ): array {
+        return [
+            'id' => $line->id,
+            'enrollment_id' => $line->enrollment_id,
+            'student_name' => $line->student_name,
+            'lrn' => $line->lrn,
+            'school_days' => (int) ($liveSummary['school_days'] ?? 0),
+            'present_days' => (int) ($liveSummary['present_days'] ?? 0),
+            'absent_days' => (int) ($liveSummary['absent_days'] ?? 0),
+            'late_days' => (int) ($liveSummary['late_days'] ?? 0),
+            'excused_days' => (int) ($liveSummary['excused_days'] ?? 0),
+            'remarks' => $line->remarks,
+            'attendance_by_day' => (object) $attendanceByDay,
+        ];
+    }
+
     public function userCanAccess(User $user, AttendanceMonthlyReport $report): bool
     {
         if ($user->hasRole('admin')) {
@@ -165,5 +266,106 @@ class AttendanceMonthlyReportService
 
         return $user->teacher
             && (int) $user->teacher->id === (int) $report->teacher_id;
+    }
+
+    /**
+     * @return array<int, array<string, string>> enrollment_id => ['01' => 'present', ...]
+     */
+    public function attendanceByEnrollmentForReportMonth(AttendanceMonthlyReport $report): array
+    {
+        $enrollmentIds = $this->enrollmentIdsForReport($report);
+        if ($enrollmentIds->isEmpty()) {
+            return [];
+        }
+
+        $start = Carbon::create((int) $report->report_year, (int) $report->report_month, 1)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $records = AttendanceRecord::query()
+            ->whereIn('enrollment_id', $enrollmentIds->all())
+            ->whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
+            ->orderBy('attendance_date')
+            ->get(['enrollment_id', 'attendance_date', 'status']);
+
+        return $records
+            ->groupBy('enrollment_id')
+            ->map(function (Collection $rows): array {
+                return $rows
+                    ->sortBy('attendance_date')
+                    ->mapWithKeys(function (AttendanceRecord $row): array {
+                        $day = str_pad((string) Carbon::parse((string) $row->attendance_date)->day, 2, '0', STR_PAD_LEFT);
+
+                        return [$day => strtolower((string) $row->status)];
+                    })
+                    ->all();
+            })
+            ->all();
+    }
+
+    public function ensureCurrentMonthReports(User $actor, ?int $schoolYearId = null): void
+    {
+        $teacher = $actor->teacher;
+        if (! $teacher) {
+            return;
+        }
+
+        $now = now();
+        $year = (int) $now->year;
+        $month = (int) $now->month;
+
+        $assignments = SubjectAssignment::query()
+            ->select(['section_id', 'school_year_id'])
+            ->where('teacher_id', $teacher->id)
+            ->whereNotNull('section_id')
+            ->whereNotNull('school_year_id')
+            ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
+            ->get()
+            ->unique(fn ($row) => $row->section_id.'|'.$row->school_year_id)
+            ->values();
+
+        foreach ($assignments as $assignment) {
+            $section = Section::query()->find((int) $assignment->section_id);
+            $schoolYear = SchoolYear::query()->find((int) $assignment->school_year_id);
+            if (! $section || ! $schoolYear) {
+                continue;
+            }
+
+            $this->generateOrRefresh(
+                $teacher,
+                $section,
+                $schoolYear,
+                $year,
+                $month,
+                $actor,
+                false,
+            );
+        }
+    }
+
+    public static function statusMarker(string $status): string
+    {
+        return match (strtolower($status)) {
+            'present' => 'P',
+            'late' => 'L',
+            'excused' => 'E',
+            'absent' => 'A',
+            default => strtoupper(substr($status, 0, 1)),
+        };
+    }
+
+    /**
+     * @param  array<string, string>  $byDay
+     */
+    public static function formatAttendanceByDay(array $byDay): string
+    {
+        if ($byDay === []) {
+            return '—';
+        }
+
+        ksort($byDay, SORT_NATURAL);
+
+        return collect($byDay)
+            ->map(fn (string $status, string $day): string => $day.':'.self::statusMarker($status))
+            ->implode(' ');
     }
 }

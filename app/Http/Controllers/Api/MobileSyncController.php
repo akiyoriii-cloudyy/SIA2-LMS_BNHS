@@ -11,11 +11,8 @@ use App\Models\Section;
 use App\Models\SmsLog;
 use App\Models\Student;
 use App\Models\SyncBatch;
-use App\Models\SubjectAssignment;
-use App\Models\Teacher;
 use App\Services\AttendanceService;
 use App\Services\AttendanceMonthlyReportService;
-use App\Services\InAppNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -75,6 +72,58 @@ class MobileSyncController extends Controller
             ->get();
 
         return response()->json(['data' => $courses]);
+    }
+
+    public function adviserRoster(Request $request, AttendanceMonthlyReportService $monthlyReportService): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user->teacher) {
+            return response()->json(['data' => [], 'message' => 'No teacher profile linked to this account.']);
+        }
+
+        $schoolYearId = $request->integer('school_year_id') ?: SchoolYear::query()->where('is_active', true)->value('id');
+        if (! $schoolYearId) {
+            return response()->json(['message' => 'No active school year found.'], 422);
+        }
+
+        $sectionIds = $monthlyReportService->adviserSectionIds($user, (int) $schoolYearId);
+        if ($sectionIds->isEmpty()) {
+            return response()->json(['data' => [], 'school_year_id' => $schoolYearId]);
+        }
+
+        $enrollments = Enrollment::query()
+            ->with(['student.guardians', 'section'])
+            ->where('school_year_id', $schoolYearId)
+            ->whereIn('section_id', $sectionIds->all())
+            ->where('status', 'active')
+            ->orderBy('section_id')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'school_year_id' => $schoolYearId,
+            'data' => $enrollments->map(function (Enrollment $enrollment): array {
+                $student = $enrollment->student;
+                $primaryGuardian = $student?->guardians
+                    ?->sortByDesc(fn ($guardian): int => (int) $guardian->pivot->is_primary)
+                    ?->first();
+
+                return [
+                    'enrollment_id' => $enrollment->id,
+                    'student_id' => $enrollment->student_id,
+                    'student_name' => $student?->full_name,
+                    'lrn' => $student?->lrn,
+                    'rfid_uid' => $student?->rfid_uid,
+                    'section_id' => $enrollment->section_id,
+                    'section_name' => $enrollment->section?->name,
+                    'grade_level' => $enrollment->section?->grade_level,
+                    'primary_guardian' => $primaryGuardian ? [
+                        'name' => trim($primaryGuardian->first_name.' '.$primaryGuardian->last_name),
+                        'phone' => $primaryGuardian->phone,
+                    ] : null,
+                ];
+            })->values(),
+        ]);
     }
 
     public function roster(Request $request): JsonResponse
@@ -228,12 +277,7 @@ class MobileSyncController extends Controller
         ]);
     }
 
-    public function syncAttendance(
-        Request $request,
-        AttendanceService $attendanceService,
-        AttendanceMonthlyReportService $monthlyReportService,
-        InAppNotificationService $notifications,
-    ): JsonResponse
+    public function syncAttendance(Request $request, AttendanceService $attendanceService): JsonResponse
     {
         $validated = $request->validate([
             'device_id' => ['required', 'string', 'max:120'],
@@ -249,29 +293,6 @@ class MobileSyncController extends Controller
         $alreadySynced = SyncBatch::query()->where('batch_uuid', $validated['batch_uuid'])->exists();
         if ($alreadySynced) {
             return response()->json(['message' => 'Batch already processed.'], 200);
-        }
-
-        $enrollmentIds = collect($validated['records'])->pluck('enrollment_id')->unique()->values();
-        $enrollmentMap = Enrollment::query()
-            ->whereIn('id', $enrollmentIds)
-            ->get(['id', 'section_id', 'school_year_id'])
-            ->keyBy('id');
-
-        $affectedKeys = [];
-        foreach ($validated['records'] as $record) {
-            $enrollmentMeta = $enrollmentMap->get((int) $record['enrollment_id']);
-            if (! $enrollmentMeta) {
-                continue;
-            }
-
-            $date = Carbon::parse($record['attendance_date']);
-            $key = implode('|', [
-                (int) $enrollmentMeta->section_id,
-                (int) $enrollmentMeta->school_year_id,
-                (int) $date->year,
-                (int) $date->month,
-            ]);
-            $affectedKeys[$key] = true;
         }
 
         DB::transaction(function () use ($validated, $request, $attendanceService): void {
@@ -301,22 +322,10 @@ class MobileSyncController extends Controller
             ]);
         });
 
-        $this->regenerateMonthlyReportsForAttendanceChanges(
-            array_keys($affectedKeys),
-            $request->user(),
-            $monthlyReportService,
-            $notifications,
-        );
-
-        return response()->json(['message' => 'Attendance synced successfully.']);
+        return response()->json(['message' => 'Attendance saved successfully.']);
     }
 
-    public function rfidScan(
-        Request $request,
-        AttendanceService $attendanceService,
-        AttendanceMonthlyReportService $monthlyReportService,
-        InAppNotificationService $notifications,
-    ): JsonResponse
+    public function rfidScan(Request $request, AttendanceService $attendanceService): JsonResponse
     {
         $validated = $request->validate([
             'rfid_uid' => ['required', 'string', 'max:100'],
@@ -371,19 +380,6 @@ class MobileSyncController extends Controller
             $request->user()
         );
 
-        $key = implode('|', [
-            (int) $enrollment->section_id,
-            (int) $enrollment->school_year_id,
-            (int) $date->year,
-            (int) $date->month,
-        ]);
-        $this->regenerateMonthlyReportsForAttendanceChanges(
-            [$key],
-            $request->user(),
-            $monthlyReportService,
-            $notifications,
-        );
-
         $primaryGuardian = $enrollment->student?->guardians
             ?->sortByDesc(fn ($guardian): int => (int) $guardian->pivot->is_primary)
             ?->first();
@@ -412,68 +408,5 @@ class MobileSyncController extends Controller
                 ] : null,
             ],
         ]);
-    }
-
-    /**
-     * @param  list<string>  $affectedKeys key format: section_id|school_year_id|year|month
-     */
-    private function regenerateMonthlyReportsForAttendanceChanges(
-        array $affectedKeys,
-        \App\Models\User $actor,
-        AttendanceMonthlyReportService $monthlyReportService,
-        InAppNotificationService $notifications,
-    ): void {
-        if ($affectedKeys === []) {
-            return;
-        }
-
-        foreach ($affectedKeys as $key) {
-            [$sectionId, $schoolYearId, $year, $month] = array_pad(explode('|', $key), 4, null);
-            if (! $sectionId || ! $schoolYearId || ! $year || ! $month) {
-                continue;
-            }
-
-            $section = Section::query()->find((int) $sectionId);
-            $schoolYear = SchoolYear::query()->find((int) $schoolYearId);
-            if (! $section || ! $schoolYear) {
-                continue;
-            }
-
-            $teacherIds = SubjectAssignment::query()
-                ->where('section_id', (int) $sectionId)
-                ->where('school_year_id', (int) $schoolYearId)
-                ->whereNotNull('teacher_id')
-                ->pluck('teacher_id')
-                ->unique();
-
-            foreach ($teacherIds as $teacherId) {
-                $teacher = Teacher::query()->with('user')->find((int) $teacherId);
-                if (! $teacher?->user) {
-                    continue;
-                }
-
-                $report = $monthlyReportService->generateOrRefresh(
-                    $teacher,
-                    $section,
-                    $schoolYear,
-                    (int) $year,
-                    (int) $month,
-                    $actor,
-                    true,
-                );
-
-                $notifications->notifyUser(
-                    $teacher->user->id,
-                    'attendance_monthly_report',
-                    'Monthly attendance report ready',
-                    ($section->name ?? 'Section').' — '.$report->periodLabel().' (Report #'.$report->id.')',
-                    [
-                        'report_id' => $report->id,
-                        'action_url' => $report->webUrl(),
-                        'print_url' => $report->printUrl(),
-                    ],
-                );
-            }
-        }
     }
 }
