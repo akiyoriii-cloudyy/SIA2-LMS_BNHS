@@ -45,6 +45,10 @@ html, body { height: 100%; }
     opacity: 0;
 }
 
+.nav-overlay {
+    display: none;
+}
+
 body.lms {
     margin: 0;
     font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
@@ -118,7 +122,7 @@ body.lms:not(.lms-login)::before {
     content: none;
 }
 
-.shell { min-height: 100vh; display: flex; }
+.shell { min-height: 100vh; display: flex; position: relative; }
 
 /* Sidebar */
 .sidebar {
@@ -769,6 +773,10 @@ body.lms-guest .main{ margin-left: 0; }
     border-bottom: 2px solid rgba(15, 23, 42, 0.85);
 }
 
+.topbar-logout-btn {
+    display: none;
+}
+
 /* Admin notifications (sidebar removed); bell in mobile topbar + desktop strip */
 .topbar-notify {
     position: relative;
@@ -1297,9 +1305,61 @@ body.lms.lms-login .auth-meta {
         transition: transform 0.2s ease;
         width: min(88vw, 340px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        height: 100dvh;
+        overflow: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
     .nav-toggle:checked ~ .shell .sidebar { transform: translateX(0); }
+    .nav-toggle:checked ~ .nav-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: 40;
+    }
     .shell { display: block; }
+
+    /* Mobile: keep footer/logout fixed at sidebar bottom, menu becomes scrollable. */
+    .sidebar .menu {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px));
+    }
+
+    body.lms-auth .sidebar-footer {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--navy);
+        z-index: 80;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* On mobile/touch, the sidebar is usually not ":hover", so override the "collapsed label hidden" rules. */
+    body.lms-auth .sidebar:not(:hover):not(:focus-within) .sidebar-logout-btn {
+        font-size: inherit !important;
+        line-height: inherit !important;
+        padding: 10px 8px !important;
+        gap: 8px !important;
+        justify-content: center;
+    }
+
+    body.lms-auth .sidebar:not(:hover):not(:focus-within) .sidebar-logout-label {
+        position: static !important;
+        width: auto !important;
+        height: auto !important;
+        clip: auto !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        white-space: normal !important;
+        border: 0 !important;
+    }
+
+    /* Topbar logout removed; keep sidebar logout only. */
 }
 
 /* --- Dashboard (EduGrade Pro) --- */

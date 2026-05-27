@@ -6,6 +6,7 @@
             $a = $adminStats ?? [];
             $recentUsersList = collect($recentUsers ?? []);
             $recentSmsLogsList = collect($recentSmsLogs ?? []);
+            $publicBase = rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?: '', '/');
         @endphp
 
         <div class="dash-topbar">
@@ -17,6 +18,7 @@
             <div class="dash-topbar-actions">
                 <a class="btn btn-outline btn-sm" href="{{ route('admin.users.index') }}">User management</a>
                 <a class="btn btn-outline btn-sm" href="{{ route('mobile.app') }}">RFID mobile app</a>
+                <a class="btn btn-outline btn-sm" href="{{ $publicBase }}/download-app">Download mobile app</a>
                 <a class="btn btn-primary btn-sm" href="{{ route('sms-logs.index') }}">SMS logs</a>
             </div>
         </div>
@@ -229,6 +231,7 @@
         $quarterInSemester = (int) ($quarterInSemester ?? (($quarter ?? 1) <= 2 ? ($quarter ?? 1) : (($quarter ?? 1) - 2)));
         $periodQuery = ['semester' => $semester, 'quarter' => $quarterInSemester];
         $gradebookPeriodQuery = ['subject_category' => 'core', 'semester' => $semester, 'quarter' => $quarterInSemester];
+        $publicBase = rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?: '', '/');
 
         $distTotal = (int) array_sum($distribution ?? []);
         $donutTotal = $distTotal > 0 ? $distTotal : $totalStudents;
@@ -544,6 +547,13 @@
                         <span>
                             <div class="qa-label">Subject Teacher</div>
                             <div class="qa-sub">Track completion</div>
+                        </span>
+                    </a>
+                    <a class="qa-btn" href="{{ $publicBase }}/download-app">
+                        <span class="qa-icon">📲</span>
+                        <span>
+                            <div class="qa-label">Download Teacher Mobile App</div>
+                            <div class="qa-sub">Install Android attendance app</div>
                         </span>
                     </a>
                     <a class="qa-btn" href="{{ route('report-cards.index') }}">

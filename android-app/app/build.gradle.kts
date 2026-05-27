@@ -15,11 +15,11 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Emulator → host machine XAMPP. Change for a physical device (your PC LAN IP).
+        // Default API for teacher APK (Cloudflare Tunnel demo). Users can override in app: Server settings.
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"http://10.0.2.2/LMS_BNHS/public/api/\""
+            "\"https://quiz-timely-technologies-lock.trycloudflare.com/LMS_BNHS/api/\""
         )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

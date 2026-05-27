@@ -31,8 +31,9 @@ return new class extends Migration
 
         Schema::create('attendance_monthly_report_lines', function (Blueprint $table): void {
             $table->id();
+            // Short FK name: MySQL identifier limit is 64 characters.
             $table->foreignId('attendance_monthly_report_id')
-                ->constrained('attendance_monthly_reports')
+                ->constrained('attendance_monthly_reports', 'id', 'amrl_report_id_fk')
                 ->cascadeOnDelete();
             $table->foreignId('enrollment_id')->constrained('enrollments')->cascadeOnDelete();
             $table->string('student_name');

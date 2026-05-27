@@ -27,6 +27,24 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+Route::get('/download-app', function () {
+    return view('download-app', [
+        'apkAvailable' => file_exists(public_path('downloads/lms-bnhs-teacher.apk')),
+    ]);
+})->name('download-app');
+
+Route::get('/download-app/android', function () {
+    $apkPath = public_path('downloads/lms-bnhs-teacher.apk');
+
+    if (! file_exists($apkPath)) {
+        $publicBase = rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?: '', '/');
+
+        return redirect($publicBase.'/download-app?apk_unavailable=1');
+    }
+
+    return response()->download($apkPath, 'lms-bnhs-teacher.apk');
+})->name('download-app.android');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login.submit');

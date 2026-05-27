@@ -5,14 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'BNHS LMS')</title>
+    @php
+        $publicBase = rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?: '', '/');
+    @endphp
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('lms.css') }}?v={{ @filemtime(public_path('lms.css')) }}">
+    <link rel="stylesheet" href="{{ $publicBase }}/lms.css?v={{ time() }}">
     <script>
         window.__LMS_THEME_SEED = @json(auth()->check() ? (auth()->id().'|'.auth()->user()->email) : 'guest');
     </script>
-    <script src="{{ asset('lms-theme.js') }}?v={{ @filemtime(public_path('lms-theme.js')) }}" defer></script>
+    <script src="{{ $publicBase }}/lms-theme.js?v={{ time() }}" defer></script>
 </head>
 <body class="lms {{ auth()->check() ? 'lms-auth' : 'lms-guest' }} {{ auth()->check() ? (auth()->user()->hasRole('admin') ? 'lms-role-admin' : (auth()->user()->hasRole('adviser') ? 'lms-role-adviser' : (auth()->user()->hasRole('subject_teacher') ? 'lms-role-subject-teacher' : 'lms-role-user'))) : '' }}">
     @if (auth()->check())
@@ -44,6 +47,7 @@
         @endphp
 
         <input class="nav-toggle" type="checkbox" id="nav-toggle">
+        <label for="nav-toggle" class="nav-overlay" aria-hidden="true"></label>
 
         <div class="shell">
             <aside class="sidebar">
@@ -85,6 +89,10 @@
                         <a href="{{ route('mobile.app') }}" class="{{ request()->routeIs('mobile.app') ? 'active' : '' }}">
                             <span class="icon">&#128242;</span>
                             RFID mobile app
+                        </a>
+                        <a href="{{ $publicBase }}/download-app">
+                            <span class="icon">&#11015;</span>
+                            Download mobile app
                         </a>
 
                         <div class="group">Admin</div>
@@ -188,6 +196,10 @@
                             <span class="icon">&#128242;</span>
                             RFID mobile app
                         </a>
+                        <a href="{{ $publicBase }}/download-app">
+                            <span class="icon">&#11015;</span>
+                            Download mobile app
+                        </a>
 
                         @if (auth()->user()->hasPermission('activity_logs.view'))
                             <div class="group">Activity</div>
@@ -226,7 +238,7 @@
                             </div>
                         </div>
                     </div>
-                    <form method="POST" action="{{ route('logout') }}">
+                    <form method="POST" action="{{ $publicBase }}/logout">
                         @csrf
                         <button class="btn sidebar-logout-btn" type="submit">
                             <span class="icon sidebar-logout-ico" aria-hidden="true">&#128682;</span>
@@ -303,7 +315,7 @@
                     <script>
                         window.LMS_NOTIFICATIONS = @json($__lmsNotificationsConfig);
                     </script>
-                    <script src="{{ asset('notifications-modal.js') }}?v={{ filemtime(public_path('notifications-modal.js')) }}" defer></script>
+                    <script src="{{ $publicBase }}/notifications-modal.js?v={{ time() }}" defer></script>
                     @if (session('open_notifications_modal'))
                         <script>
                             document.addEventListener('DOMContentLoaded', function () {
