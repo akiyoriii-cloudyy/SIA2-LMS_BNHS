@@ -10,8 +10,7 @@
     @endphp
 
     <div class="print-actions">
-        <a class="btn btn-primary" href="{{ route('attendance-reports.export-excel', $report) }}">Download Excel (.xlsx)</a>
-        <button type="button" class="btn btn-outline" onclick="window.print()">Print Paper</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()">Print</button>
         <a class="btn btn-outline" href="{{ $report->webUrl() }}">Back to Report</a>
     </div>
 
@@ -20,7 +19,7 @@
         <div class="print-doc-meta">
             <div><strong>Section:</strong> {{ $section?->name ?? '—' }} (Grade {{ $section?->grade_level ?? '—' }})</div>
             <div><strong>School Year:</strong> {{ $schoolYear?->name ?? '—' }}</div>
-            <div><strong>Month:</strong> {{ $report->monthName() }} · <strong>Year:</strong> {{ $report->calendarYear() }} ({{ $report->periodRangeLabel() }})</div>
+            <div><strong>Period:</strong> {{ $report->periodLabel() }}</div>
             <div><strong>School Days (section):</strong> {{ $report->school_days_total }} · <strong>Total Absences:</strong> {{ $totalAbsent }}</div>
             <div><strong>Report ID:</strong> #{{ $report->id }} · <strong>Generated:</strong> {{ $report->generated_at?->format('M j, Y g:i A') ?? '—' }}</div>
             @if ($report->emailed_at)

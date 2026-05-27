@@ -3,10 +3,7 @@ package com.bnhs.edutrack.reports
 import com.bnhs.edutrack.ui.*
 
 import android.content.Intent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,11 +11,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,37 +34,6 @@ import com.bnhs.edutrack.rbac.RbacAccessDenied
 import com.bnhs.edutrack.rbac.RbacEnforcer
 import com.bnhs.edutrack.rbac.RbacPermission
 import kotlinx.coroutines.launch
-import java.time.Year
-import java.time.YearMonth
-import java.time.ZoneId
-import java.time.format.TextStyle
-import java.util.Locale
-
-private val PHILIPPINES_ZONE: ZoneId = ZoneId.of("Asia/Manila")
-
-object MonthlyReportPeriod {
-    val allMonths: List<Pair<Int, String>> = (1..12).map { month ->
-        month to java.time.Month.of(month)
-            .getDisplayName(TextStyle.FULL, Locale.ENGLISH)
-    }
-
-    fun monthLabel(month: Int): String =
-        java.time.Month.of(month.coerceIn(1, 12))
-            .getDisplayName(TextStyle.FULL, Locale.ENGLISH)
-
-    fun defaultYear(): Int = YearMonth.now(PHILIPPINES_ZONE).year
-
-    fun defaultMonth(): Int = YearMonth.now(PHILIPPINES_ZONE).monthValue
-
-    fun yearOptions(reports: List<MonthlyReportSummaryDto>): List<Int> {
-        val current = defaultYear()
-        val fromReports = reports.mapNotNull { it.reportYear }
-        return ((current - 3)..(current + 1))
-            .toList()
-            .union(fromReports)
-            .sortedDescending()
-    }
-}
 
 class MonthlyReportsViewModel(
     private val repository: MonthlyReportsRepository,
@@ -77,11 +41,8 @@ class MonthlyReportsViewModel(
     var reports by mutableStateOf<List<MonthlyReportSummaryDto>>(emptyList())
     var selectedReportId by mutableStateOf<Long?>(null)
     var selectedReport by mutableStateOf<MonthlyReportDetailDto?>(null)
-    var selectedMonth by mutableStateOf(MonthlyReportPeriod.defaultMonth())
-    var selectedYear by mutableStateOf(MonthlyReportPeriod.defaultYear())
     var isLoading by mutableStateOf(false)
-    var isGenerating by mutableStateOf(false)
-    var statusMessage by mutableStateOf("Select month and year, then generate the report for the web portal.")
+    var statusMessage by mutableStateOf("Load a monthly attendance report from the server.")
 
     fun refreshList(selectLatest: Boolean = true) {
         viewModelScope.launch {
@@ -92,14 +53,11 @@ class MonthlyReportsViewModel(
                     if (reports.isEmpty()) {
                         selectedReportId = null
                         selectedReport = null
-                        statusMessage = "No monthly report yet. Mark daily attendance in Roster, then tap Generate Excel Reports Attendance."
+                        statusMessage = "No monthly report yet. Mark daily attendance in Roster, then ask admin to generate the report on the server."
                     } else {
-                        if (selectLatest) {
-                            val latest = reports.first()
-                            selectedMonth = latest.reportMonth ?: MonthlyReportPeriod.defaultMonth()
-                            selectedYear = latest.reportYear ?: MonthlyReportPeriod.defaultYear()
-                        }
-                        applyMonthYearSelection()
+                        val pick = if (selectLatest) reports.first().id else selectedReportId
+                        pick?.let { loadDetail(it) }
+                            ?: run { statusMessage = "${reports.size} report(s) available. Select one below." }
                     }
                 }
                 is ReportsResult.Error -> {
@@ -108,65 +66,6 @@ class MonthlyReportsViewModel(
                 }
             }
             isLoading = false
-        }
-    }
-
-    fun onMonthSelected(month: Int) {
-        if (selectedMonth == month) return
-        selectedMonth = month
-        applyMonthYearSelection()
-    }
-
-    fun onYearSelected(year: Int) {
-        if (selectedYear == year) return
-        selectedYear = year
-        applyMonthYearSelection()
-    }
-
-    private fun applyMonthYearSelection() {
-        val month = selectedMonth
-        val year = selectedYear
-        val match = reports.firstOrNull { r ->
-            r.reportMonth == month && r.reportYear == year
-        }
-        if (match?.id != null) {
-            loadDetail(match.id)
-        } else {
-            selectedReportId = null
-            selectedReport = null
-            statusMessage = "No report for ${MonthlyReportPeriod.monthLabel(month)} $year. Tap Generate Excel Reports Attendance to publish it on the web portal."
-        }
-    }
-
-    fun generateExcelReport() {
-        viewModelScope.launch {
-            isGenerating = true
-            when (val result = repository.generateReport(selectedYear, selectedMonth)) {
-                is ReportsResult.Success -> {
-                    val (message, _) = result.value
-                    statusMessage = message
-                    when (val listResult = repository.listReports()) {
-                        is ReportsResult.Success -> {
-                            reports = listResult.value
-                            val match = reports.firstOrNull { r ->
-                                r.reportMonth == selectedMonth && r.reportYear == selectedYear
-                            }
-                            if (match?.id != null) {
-                                loadDetail(match.id)
-                            } else {
-                                applyMonthYearSelection()
-                            }
-                        }
-                        is ReportsResult.Error -> {
-                            statusMessage = listResult.message
-                        }
-                    }
-                }
-                is ReportsResult.Error -> {
-                    statusMessage = result.message
-                }
-            }
-            isGenerating = false
         }
     }
 
@@ -177,10 +76,7 @@ class MonthlyReportsViewModel(
             when (val result = repository.getReport(reportId)) {
                 is ReportsResult.Success -> {
                     selectedReport = result.value
-                    result.value.reportMonth?.let { selectedMonth = it }
-                    result.value.reportYear?.let { selectedYear = it }
-                    val month = MonthlyReportPeriod.monthLabel(selectedMonth)
-                    statusMessage = "$month $selectedYear — ${result.value.lines.orEmpty().size} students"
+                    statusMessage = "${result.value.periodLabel.orEmpty()} — ${result.value.lines.orEmpty().size} students"
                 }
                 is ReportsResult.Error -> {
                     selectedReport = null
@@ -189,6 +85,10 @@ class MonthlyReportsViewModel(
             }
             isLoading = false
         }
+    }
+
+    fun selectReport(reportId: Long) {
+        if (reportId != selectedReportId) loadDetail(reportId)
     }
 }
 
@@ -214,9 +114,6 @@ fun AdviserMonthlyReportsScreen(
     val report = viewModel.selectedReport
     val lines = report?.lines.orEmpty().sortedBy { it.studentName.orEmpty() }
     val horizontalScroll = rememberScrollState()
-    val yearOptions = remember(viewModel.reports) {
-        MonthlyReportPeriod.yearOptions(viewModel.reports)
-    }
 
     LaunchedEffect(Unit) {
         viewModel.refreshList(selectLatest = true)
@@ -235,8 +132,8 @@ fun AdviserMonthlyReportsScreen(
             Column(Modifier.weight(1f)) {
                 Text("Monthly Attendance Report", fontWeight = FontWeight.Bold, color = PrimaryDark, fontSize = 16.sp)
                 Text(
-                    report?.section?.name?.takeIf { it.isNotBlank() }
-                        ?: "Pick month and year below",
+                    report?.let { "${it.section?.name.orEmpty()} · ${it.periodLabel.orEmpty()}" }
+                        ?: "Select a report period",
                     fontSize = 11.sp,
                     color = TextSubtitle,
                     maxLines = 2,
@@ -248,35 +145,40 @@ fun AdviserMonthlyReportsScreen(
             }
         }
 
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            MonthYearDropdown(
-                label = "Month",
-                value = MonthlyReportPeriod.monthLabel(viewModel.selectedMonth),
-                options = MonthlyReportPeriod.allMonths.map { it.second },
-                onSelect = { label ->
-                    MonthlyReportPeriod.allMonths
-                        .firstOrNull { it.second == label }
-                        ?.first
-                        ?.let { viewModel.onMonthSelected(it) }
-                },
-                modifier = Modifier.weight(1f),
-                enabled = !viewModel.isLoading,
-            )
-            MonthYearDropdown(
-                label = "Year",
-                value = viewModel.selectedYear.toString(),
-                options = yearOptions.map { it.toString() },
-                onSelect = { yearStr ->
-                    yearStr.toIntOrNull()?.let { viewModel.onYearSelected(it) }
-                },
-                modifier = Modifier.weight(1f),
-                enabled = !viewModel.isLoading,
-            )
+        if (viewModel.reports.isNotEmpty()) {
+            var expanded by remember { mutableStateOf(false) }
+            val selectedSummary = viewModel.reports.firstOrNull { it.id == viewModel.selectedReportId }
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            ) {
+                OutlinedTextField(
+                    value = selectedSummary?.periodLabel ?: "Choose report period",
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    label = { Text("Report period") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                    shape = RoundedCornerShape(12.dp),
+                )
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    viewModel.reports.forEach { item ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "${item.periodLabel.orEmpty()} — ${item.section?.name.orEmpty()}",
+                                    fontSize = 13.sp,
+                                )
+                            },
+                            onClick = {
+                                expanded = false
+                                item.id?.let { viewModel.selectReport(it) }
+                            },
+                        )
+                    }
+                }
+            }
         }
 
         Row(
@@ -286,12 +188,7 @@ fun AdviserMonthlyReportsScreen(
             Button(
                 onClick = {
                     report?.let { r ->
-                        context.startActivity(
-                            Intent.createChooser(
-                                MonthlyReportExcelExporter.shareExcel(context, r),
-                                "Send report",
-                            ),
-                        )
+                        context.startActivity(Intent.createChooser(MonthlyReportCsvExporter.shareCsv(context, r), "Send report"))
                     }
                 },
                 enabled = report != null && !viewModel.isLoading,
@@ -303,31 +200,27 @@ fun AdviserMonthlyReportsScreen(
                 Spacer(Modifier.width(6.dp))
                 Text("Share / Email", fontSize = 12.sp)
             }
-        }
-
-        Button(
-            onClick = { viewModel.generateExcelReport() },
-            enabled = !viewModel.isLoading && !viewModel.isGenerating,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryMain),
-        ) {
-            if (viewModel.isGenerating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    color = Color.White,
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Icon(Icons.Default.TableChart, null, modifier = Modifier.size(18.dp))
+            OutlinedButton(
+                onClick = {
+                    report?.let { r ->
+                        val file = MonthlyReportCsvExporter.writeToCache(context, r)
+                        context.startActivity(
+                            Intent.createChooser(
+                                MonthlyReportCsvExporter.shareCsv(context, r),
+                                "Download CSV",
+                            ),
+                        )
+                        onStatus("Saved: ${file.name}")
+                    }
+                },
+                enabled = report != null && !viewModel.isLoading,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp), tint = PrimaryMain)
+                Spacer(Modifier.width(6.dp))
+                Text("Download CSV", fontSize = 12.sp, color = PrimaryDark)
             }
-            Spacer(Modifier.width(8.dp))
-            Text(
-                if (viewModel.isGenerating) "Generating…" else "Generate Excel Reports Attendance",
-                fontSize = 12.sp,
-            )
         }
 
         if (viewModel.isLoading && report == null) {
@@ -345,146 +238,51 @@ fun AdviserMonthlyReportsScreen(
                 )
             }
         } else {
-            var reportExpanded by remember(report?.id) { mutableStateOf(true) }
-
             Card(
-                Modifier
-                    .fillMaxWidth()
-                    .animateContentSize(),
+                Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
             ) {
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { reportExpanded = !reportExpanded }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    Modifier.padding(12.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Student attendance",
-                            fontWeight = FontWeight.SemiBold,
-                            color = PrimaryDark,
-                            fontSize = 14.sp,
-                        )
-                        Text(
-                            "${MonthlyReportPeriod.monthLabel(viewModel.selectedMonth)} ${viewModel.selectedYear} · ${lines.size} students",
-                            fontSize = 11.sp,
-                            color = TextSubtitle,
-                        )
-                    }
-                    Icon(
-                        imageVector = if (reportExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (reportExpanded) "Roll up" else "Roll down",
-                        tint = PrimaryMain,
-                    )
+                    StatChip("School days", "${report.schoolDaysTotal ?: 0}")
+                    StatChip("Students", "${lines.size}")
+                    StatChip("Total absent", "${report.totalAbsentDays ?: 0}", ErrorMain)
                 }
             }
 
-            AnimatedVisibility(
-                visible = reportExpanded,
-                modifier = Modifier.weight(1f),
+            if (viewModel.isLoading) {
+                LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 6.dp), color = PrimaryMain)
+            }
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .horizontalScroll(horizontalScroll)
+                    .background(PrimaryDark.copy(0.08f), RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
-                Column(Modifier.fillMaxSize()) {
-                    Card(
-                        Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                    ) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                        ) {
-                            StatChip("Month", MonthlyReportPeriod.monthLabel(viewModel.selectedMonth))
-                            StatChip("Year", "${viewModel.selectedYear}")
-                            StatChip("Students", "${lines.size}")
-                            StatChip("Total absent", "${report.totalAbsentDays ?: 0}", ErrorMain)
-                        }
-                    }
-
-                    if (viewModel.isLoading) {
-                        LinearProgressIndicator(
-                            Modifier.fillMaxWidth().padding(top = 6.dp),
-                            color = PrimaryMain,
-                        )
-                    }
-
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp)
-                            .horizontalScroll(horizontalScroll)
-                            .background(PrimaryDark.copy(0.08f), RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                    ) {
-                        MonthlyTableHeaderCell("#", 0.35f)
-                        MonthlyTableHeaderCell("Student", 1.6f)
-                        MonthlyTableHeaderCell("LRN", 0.9f)
-                        MonthlyTableHeaderCell("Days", 0.45f)
-                        MonthlyTableHeaderCell("Pres.", 0.45f)
-                        MonthlyTableHeaderCell("Late", 0.45f)
-                        MonthlyTableHeaderCell("Exc.", 0.45f)
-                        MonthlyTableHeaderCell("Absent", 0.55f)
-                        MonthlyTableHeaderCell("Remarks", 1.1f)
-                    }
-
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        items(lines, key = { it.id ?: it.enrollmentId ?: 0L }) { line ->
-                            MonthlyReportLineRow(line, horizontalScroll)
-                        }
-                    }
-                }
+                MonthlyTableHeaderCell("#", 0.35f)
+                MonthlyTableHeaderCell("Student", 1.6f)
+                MonthlyTableHeaderCell("LRN", 0.9f)
+                MonthlyTableHeaderCell("Days", 0.45f)
+                MonthlyTableHeaderCell("Pres.", 0.45f)
+                MonthlyTableHeaderCell("Late", 0.45f)
+                MonthlyTableHeaderCell("Exc.", 0.45f)
+                MonthlyTableHeaderCell("Absent", 0.55f)
+                MonthlyTableHeaderCell("Remarks", 1.1f)
             }
-        }
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MonthYearDropdown(
-    label: String,
-    value: String,
-    options: List<String>,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = it },
-        modifier = modifier,
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            shape = RoundedCornerShape(12.dp),
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.heightIn(max = 320.dp),
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option, fontSize = 13.sp) },
-                    onClick = {
-                        expanded = false
-                        onSelect(option)
-                    },
-                )
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(lines, key = { it.id ?: it.enrollmentId ?: 0L }) { line ->
+                    MonthlyReportLineRow(line, horizontalScroll)
+                }
             }
         }
     }

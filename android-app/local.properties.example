@@ -1,8 +1,0 @@
-# Copy lines into local.properties (same folder). Do not commit local.properties.
-sdk.dir=C\:\\Users\\YOUR_USER\\AppData\\Local\\Android\\Sdk
-
-# Physical phone on same Wi‑Fi as your PC (replace with your PC's IPv4 address):
-# api.base.url=http://192.168.1.100/LMS_BNHS/public/api/
-
-# Android emulator (default if omitted):
-# api.base.url=http://10.0.2.2/LMS_BNHS/public/api/

@@ -16,32 +16,6 @@ use Illuminate\Support\Collection;
 
 class AttendanceMonthlyReportService
 {
-    public static function monthBounds(int $year, int $month): array
-    {
-        $start = Carbon::create(
-            $year,
-            $month,
-            1,
-            0,
-            0,
-            0,
-            AttendanceMonthlyReport::appTimezone(),
-        )->startOfDay();
-        $end = $start->copy()->endOfMonth();
-
-        return [$start, $end];
-    }
-
-    /**
-     * Parse a calendar attendance date (Y-m-d) in the school timezone — avoids UTC day shifts.
-     */
-    public static function parseAttendanceDate(string $value): Carbon
-    {
-        $dateOnly = substr(trim($value), 0, 10);
-
-        return Carbon::createFromFormat('Y-m-d', $dateOnly, AttendanceMonthlyReport::appTimezone())->startOfDay();
-    }
-
     /**
      * @return Collection<int, int>
      */
@@ -66,14 +40,15 @@ class AttendanceMonthlyReportService
      */
     public function summarizeEnrollmentMonth(Enrollment $enrollment, int $year, int $month): array
     {
-        [$start, $end] = self::monthBounds($year, $month);
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end = $start->copy()->endOfMonth();
 
         $rows = AttendanceRecord::query()
             ->where('enrollment_id', $enrollment->id)
             ->whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
             ->get(['attendance_date', 'status']);
 
-        $byDate = $rows->groupBy(fn ($row) => self::parseAttendanceDate((string) $row->attendance_date)->toDateString());
+        $byDate = $rows->groupBy(fn ($row) => Carbon::parse((string) $row->attendance_date)->toDateString());
 
         $countStatus = function (string $status) use ($byDate): int {
             return (int) $byDate->filter(function (Collection $dayRows) use ($status): bool {
@@ -92,7 +67,8 @@ class AttendanceMonthlyReportService
 
     public function monthSchoolDaysTotal(int $sectionId, int $schoolYearId, int $year, int $month): int
     {
-        [$start, $end] = self::monthBounds($year, $month);
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end = $start->copy()->endOfMonth();
 
         $enrollmentIds = Enrollment::query()
             ->where('section_id', $sectionId)

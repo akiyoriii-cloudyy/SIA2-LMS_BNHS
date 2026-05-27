@@ -56,20 +56,16 @@
                     </select>
                 </div>
                 <div>
-                    <label>Calendar Year</label>
-                    <select name="report_year" required>
-                        @foreach ($reportYears as $year)
-                            <option value="{{ $year }}" @selected($defaultYear === $year)>{{ $year }}</option>
+                    <label>Month</label>
+                    <select name="report_month" required>
+                        @foreach (range(1, 12) as $m)
+                            <option value="{{ $m }}" @selected($defaultMonth === $m)>{{ \Carbon\Carbon::create(null, $m, 1)->format('F') }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
-                    <label>Month</label>
-                    <select name="report_month" required>
-                        @foreach ($calendarMonths as $monthNum => $monthName)
-                            <option value="{{ $monthNum }}" @selected($defaultMonth === $monthNum)>{{ $monthName }}</option>
-                        @endforeach
-                    </select>
+                    <label>Year</label>
+                    <input type="number" name="report_year" value="{{ $defaultYear }}" min="2020" max="2100" required>
                 </div>
             </div>
             <br>
@@ -94,36 +90,13 @@
                     @endforeach
                 </select>
             </div>
-            <div>
-                <label>Filter Year</label>
-                <select name="filter_year" onchange="this.form.submit()">
-                    <option value="">All years</option>
-                    @foreach ($reportYears as $year)
-                        <option value="{{ $year }}" @selected($filterYear === $year)>{{ $year }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label>Filter Month</label>
-                <select name="filter_month" onchange="this.form.submit()">
-                    <option value="">All months</option>
-                    @foreach ($calendarMonths as $monthNum => $monthName)
-                        <option value="{{ $monthNum }}" @selected($filterMonth === $monthNum)>{{ $monthName }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label>&nbsp;</label>
-                <a class="btn btn-outline" href="{{ route('attendance-reports.index', ['school_year_id' => $selectedSchoolYear]) }}">Clear filters</a>
-            </div>
         </form>
 
         <div class="table-wrap">
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Month</th>
-                        <th>Year</th>
+                        <th>Period</th>
                         <th>Section</th>
                         <th>School Year</th>
                         <th>Students</th>
@@ -136,8 +109,7 @@
                 <tbody>
                     @forelse ($reports as $report)
                         <tr>
-                            <td>{{ $report->monthName() }}</td>
-                            <td>{{ $report->calendarYear() }}</td>
+                            <td>{{ $report->periodLabel() }}</td>
                             <td>{{ $report->section?->name ?? '—' }}</td>
                             <td>{{ $report->schoolYear?->name ?? '—' }}</td>
                             <td>{{ $report->lines_count }}</td>
@@ -153,12 +125,11 @@
                             <td style="white-space:nowrap;">
                                 <a class="btn btn-sm" href="{{ route('attendance-reports.show', $report) }}">Open</a>
                                 <a class="btn btn-sm btn-outline" href="{{ route('attendance-reports.print', $report) }}" target="_blank" rel="noopener">Print</a>
-                                <a class="btn btn-sm btn-outline" href="{{ route('attendance-reports.export-excel', $report) }}">Excel (.xlsx)</a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="muted">No reports yet. Generate one above.</td>
+                            <td colspan="8" class="muted">No reports yet. Generate one above.</td>
                         </tr>
                     @endforelse
                 </tbody>

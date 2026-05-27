@@ -65,10 +65,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.app', function ($view): void {
             $user = auth()->user();
             if (! $user || ! $user->hasPermission('lms.portal')) {
-                $view->with([
-                    'inAppUnreadCount' => 0,
-                    'sidebarMonthlyReportCount' => 0,
-                ]);
+                $view->with('inAppUnreadCount', 0);
 
                 return;
             }
@@ -79,17 +76,7 @@ class AppServiceProvider extends ServiceProvider
                 ->unread()
                 ->count();
 
-            $monthlyReportCount = 0;
-            if ($user->hasPermission('attendance.manage') && $user->teacher) {
-                $monthlyReportCount = \App\Models\AttendanceMonthlyReport::query()
-                    ->where('teacher_id', $user->teacher->id)
-                    ->count();
-            }
-
-            $view->with([
-                'inAppUnreadCount' => $count,
-                'sidebarMonthlyReportCount' => $monthlyReportCount,
-            ]);
+            $view->with('inAppUnreadCount', $count);
         });
     }
 }

@@ -40,8 +40,6 @@ public final class StudentDao_Impl implements StudentDao {
 
   private final EntityDeletionOrUpdateAdapter<StudentEntity> __updateAdapterOfStudentEntity;
 
-  private final SharedSQLiteStatement __preparedStmtOfDeleteServerSynced;
-
   private final SharedSQLiteStatement __preparedStmtOfDeleteAll;
 
   public StudentDao_Impl(@NonNull final RoomDatabase __db) {
@@ -50,7 +48,7 @@ public final class StudentDao_Impl implements StudentDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR ABORT INTO `students` (`id`,`name`,`lrn`,`rfid_uid`,`grade_level`,`section`,`status`,`sex`,`enrollment_id`,`server_student_id`,`created_at`,`updated_at`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR ABORT INTO `students` (`id`,`name`,`lrn`,`rfid_uid`,`grade_level`,`section`,`status`,`sex`,`created_at`,`updated_at`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -64,18 +62,8 @@ public final class StudentDao_Impl implements StudentDao {
         statement.bindString(6, entity.getSection());
         statement.bindString(7, entity.getStatus());
         statement.bindString(8, entity.getSex());
-        if (entity.getEnrollmentId() == null) {
-          statement.bindNull(9);
-        } else {
-          statement.bindLong(9, entity.getEnrollmentId());
-        }
-        if (entity.getServerStudentId() == null) {
-          statement.bindNull(10);
-        } else {
-          statement.bindLong(10, entity.getServerStudentId());
-        }
-        statement.bindLong(11, entity.getCreatedAt());
-        statement.bindLong(12, entity.getUpdatedAt());
+        statement.bindLong(9, entity.getCreatedAt());
+        statement.bindLong(10, entity.getUpdatedAt());
       }
     };
     this.__deletionAdapterOfStudentEntity = new EntityDeletionOrUpdateAdapter<StudentEntity>(__db) {
@@ -95,7 +83,7 @@ public final class StudentDao_Impl implements StudentDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `students` SET `id` = ?,`name` = ?,`lrn` = ?,`rfid_uid` = ?,`grade_level` = ?,`section` = ?,`status` = ?,`sex` = ?,`enrollment_id` = ?,`server_student_id` = ?,`created_at` = ?,`updated_at` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `students` SET `id` = ?,`name` = ?,`lrn` = ?,`rfid_uid` = ?,`grade_level` = ?,`section` = ?,`status` = ?,`sex` = ?,`created_at` = ?,`updated_at` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -109,27 +97,9 @@ public final class StudentDao_Impl implements StudentDao {
         statement.bindString(6, entity.getSection());
         statement.bindString(7, entity.getStatus());
         statement.bindString(8, entity.getSex());
-        if (entity.getEnrollmentId() == null) {
-          statement.bindNull(9);
-        } else {
-          statement.bindLong(9, entity.getEnrollmentId());
-        }
-        if (entity.getServerStudentId() == null) {
-          statement.bindNull(10);
-        } else {
-          statement.bindLong(10, entity.getServerStudentId());
-        }
-        statement.bindLong(11, entity.getCreatedAt());
-        statement.bindLong(12, entity.getUpdatedAt());
-        statement.bindLong(13, entity.getId());
-      }
-    };
-    this.__preparedStmtOfDeleteServerSynced = new SharedSQLiteStatement(__db) {
-      @Override
-      @NonNull
-      public String createQuery() {
-        final String _query = "DELETE FROM students WHERE enrollment_id IS NOT NULL";
-        return _query;
+        statement.bindLong(9, entity.getCreatedAt());
+        statement.bindLong(10, entity.getUpdatedAt());
+        statement.bindLong(11, entity.getId());
       }
     };
     this.__preparedStmtOfDeleteAll = new SharedSQLiteStatement(__db) {
@@ -197,29 +167,6 @@ public final class StudentDao_Impl implements StudentDao {
   }
 
   @Override
-  public Object deleteServerSynced(final Continuation<? super Unit> $completion) {
-    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
-      @Override
-      @NonNull
-      public Unit call() throws Exception {
-        final SupportSQLiteStatement _stmt = __preparedStmtOfDeleteServerSynced.acquire();
-        try {
-          __db.beginTransaction();
-          try {
-            _stmt.executeUpdateDelete();
-            __db.setTransactionSuccessful();
-            return Unit.INSTANCE;
-          } finally {
-            __db.endTransaction();
-          }
-        } finally {
-          __preparedStmtOfDeleteServerSynced.release(_stmt);
-        }
-      }
-    }, $completion);
-  }
-
-  @Override
   public Object deleteAll(final Continuation<? super Unit> $completion) {
     return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
       @Override
@@ -261,8 +208,6 @@ public final class StudentDao_Impl implements StudentDao {
           final int _cursorIndexOfSection = CursorUtil.getColumnIndexOrThrow(_cursor, "section");
           final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
           final int _cursorIndexOfSex = CursorUtil.getColumnIndexOrThrow(_cursor, "sex");
-          final int _cursorIndexOfEnrollmentId = CursorUtil.getColumnIndexOrThrow(_cursor, "enrollment_id");
-          final int _cursorIndexOfServerStudentId = CursorUtil.getColumnIndexOrThrow(_cursor, "server_student_id");
           final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "created_at");
           final int _cursorIndexOfUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "updated_at");
           final List<StudentEntity> _result = new ArrayList<StudentEntity>(_cursor.getCount());
@@ -284,23 +229,11 @@ public final class StudentDao_Impl implements StudentDao {
             _tmpStatus = _cursor.getString(_cursorIndexOfStatus);
             final String _tmpSex;
             _tmpSex = _cursor.getString(_cursorIndexOfSex);
-            final Long _tmpEnrollmentId;
-            if (_cursor.isNull(_cursorIndexOfEnrollmentId)) {
-              _tmpEnrollmentId = null;
-            } else {
-              _tmpEnrollmentId = _cursor.getLong(_cursorIndexOfEnrollmentId);
-            }
-            final Long _tmpServerStudentId;
-            if (_cursor.isNull(_cursorIndexOfServerStudentId)) {
-              _tmpServerStudentId = null;
-            } else {
-              _tmpServerStudentId = _cursor.getLong(_cursorIndexOfServerStudentId);
-            }
             final long _tmpCreatedAt;
             _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
             final long _tmpUpdatedAt;
             _tmpUpdatedAt = _cursor.getLong(_cursorIndexOfUpdatedAt);
-            _item = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpEnrollmentId,_tmpServerStudentId,_tmpCreatedAt,_tmpUpdatedAt);
+            _item = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpCreatedAt,_tmpUpdatedAt);
             _result.add(_item);
           }
           return _result;
@@ -333,8 +266,6 @@ public final class StudentDao_Impl implements StudentDao {
           final int _cursorIndexOfSection = CursorUtil.getColumnIndexOrThrow(_cursor, "section");
           final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
           final int _cursorIndexOfSex = CursorUtil.getColumnIndexOrThrow(_cursor, "sex");
-          final int _cursorIndexOfEnrollmentId = CursorUtil.getColumnIndexOrThrow(_cursor, "enrollment_id");
-          final int _cursorIndexOfServerStudentId = CursorUtil.getColumnIndexOrThrow(_cursor, "server_student_id");
           final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "created_at");
           final int _cursorIndexOfUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "updated_at");
           final StudentEntity _result;
@@ -355,96 +286,11 @@ public final class StudentDao_Impl implements StudentDao {
             _tmpStatus = _cursor.getString(_cursorIndexOfStatus);
             final String _tmpSex;
             _tmpSex = _cursor.getString(_cursorIndexOfSex);
-            final Long _tmpEnrollmentId;
-            if (_cursor.isNull(_cursorIndexOfEnrollmentId)) {
-              _tmpEnrollmentId = null;
-            } else {
-              _tmpEnrollmentId = _cursor.getLong(_cursorIndexOfEnrollmentId);
-            }
-            final Long _tmpServerStudentId;
-            if (_cursor.isNull(_cursorIndexOfServerStudentId)) {
-              _tmpServerStudentId = null;
-            } else {
-              _tmpServerStudentId = _cursor.getLong(_cursorIndexOfServerStudentId);
-            }
             final long _tmpCreatedAt;
             _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
             final long _tmpUpdatedAt;
             _tmpUpdatedAt = _cursor.getLong(_cursorIndexOfUpdatedAt);
-            _result = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpEnrollmentId,_tmpServerStudentId,_tmpCreatedAt,_tmpUpdatedAt);
-          } else {
-            _result = null;
-          }
-          return _result;
-        } finally {
-          _cursor.close();
-          _statement.release();
-        }
-      }
-    }, $completion);
-  }
-
-  @Override
-  public Object findByEnrollmentId(final long enrollmentId,
-      final Continuation<? super StudentEntity> $completion) {
-    final String _sql = "SELECT * FROM students WHERE enrollment_id = ? LIMIT 1";
-    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
-    int _argIndex = 1;
-    _statement.bindLong(_argIndex, enrollmentId);
-    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
-    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<StudentEntity>() {
-      @Override
-      @Nullable
-      public StudentEntity call() throws Exception {
-        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
-        try {
-          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
-          final int _cursorIndexOfName = CursorUtil.getColumnIndexOrThrow(_cursor, "name");
-          final int _cursorIndexOfLrn = CursorUtil.getColumnIndexOrThrow(_cursor, "lrn");
-          final int _cursorIndexOfRfidUid = CursorUtil.getColumnIndexOrThrow(_cursor, "rfid_uid");
-          final int _cursorIndexOfGradeLevel = CursorUtil.getColumnIndexOrThrow(_cursor, "grade_level");
-          final int _cursorIndexOfSection = CursorUtil.getColumnIndexOrThrow(_cursor, "section");
-          final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
-          final int _cursorIndexOfSex = CursorUtil.getColumnIndexOrThrow(_cursor, "sex");
-          final int _cursorIndexOfEnrollmentId = CursorUtil.getColumnIndexOrThrow(_cursor, "enrollment_id");
-          final int _cursorIndexOfServerStudentId = CursorUtil.getColumnIndexOrThrow(_cursor, "server_student_id");
-          final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "created_at");
-          final int _cursorIndexOfUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "updated_at");
-          final StudentEntity _result;
-          if (_cursor.moveToFirst()) {
-            final long _tmpId;
-            _tmpId = _cursor.getLong(_cursorIndexOfId);
-            final String _tmpName;
-            _tmpName = _cursor.getString(_cursorIndexOfName);
-            final String _tmpLrn;
-            _tmpLrn = _cursor.getString(_cursorIndexOfLrn);
-            final String _tmpRfidUid;
-            _tmpRfidUid = _cursor.getString(_cursorIndexOfRfidUid);
-            final String _tmpGradeLevel;
-            _tmpGradeLevel = _cursor.getString(_cursorIndexOfGradeLevel);
-            final String _tmpSection;
-            _tmpSection = _cursor.getString(_cursorIndexOfSection);
-            final String _tmpStatus;
-            _tmpStatus = _cursor.getString(_cursorIndexOfStatus);
-            final String _tmpSex;
-            _tmpSex = _cursor.getString(_cursorIndexOfSex);
-            final Long _tmpEnrollmentId;
-            if (_cursor.isNull(_cursorIndexOfEnrollmentId)) {
-              _tmpEnrollmentId = null;
-            } else {
-              _tmpEnrollmentId = _cursor.getLong(_cursorIndexOfEnrollmentId);
-            }
-            final Long _tmpServerStudentId;
-            if (_cursor.isNull(_cursorIndexOfServerStudentId)) {
-              _tmpServerStudentId = null;
-            } else {
-              _tmpServerStudentId = _cursor.getLong(_cursorIndexOfServerStudentId);
-            }
-            final long _tmpCreatedAt;
-            _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
-            final long _tmpUpdatedAt;
-            _tmpUpdatedAt = _cursor.getLong(_cursorIndexOfUpdatedAt);
-            _result = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpEnrollmentId,_tmpServerStudentId,_tmpCreatedAt,_tmpUpdatedAt);
+            _result = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpCreatedAt,_tmpUpdatedAt);
           } else {
             _result = null;
           }
@@ -607,8 +453,6 @@ public final class StudentDao_Impl implements StudentDao {
           final int _cursorIndexOfSection = CursorUtil.getColumnIndexOrThrow(_cursor, "section");
           final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
           final int _cursorIndexOfSex = CursorUtil.getColumnIndexOrThrow(_cursor, "sex");
-          final int _cursorIndexOfEnrollmentId = CursorUtil.getColumnIndexOrThrow(_cursor, "enrollment_id");
-          final int _cursorIndexOfServerStudentId = CursorUtil.getColumnIndexOrThrow(_cursor, "server_student_id");
           final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "created_at");
           final int _cursorIndexOfUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "updated_at");
           final List<StudentEntity> _result = new ArrayList<StudentEntity>(_cursor.getCount());
@@ -630,23 +474,11 @@ public final class StudentDao_Impl implements StudentDao {
             _tmpStatus = _cursor.getString(_cursorIndexOfStatus);
             final String _tmpSex;
             _tmpSex = _cursor.getString(_cursorIndexOfSex);
-            final Long _tmpEnrollmentId;
-            if (_cursor.isNull(_cursorIndexOfEnrollmentId)) {
-              _tmpEnrollmentId = null;
-            } else {
-              _tmpEnrollmentId = _cursor.getLong(_cursorIndexOfEnrollmentId);
-            }
-            final Long _tmpServerStudentId;
-            if (_cursor.isNull(_cursorIndexOfServerStudentId)) {
-              _tmpServerStudentId = null;
-            } else {
-              _tmpServerStudentId = _cursor.getLong(_cursorIndexOfServerStudentId);
-            }
             final long _tmpCreatedAt;
             _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
             final long _tmpUpdatedAt;
             _tmpUpdatedAt = _cursor.getLong(_cursorIndexOfUpdatedAt);
-            _item = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpEnrollmentId,_tmpServerStudentId,_tmpCreatedAt,_tmpUpdatedAt);
+            _item = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpCreatedAt,_tmpUpdatedAt);
             _result.add(_item);
           }
           return _result;

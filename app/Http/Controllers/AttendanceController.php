@@ -6,7 +6,6 @@ use App\Models\AttendanceRecord;
 use App\Models\Enrollment;
 use App\Models\SchoolYear;
 use App\Models\Section;
-use App\Services\AttendanceMonthlyReportService;
 use App\Services\AttendanceService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -82,7 +81,7 @@ class AttendanceController extends Controller
             'attendance.*.remarks' => ['nullable', 'string'],
         ]);
 
-        $date = AttendanceMonthlyReportService::parseAttendanceDate($validated['attendance_date']);
+        $date = Carbon::parse($validated['attendance_date']);
         $attendanceRows = $validated['attendance'] ?? [];
 
         $enrollmentsById = Enrollment::query()

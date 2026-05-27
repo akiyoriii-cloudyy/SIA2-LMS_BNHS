@@ -80,6 +80,16 @@
                         </a>
 
                         <div class="group">Communications</div>
+                        @if (auth()->user()->hasPermission('sms_logs.view'))
+                            <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
+                                <span class="icon">&#128241;</span>
+                                SMS logs
+                            </a>
+                        @endif
+                        <a href="{{ route('mobile.app') }}" class="{{ request()->routeIs('mobile.app') ? 'active' : '' }}">
+                            <span class="icon">&#128242;</span>
+                            RFID mobile app
+                        </a>
                         <a href="{{ $publicBase }}/download-app">
                             <span class="icon">&#11015;</span>
                             Download mobile app
@@ -158,17 +168,6 @@
                             DepEd Report Card
                         </a>
 
-                        @if (auth()->user()->hasPermission('attendance.manage'))
-                            <div class="group">Attendance</div>
-                            <a href="{{ route('attendance-reports.index') }}" class="{{ request()->routeIs('attendance-reports.*') ? 'active' : '' }}">
-                                <span class="icon">&#128202;</span>
-                                Monthly Reports
-                                @if (($sidebarMonthlyReportCount ?? 0) > 0)
-                                    <span class="nav-badge">{{ $sidebarMonthlyReportCount }}</span>
-                                @endif
-                            </a>
-                        @endif
-
                         <div class="group">Records</div>
                         <a href="{{ route('students.index') }}" class="{{ request()->routeIs('students.*') ? 'active' : '' }}">
                             <span class="icon">&#128101;</span>
@@ -187,6 +186,16 @@
                         </a>
 
                         <div class="group">Communications</div>
+                        @if (auth()->user()->hasPermission('sms_logs.view'))
+                            <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
+                                <span class="icon">&#128241;</span>
+                                SMS logs
+                            </a>
+                        @endif
+                        <a href="{{ route('mobile.app') }}" class="{{ request()->routeIs('mobile.app') ? 'active' : '' }}">
+                            <span class="icon">&#128242;</span>
+                            RFID mobile app
+                        </a>
                         <a href="{{ $publicBase }}/download-app">
                             <span class="icon">&#11015;</span>
                             Download mobile app

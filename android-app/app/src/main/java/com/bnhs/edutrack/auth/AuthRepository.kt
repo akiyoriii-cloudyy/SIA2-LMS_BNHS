@@ -30,57 +30,11 @@ class AuthRepository private constructor(
 
     fun getApiBaseUrl(): String = sessionStore.getApiBaseUrl()
 
-    fun sanitizeApiBaseUrl(): Boolean = sessionStore.sanitizeSavedApiUrlIfNeeded()
-
     fun setApiBaseUrl(url: String) {
-        val normalized = SessionStore.normalizeBaseUrl(url)
-        if (SessionStore.isStaleOrInvalidApiUrl(normalized)) {
-            sessionStore.setApiBaseUrl(SessionStore.defaultLocalApiUrl())
-        } else {
-            sessionStore.setApiBaseUrl(normalized)
-        }
+        sessionStore.setApiBaseUrl(url)
     }
 
-    fun resetApiBaseUrlToDefault() {
-        sessionStore.clearApiBaseUrlOverride()
-    }
-
-    suspend fun testConnection(): ConnectionTestResult = withContext(Dispatchers.IO) {
-        val baseUrl = sessionStore.getApiBaseUrl()
-        if (baseUrl.isBlank()) {
-            return@withContext ConnectionTestResult.Error("API URL is empty. Open Server settings and set a URL.")
-        }
-        try {
-            val response = api().health()
-            if (response.isSuccessful && response.body()?.ok == true) {
-                ConnectionTestResult.Success(baseUrl)
-            } else {
-                ConnectionTestResult.Error(
-                    "Server responded with HTTP ${response.code()} at:\n$baseUrl\n" +
-                        "Use: http://10.0.2.2/LMS_BNHS/public/api/ (emulator) or http://YOUR_PC_IP/LMS_BNHS/public/api/ (phone).",
-                )
-            }
-        } catch (e: UnknownHostException) {
-            ConnectionTestResult.Error(connectionHelpMessage(baseUrl, e))
-        } catch (e: SocketTimeoutException) {
-            ConnectionTestResult.Error(
-                "Connection timed out for:\n$baseUrl\nStart Apache in XAMPP and confirm the URL in a phone browser.",
-            )
-        } catch (e: IOException) {
-            ConnectionTestResult.Error(connectionHelpMessage(baseUrl, e))
-        } catch (e: Exception) {
-            ConnectionTestResult.Error(e.message ?: "Could not reach the server.")
-        }
-    }
-
-    suspend fun login(email: String, password: String): LoginResult =
-        loginAttempt(email, password, allowUrlSanitizeRetry = true)
-
-    private suspend fun loginAttempt(
-        email: String,
-        password: String,
-        allowUrlSanitizeRetry: Boolean,
-    ): LoginResult = withContext(Dispatchers.IO) {
+    suspend fun login(email: String, password: String): LoginResult = withContext(Dispatchers.IO) {
         val trimmedEmail = email.trim()
         if (trimmedEmail.isEmpty() || password.isEmpty()) {
             return@withContext LoginResult.Error("Email and password are required.")
@@ -123,24 +77,18 @@ class AuthRepository private constructor(
             sessionTracker.startSession(session.user)
             LoginResult.Success(session)
         } catch (e: UnknownHostException) {
-            if (allowUrlSanitizeRetry && sessionStore.sanitizeSavedApiUrlIfNeeded()) {
-                return@withContext loginAttempt(email, password, allowUrlSanitizeRetry = false)
-            }
-            val msg = connectionHelpMessage(sessionStore.getApiBaseUrl(), e)
-            logLoginFailure(trimmedEmail, msg)
-            LoginResult.Error(msg)
+            logLoginFailure(trimmedEmail, connectionHelpMessage())
+            LoginResult.Error(connectionHelpMessage())
         } catch (e: SocketTimeoutException) {
             val msg =
-                "Connection timed out for:\n${sessionStore.getApiBaseUrl()}\n" +
-                    "Start Apache in XAMPP, then use Server settings → Test connection.\n" +
-                    "Emulator: http://10.0.2.2/LMS_BNHS/public/api/\n" +
-                    "Phone: http://YOUR_PC_IP/LMS_BNHS/public/api/"
+                "Connection timed out. Start Apache in XAMPP, open Server settings, and use:\n" +
+                    "• Emulator: http://10.0.2.2/LMS_BNHS/public/api/\n" +
+                    "• Phone (same Wi‑Fi): http://YOUR_PC_IP/LMS_BNHS/public/api/"
             logLoginFailure(trimmedEmail, msg)
             LoginResult.Error(msg)
         } catch (e: IOException) {
-            val msg = connectionHelpMessage(sessionStore.getApiBaseUrl(), e)
-            logLoginFailure(trimmedEmail, msg)
-            LoginResult.Error(msg)
+            logLoginFailure(trimmedEmail, connectionHelpMessage())
+            LoginResult.Error(connectionHelpMessage())
         } catch (e: Exception) {
             val msg = e.message ?: "Unexpected login error."
             logLoginFailure(trimmedEmail, msg)
@@ -202,28 +150,19 @@ class AuthRepository private constructor(
             )
             ForgotPasswordResult.Success(ack)
         } catch (e: UnknownHostException) {
-            ForgotPasswordResult.Error(connectionHelpMessage(sessionStore.getApiBaseUrl(), e))
+            ForgotPasswordResult.Error(connectionHelpMessage())
         } catch (e: SocketTimeoutException) {
             ForgotPasswordResult.Error("Connection timed out. Check your API URL and network.")
         } catch (e: IOException) {
-            ForgotPasswordResult.Error(connectionHelpMessage(sessionStore.getApiBaseUrl(), e))
+            ForgotPasswordResult.Error(connectionHelpMessage())
         } catch (e: Exception) {
             ForgotPasswordResult.Error(e.message ?: "Could not send reset request.")
         }
     }
 
-    private fun connectionHelpMessage(baseUrl: String, cause: Exception? = null): String {
-        val hint = when {
-            baseUrl.contains("trycloudflare.com", ignoreCase = true) ->
-                "The saved URL is an old Cloudflare tunnel. Tap \"Use XAMPP (emulator)\" below, Save, then Test connection."
-            baseUrl.contains("/LMS_BNHS/api/", ignoreCase = true) &&
-                !baseUrl.contains("/public/", ignoreCase = true) ->
-                "URL may be missing /public/. Try: http://10.0.2.2/LMS_BNHS/public/api/"
-            else -> "Emulator: http://10.0.2.2/LMS_BNHS/public/api/ — Phone: http://YOUR_PC_IP/LMS_BNHS/public/api/"
-        }
-        val detail = cause?.message?.takeIf { it.isNotBlank() }?.let { "\n($it)" }.orEmpty()
-        return "Cannot reach the server at:\n$baseUrl$detail\n\nStart Apache/MySQL in XAMPP. Open that URL in a browser on your PC first.\n$hint"
-    }
+    private fun connectionHelpMessage(): String =
+        "Cannot reach the server. Start Apache/MySQL in XAMPP, confirm Laravel works in a browser, " +
+            "and set the API URL (emulator: http://10.0.2.2/LMS_BNHS/public/api/)."
 
     companion object {
         @Volatile

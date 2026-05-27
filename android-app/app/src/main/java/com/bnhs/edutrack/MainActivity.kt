@@ -71,8 +71,6 @@ import com.bnhs.edutrack.auth.ForgotPasswordScreen
 import com.bnhs.edutrack.auth.LoginScreen
 import com.bnhs.edutrack.records.AdviserRecordsScreen
 import com.bnhs.edutrack.records.AttendanceRecordsRepository
-import com.bnhs.edutrack.sync.RosterSyncRepository
-import com.bnhs.edutrack.sync.RosterSyncResult
 import com.bnhs.edutrack.records.GateRecordsScreen
 import com.bnhs.edutrack.records.RecordsRepository
 import com.bnhs.edutrack.records.rememberAdviserRecordsViewModel
@@ -518,7 +516,6 @@ private fun AttendanceApp(
     val adviserRecordsViewModel = rememberAdviserRecordsViewModel(attendanceRepository, session.user.email)
     val monthlyReportsRepository = remember { MonthlyReportsRepository.get(context) }
     val monthlyReportsViewModel = rememberMonthlyReportsViewModel(monthlyReportsRepository)
-    val rosterSyncRepository = remember { RosterSyncRepository.get(context) }
     val profileRepository = remember { ProfileRepository.get(context) }
     val profileViewModel = rememberProfileViewModel(profileRepository, session, mobileRole)
     var showProfileScreen by remember { mutableStateOf(false) }
@@ -528,35 +525,11 @@ private fun AttendanceApp(
     }
 
     val records = remember { mutableStateListOf<AttendanceRecord>() }
-    var adviserRosterSyncInProgress by remember { mutableStateOf(false) }
 
     fun reloadStudentsFromDb() {
         scope.launch {
             students.clear()
             students.addAll(recordsRepository.loadAppStudents())
-        }
-    }
-
-    fun syncAdviserRosterFromServer() {
-        if (adviserRosterSyncInProgress) return
-        scope.launch {
-            adviserRosterSyncInProgress = true
-            try {
-                when (val result = rosterSyncRepository.syncAdviserRoster()) {
-                    is RosterSyncResult.Success -> {
-                        reloadStudentsFromDb()
-                        adviserRecordsViewModel.refresh()
-                        statusMessage = "Class roster synced: ${result.studentCount} student(s) from ${result.sectionNames}."
-                    }
-                    is RosterSyncResult.Error -> {
-                        statusMessage = result.message
-                    }
-                }
-            } catch (e: Exception) {
-                statusMessage = e.localizedMessage ?: "Roster sync failed. Please try again."
-            } finally {
-                adviserRosterSyncInProgress = false
-            }
         }
     }
 
@@ -595,12 +568,6 @@ private fun AttendanceApp(
             reloadStudentsFromDb()
         }
         adviserRecordsViewModel.filterDate = attendanceWorkingDate
-    }
-
-    LaunchedEffect(mobileRole, students.size) {
-        if (mobileRole == MobileAppRole.ADVISER && students.isEmpty()) {
-            syncAdviserRosterFromServer()
-        }
     }
 
     LaunchedEffect(attendanceWorkingDate) {
@@ -796,7 +763,6 @@ private fun AttendanceApp(
                             students = students,
                             records = records,
                             attendanceDate = attendanceWorkingDate,
-                            onSyncRoster = { syncAdviserRosterFromServer() },
                             onClearHistory = { showClearHistoryConfirm = true },
                             onMark = mark@{ s, st ->
                                 if (!rbac.canManageAttendance()) {
@@ -1215,7 +1181,6 @@ private fun AdviserDashboard(
     students: List<Student>,
     records: List<AttendanceRecord>,
     attendanceDate: LocalDate,
-    onSyncRoster: () -> Unit,
     onClearHistory: () -> Unit,
     onMark: (Student, String) -> Unit,
     onUpdateParentDetails: (studentId: Int, parentName: String, parentContact: String) -> Unit
@@ -1227,15 +1192,10 @@ private fun AdviserDashboard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Adviser — Class Attendance", color = PrimaryDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onSyncRoster) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Sync class roster", tint = PrimaryMain)
-                }
-                    TextButton(onClick = onClearHistory) {
-                    Icon(Icons.Default.DeleteSweep, null, tint = ErrorMain, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Clear history", color = ErrorMain)
-                }
+            TextButton(onClick = onClearHistory) {
+                Icon(Icons.Default.DeleteSweep, null, tint = ErrorMain, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Clear history", color = ErrorMain)
             }
         }
         Spacer(modifier = Modifier.height(4.dp))

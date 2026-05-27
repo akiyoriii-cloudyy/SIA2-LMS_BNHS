@@ -256,72 +256,11 @@
         </div>
 
         <div class="dash-topbar-actions">
-            @if (!empty($canViewMonthlyAttendanceReports))
-                <a class="btn btn-outline btn-sm" href="{{ route('attendance-reports.index') }}">📊 Monthly Attendance</a>
-            @endif
             <a class="btn btn-outline btn-sm" href="{{ route('report-cards.index') }}">📋 Report Card</a>
             <a class="btn btn-gold btn-sm" href="{{ route('gradebook.index', $gradebookPeriodQuery) }}">⚡ Compute All</a>
             <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">🖨️ Print</button>
         </div>
     </div>
-
-    @if (!empty($canViewMonthlyAttendanceReports))
-        <div class="dash-panel" style="margin-top: 12px;">
-            <div class="dash-panel-hd">
-                <div>
-                    <div class="dash-panel-title">Monthly Attendance Reports</div>
-                    <div class="dash-panel-sub">From mobile sync, daily attendance, and emailed summaries — open or download Excel here</div>
-                </div>
-                <a class="btn btn-primary btn-sm" href="{{ route('attendance-reports.index') }}">View all reports</a>
-            </div>
-            <div class="dash-panel-body">
-                <div class="table-wrap">
-                    <table class="subj-avg-table">
-                        <thead>
-                            <tr>
-                                <th>Month</th>
-                                <th>Year</th>
-                                <th>Section</th>
-                                <th>Students</th>
-                                <th>Absences</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse (($monthlyAttendanceReports ?? collect()) as $monthlyReport)
-                                <tr>
-                                    <td>{{ $monthlyReport->monthName() }}</td>
-                                    <td>{{ $monthlyReport->calendarYear() }}</td>
-                                    <td>{{ $monthlyReport->section?->name ?? '—' }}</td>
-                                    <td>{{ $monthlyReport->lines_count }}</td>
-                                    <td>{{ (int) ($monthlyReport->total_absent_days ?? 0) }}</td>
-                                    <td>
-                                        @if ($monthlyReport->isSent())
-                                            <span class="badge badge-success">Emailed</span>
-                                        @else
-                                            <span class="badge">Draft</span>
-                                        @endif
-                                    </td>
-                                    <td style="white-space:nowrap;">
-                                        <a class="btn btn-sm" href="{{ route('attendance-reports.show', $monthlyReport) }}">Open</a>
-                                        <a class="btn btn-sm btn-outline" href="{{ route('attendance-reports.export-excel', $monthlyReport) }}">Excel (.xlsx)</a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" class="muted">
-                                        No monthly reports yet. Mark attendance on web or mobile, then
-                                        <a href="{{ route('attendance-reports.index') }}">generate a report</a>.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <div class="dash-panel" style="margin-top: 12px;">
         <div class="dash-panel-body">
@@ -610,22 +549,6 @@
                             <div class="qa-sub">Track completion</div>
                         </span>
                     </a>
-                    @if (!empty($canViewMonthlyAttendanceReports))
-                        <a class="qa-btn" href="{{ route('attendance.index') }}">
-                            <span class="qa-icon">📅</span>
-                            <span>
-                                <div class="qa-label">Daily Attendance</div>
-                                <div class="qa-sub">Mark student attendance</div>
-                            </span>
-                        </a>
-                        <a class="qa-btn" href="{{ route('attendance-reports.index') }}">
-                            <span class="qa-icon">📊</span>
-                            <span>
-                                <div class="qa-label">Monthly Reports</div>
-                                <div class="qa-sub">View, email, download Excel</div>
-                            </span>
-                        </a>
-                    @endif
                     <a class="qa-btn" href="{{ $publicBase }}/download-app">
                         <span class="qa-icon">📲</span>
                         <span>

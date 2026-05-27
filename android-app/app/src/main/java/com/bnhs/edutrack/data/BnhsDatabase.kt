@@ -47,8 +47,6 @@ data class StudentEntity(
     /** ACTIVE or ARCHIVED */
     @ColumnInfo(name = "status") val status: String = "ACTIVE",
     @ColumnInfo(name = "sex") val sex: String = "",
-    @ColumnInfo(name = "enrollment_id") val enrollmentId: Long? = null,
-    @ColumnInfo(name = "server_student_id") val serverStudentId: Long? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
 )
@@ -197,14 +195,8 @@ interface StudentDao {
     @Query("SELECT * FROM students WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): StudentEntity?
 
-    @Query("SELECT * FROM students WHERE enrollment_id = :enrollmentId LIMIT 1")
-    suspend fun findByEnrollmentId(enrollmentId: Long): StudentEntity?
-
     @Query("SELECT COUNT(*) FROM students")
     suspend fun count(): Int
-
-    @Query("DELETE FROM students WHERE enrollment_id IS NOT NULL")
-    suspend fun deleteServerSynced()
 
     @Query(
         "SELECT COUNT(*) FROM students WHERE lrn = :lrn COLLATE NOCASE AND (:excludeId = 0 OR id != :excludeId)",
@@ -529,7 +521,7 @@ interface AlertLogDao {
         SecurityAuditReportEntity::class,
         BusinessTransactionEntity::class,
     ],
-    version = 8,
+    version = 7,
     exportSchema = false,
 )
 abstract class BnhsDatabase : RoomDatabase() {

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\GradeEntry;
-use App\Models\AttendanceMonthlyReport;
 use App\Models\AttendanceRecord;
 use App\Models\Enrollment;
 use App\Models\SchoolYear;
@@ -695,21 +694,6 @@ class DashboardController extends Controller
             ]);
         }
 
-        $monthlyAttendanceReports = collect();
-        if ($user->hasPermission('attendance.manage') && $user->teacher) {
-            $monthlyAttendanceReports = AttendanceMonthlyReport::query()
-                ->with(['section', 'schoolYear'])
-                ->withCount('lines')
-                ->withSum('lines as total_absent_days', 'absent_days')
-                ->where('teacher_id', $user->teacher->id)
-                ->when($schoolYearId, fn ($q) => $q->where('school_year_id', $schoolYearId))
-                ->orderByDesc('report_year')
-                ->orderByDesc('report_month')
-                ->orderByDesc('id')
-                ->limit(8)
-                ->get();
-        }
-
         return [
             'stats' => $stats,
             'quickLinks' => $quickLinks,
@@ -735,8 +719,6 @@ class DashboardController extends Controller
             'topPerformers' => $topPerformersData,
             'activity' => $activity,
             'submissionStatus' => $submissionStatus,
-            'monthlyAttendanceReports' => $monthlyAttendanceReports,
-            'canViewMonthlyAttendanceReports' => $user->hasPermission('attendance.manage'),
         ];
     }
 

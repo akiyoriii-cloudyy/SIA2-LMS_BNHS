@@ -25,55 +25,14 @@ class SessionStore(context: Context) {
     }
 
     fun getApiBaseUrl(): String {
-        sanitizeSavedApiUrlIfNeeded()
         val saved = prefs.getString(KEY_API_BASE_URL, null)?.trim().orEmpty()
         if (saved.isNotEmpty()) return normalizeBaseUrl(saved)
         return normalizeBaseUrl(BuildConfig.API_BASE_URL)
     }
 
-    /**
-     * Replaces dead tunnel URLs or wrong paths saved from older APK builds.
-     * @return true when the stored URL was changed
-     */
-    fun sanitizeSavedApiUrlIfNeeded(): Boolean {
-        val saved = prefs.getString(KEY_API_BASE_URL, null)?.trim().orEmpty()
-        if (saved.isEmpty()) {
-            if (prefs.getInt(KEY_API_URL_MIGRATION, 0) < API_URL_MIGRATION_VERSION) {
-                prefs.edit()
-                    .putString(KEY_API_BASE_URL, defaultLocalApiUrl())
-                    .putInt(KEY_API_URL_MIGRATION, API_URL_MIGRATION_VERSION)
-                    .apply()
-                return true
-            }
-            return false
-        }
-
-        val normalized = normalizeBaseUrl(saved)
-        val migrationNeeded = prefs.getInt(KEY_API_URL_MIGRATION, 0) < API_URL_MIGRATION_VERSION
-        if (migrationNeeded || isStaleOrInvalidApiUrl(normalized)) {
-            prefs.edit()
-                .putString(KEY_API_BASE_URL, defaultLocalApiUrl())
-                .putInt(KEY_API_URL_MIGRATION, API_URL_MIGRATION_VERSION)
-                .apply()
-            return true
-        }
-
-        if (migrationNeeded) {
-            prefs.edit().putInt(KEY_API_URL_MIGRATION, API_URL_MIGRATION_VERSION).apply()
-        }
-        return false
-    }
-
     fun setApiBaseUrl(url: String) {
         prefs.edit().putString(KEY_API_BASE_URL, normalizeBaseUrl(url)).apply()
     }
-
-    fun clearApiBaseUrlOverride() {
-        prefs.edit().remove(KEY_API_BASE_URL).apply()
-    }
-
-    fun hasApiBaseUrlOverride(): Boolean =
-        !prefs.getString(KEY_API_BASE_URL, null).isNullOrBlank()
 
     fun saveSession(session: AuthSession) {
         prefs.edit()
@@ -153,23 +112,6 @@ class SessionStore(context: Context) {
     companion object {
         private const val PREFS_NAME = "bnhs_auth_session_v1"
         private const val KEY_API_BASE_URL = "api_base_url"
-        private const val KEY_API_URL_MIGRATION = "api_url_migration_version"
-        private const val API_URL_MIGRATION_VERSION = 2
-
-        const val EMULATOR_XAMPP_API_URL = "http://10.0.2.2/LMS_BNHS/public/api/"
-
-        fun defaultLocalApiUrl(): String = normalizeBaseUrl(
-            BuildConfig.API_BASE_URL.takeIf { it.isNotBlank() && !isStaleOrInvalidApiUrl(it) }
-                ?: EMULATOR_XAMPP_API_URL,
-        )
-
-        fun isStaleOrInvalidApiUrl(url: String): Boolean {
-            val lower = url.lowercase()
-            return lower.contains("trycloudflare.com") ||
-                lower.contains("ngrok.io") ||
-                lower.contains("ngrok-free.app") ||
-                (lower.contains("/lms_bnhs/api/") && !lower.contains("/public/"))
-        }
         private const val KEY_TOKEN = "token"
         private const val KEY_TOKEN_TYPE = "token_type"
         private const val KEY_USER_ID = "user_id"

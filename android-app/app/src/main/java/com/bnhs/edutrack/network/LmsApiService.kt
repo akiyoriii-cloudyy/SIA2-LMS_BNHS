@@ -5,24 +5,11 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
-import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface LmsApiService {
-
-    @GET("mobile/bootstrap")
-    suspend fun bootstrap(
-        @Header("Authorization") authorization: String,
-    ): Response<MobileBootstrapResponse>
-
-    @GET("mobile/roster")
-    suspend fun roster(
-        @Header("Authorization") authorization: String,
-        @Query("section_id") sectionId: Long,
-        @Query("school_year_id") schoolYearId: Long? = null,
-    ): Response<MobileRosterResponse>
 
     @GET("mobile/profile")
     suspend fun getProfile(
@@ -46,48 +33,7 @@ interface LmsApiService {
         @Header("Authorization") authorization: String,
         @Path("id") reportId: Long,
     ): Response<MonthlyReportDetailResponse>
-
-    @POST("mobile/attendance/monthly-reports/generate")
-    suspend fun generateMonthlyReport(
-        @Header("Authorization") authorization: String,
-        @Body body: GenerateMonthlyReportRequest,
-    ): Response<MonthlyReportsGenerateResponse>
 }
-
-data class MobileBootstrapResponse(
-    @SerializedName("active_school_year") val activeSchoolYear: BootstrapSchoolYearDto?,
-    @SerializedName("assigned_sections") val assignedSections: List<BootstrapSectionDto>?,
-)
-
-data class BootstrapSchoolYearDto(
-    val id: Long?,
-    val name: String?,
-    @SerializedName("is_active") val isActive: Boolean?,
-)
-
-data class BootstrapSectionDto(
-    val id: Long?,
-    val name: String?,
-    @SerializedName("grade_level") val gradeLevel: Int?,
-)
-
-data class MobileRosterResponse(
-    @SerializedName("week_start") val weekStart: String?,
-    val data: List<RosterStudentDto>?,
-)
-
-data class RosterStudentDto(
-    @SerializedName("enrollment_id") val enrollmentId: Long?,
-    @SerializedName("student_id") val studentId: Long?,
-    @SerializedName("student_name") val studentName: String?,
-    val lrn: String?,
-    @SerializedName("primary_guardian") val primaryGuardian: RosterGuardianDto?,
-)
-
-data class RosterGuardianDto(
-    val name: String?,
-    val phone: String?,
-)
 
 data class MobileProfileResponse(
     val data: MobileProfileDto?,
@@ -129,19 +75,6 @@ data class MonthlyReportDetailResponse(
     val data: MonthlyReportDetailDto?,
 )
 
-data class GenerateMonthlyReportRequest(
-    @SerializedName("report_year") val reportYear: Int,
-    @SerializedName("report_month") val reportMonth: Int,
-    @SerializedName("school_year_id") val schoolYearId: Long? = null,
-    @SerializedName("section_id") val sectionId: Long? = null,
-)
-
-data class MonthlyReportsGenerateResponse(
-    val message: String?,
-    val data: List<MonthlyReportSummaryDto>?,
-    @SerializedName("web_portal_url") val webPortalUrl: String?,
-)
-
 data class MonthlyReportSummaryDto(
     val id: Long?,
     @SerializedName("report_year") val reportYear: Int?,
@@ -158,8 +91,6 @@ data class MonthlyReportSummaryDto(
     @SerializedName("total_absent_days") val totalAbsentDays: Int?,
     @SerializedName("web_url") val webUrl: String?,
     @SerializedName("print_url") val printUrl: String?,
-    @SerializedName("excel_url") val excelUrl: String?,
-    @SerializedName("reports_index_url") val reportsIndexUrl: String?,
 )
 
 data class MonthlyReportDetailDto(
@@ -178,8 +109,6 @@ data class MonthlyReportDetailDto(
     @SerializedName("total_absent_days") val totalAbsentDays: Int?,
     @SerializedName("web_url") val webUrl: String?,
     @SerializedName("print_url") val printUrl: String?,
-    @SerializedName("excel_url") val excelUrl: String?,
-    @SerializedName("reports_index_url") val reportsIndexUrl: String?,
     val lines: List<MonthlyReportLineDto>?,
 )
 

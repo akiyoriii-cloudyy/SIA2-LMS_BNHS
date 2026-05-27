@@ -51,17 +51,12 @@
                                 </tbody>
                             </table>
 
-                            <p style="margin:0 0 8px 0;font-size:14px;line-height:1.6;">
-                                <strong>Month:</strong> {{ $monthName ?? $period }} · <strong>Year:</strong> {{ $calendarYear ?? '' }}
-                            </p>
                             <p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;">
-                                This report is saved in BNHS LMS under <strong>Attendance → Monthly Reports</strong>. Download Excel, open on web, or print below.
+                                <strong>View in the mobile app</strong> — export CSV and email, or open the web report to edit and print.
                             </p>
                             <p style="margin:0 0 16px 0;">
-                                <a href="{{ $reportsIndexUrl }}" style="display:inline-block;background:#0b1f44;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin-right:8px;">All Monthly Reports</a>
-                                <a href="{{ $excelUrl }}" style="display:inline-block;background:#ffffff;color:#0b1f44;text-decoration:none;font-weight:700;padding:11px 17px;border-radius:8px;border:2px solid #0b1f44;margin-right:8px;">Download Excel</a>
-                                <a href="{{ $reportUrl }}" style="display:inline-block;background:#ffffff;color:#0b1f44;text-decoration:none;font-weight:700;padding:11px 17px;border-radius:8px;border:2px solid #0b1f44;margin-right:8px;">Open Report</a>
-                                <a href="{{ $printUrl }}" style="display:inline-block;background:#ffffff;color:#0b1f44;text-decoration:none;font-weight:700;padding:11px 17px;border-radius:8px;border:2px solid #0b1f44;">Print</a>
+                                <a href="{{ $reportUrl }}" style="display:inline-block;background:#0b1f44;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin-right:8px;">Open Report on Web</a>
+                                <a href="{{ $printUrl }}" style="display:inline-block;background:#ffffff;color:#0b1f44;text-decoration:none;font-weight:700;padding:11px 17px;border-radius:8px;border:2px solid #0b1f44;">Print Page</a>
                             </p>
                             <p style="margin:0 0 8px 0;font-size:13px;line-height:1.6;color:#6b7280;">Dashboard link:</p>
                             <p style="margin:0 0 12px 0;font-size:13px;line-height:1.6;word-break:break-all;">

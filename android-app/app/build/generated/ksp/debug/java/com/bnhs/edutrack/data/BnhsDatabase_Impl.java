@@ -54,10 +54,10 @@ public final class BnhsDatabase_Impl extends BnhsDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(8) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(7) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS `students` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `lrn` TEXT NOT NULL, `rfid_uid` TEXT NOT NULL, `grade_level` TEXT NOT NULL, `section` TEXT NOT NULL, `status` TEXT NOT NULL, `sex` TEXT NOT NULL, `enrollment_id` INTEGER, `server_student_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `students` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `lrn` TEXT NOT NULL, `rfid_uid` TEXT NOT NULL, `grade_level` TEXT NOT NULL, `section` TEXT NOT NULL, `status` TEXT NOT NULL, `sex` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL)");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_students_lrn` ON `students` (`lrn`)");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_students_rfid_uid` ON `students` (`rfid_uid`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `parents` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `student_id` INTEGER NOT NULL, `name` TEXT NOT NULL, `contact` TEXT NOT NULL, `email` TEXT NOT NULL, `relationship` TEXT NOT NULL, `is_primary` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, FOREIGN KEY(`student_id`) REFERENCES `students`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )");
@@ -92,7 +92,7 @@ public final class BnhsDatabase_Impl extends BnhsDatabase {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_business_transactions_status` ON `business_transactions` (`status`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_business_transactions_started_at` ON `business_transactions` (`started_at`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '51cd04313632756dd2cf2eac3620506b')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3abe3e3afe9be733346039515d0762ae')");
       }
 
       @Override
@@ -153,7 +153,7 @@ public final class BnhsDatabase_Impl extends BnhsDatabase {
       @NonNull
       public RoomOpenHelper.ValidationResult onValidateSchema(
           @NonNull final SupportSQLiteDatabase db) {
-        final HashMap<String, TableInfo.Column> _columnsStudents = new HashMap<String, TableInfo.Column>(12);
+        final HashMap<String, TableInfo.Column> _columnsStudents = new HashMap<String, TableInfo.Column>(10);
         _columnsStudents.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsStudents.put("name", new TableInfo.Column("name", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsStudents.put("lrn", new TableInfo.Column("lrn", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
@@ -162,8 +162,6 @@ public final class BnhsDatabase_Impl extends BnhsDatabase {
         _columnsStudents.put("section", new TableInfo.Column("section", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsStudents.put("status", new TableInfo.Column("status", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsStudents.put("sex", new TableInfo.Column("sex", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
-        _columnsStudents.put("enrollment_id", new TableInfo.Column("enrollment_id", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
-        _columnsStudents.put("server_student_id", new TableInfo.Column("server_student_id", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsStudents.put("created_at", new TableInfo.Column("created_at", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsStudents.put("updated_at", new TableInfo.Column("updated_at", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysStudents = new HashSet<TableInfo.ForeignKey>(0);
@@ -403,7 +401,7 @@ public final class BnhsDatabase_Impl extends BnhsDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "51cd04313632756dd2cf2eac3620506b", "e3c0c3ebf286e97013ac2b4053cda8a5");
+    }, "3abe3e3afe9be733346039515d0762ae", "99c10c14de3e478cc17d30ed3aac45f9");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;

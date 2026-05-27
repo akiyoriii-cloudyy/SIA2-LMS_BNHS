@@ -28,7 +28,7 @@ class SendMonthlyAttendanceReportsCommand extends Command
         AttendanceMonthlyReportMailer $mailer,
         InAppNotificationService $notifications,
     ): int {
-        $previous = now(config('app.timezone', 'Asia/Manila'))->subMonth();
+        $previous = now()->subMonth();
         $year = (int) ($this->option('year') ?: $previous->year);
         $month = (int) ($this->option('month') ?: $previous->month);
 
@@ -44,7 +44,7 @@ class SendMonthlyAttendanceReportsCommand extends Command
             return self::FAILURE;
         }
 
-        $period = Carbon::create($year, $month, 1, timezone: config('app.timezone', 'Asia/Manila'))->format('F Y');
+        $period = Carbon::create($year, $month, 1)->format('F Y');
         $this->info("Processing monthly attendance reports for {$period} (school year: {$schoolYear->name})");
 
         $teacherIds = SubjectAssignment::query()
@@ -101,13 +101,11 @@ class SendMonthlyAttendanceReportsCommand extends Command
                         $teacher->user->id,
                         'attendance_monthly_report',
                         'Monthly attendance report ready',
-                        ($section->name ?? 'Section').' — '.$report->monthName().' '.$report->calendarYear().' (Report #'.$report->id.')',
+                        ($section->name ?? 'Section').' — '.$report->periodLabel().' (Report #'.$report->id.')',
                         [
                             'report_id' => $report->id,
                             'action_url' => $report->webUrl().'?from=email',
                             'print_url' => $report->printUrl(),
-                            'excel_url' => $report->exportExcelUrl(),
-                            'reports_index_url' => $report->reportsIndexUrl(),
                         ],
                     );
                     $emailed++;

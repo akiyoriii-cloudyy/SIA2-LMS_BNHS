@@ -203,7 +203,6 @@ Route::middleware(['auth'])->group(function (): void {
             Route::post('/', [AttendanceMonthlyReportController::class, 'store'])->name('store');
             Route::get('/{attendanceMonthlyReport}', [AttendanceMonthlyReportController::class, 'show'])->name('show');
             Route::get('/{attendanceMonthlyReport}/print', [AttendanceMonthlyReportController::class, 'print'])->name('print');
-            Route::get('/{attendanceMonthlyReport}/export-excel', [AttendanceMonthlyReportController::class, 'exportExcel'])->name('export-excel');
             Route::put('/{attendanceMonthlyReport}', [AttendanceMonthlyReportController::class, 'update'])->name('update');
             Route::post('/{attendanceMonthlyReport}/refresh', [AttendanceMonthlyReportController::class, 'refresh'])->name('refresh');
             Route::post('/{attendanceMonthlyReport}/send-email', [AttendanceMonthlyReportController::class, 'sendEmail'])->name('send-email');

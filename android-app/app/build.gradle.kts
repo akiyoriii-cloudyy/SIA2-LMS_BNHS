@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -17,15 +15,12 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Local XAMPP (Android emulator → host machine). Override in local.properties: api.base.url=http://YOUR_PC_IP/LMS_BNHS/public/api/
-        val localProps = Properties()
-        val localPropertiesFile = rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localPropertiesFile.inputStream().use { localProps.load(it) }
-        }
-        val apiBaseUrl = localProps.getProperty("api.base.url")
-            ?: "http://10.0.2.2/LMS_BNHS/public/api/"
-        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        // Default API for teacher APK (Cloudflare Tunnel demo). Users can override in app: Server settings.
+        buildConfigField(
+            "String",
+            "API_BASE_URL",
+            "\"https://quiz-timely-technologies-lock.trycloudflare.com/LMS_BNHS/api/\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

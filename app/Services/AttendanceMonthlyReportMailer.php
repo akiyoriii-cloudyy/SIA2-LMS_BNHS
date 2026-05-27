@@ -28,8 +28,6 @@ class AttendanceMonthlyReportMailer
         $report->load(['lines', 'section', 'schoolYear', 'teacher.user']);
         $reportUrl = $report->webUrl();
         $printUrl = $report->printUrl();
-        $excelUrl = $report->exportExcelUrl();
-        $reportsIndexUrl = $report->reportsIndexUrl();
 
         $mail = new PHPMailer(true);
         $mail->isSMTP();
@@ -64,11 +62,7 @@ class AttendanceMonthlyReportMailer
             'report' => $report,
             'reportUrl' => $reportUrl,
             'printUrl' => $printUrl,
-            'excelUrl' => $excelUrl,
-            'reportsIndexUrl' => $reportsIndexUrl,
             'period' => $period,
-            'monthName' => $report->monthName(),
-            'calendarYear' => $report->calendarYear(),
             'sectionName' => $sectionName,
             'schoolYear' => $schoolYear,
         ])->render();
@@ -79,9 +73,7 @@ class AttendanceMonthlyReportMailer
             ."School year: {$schoolYear}\n"
             ."Report ID: #{$report->id}\n"
             ."Total student absences recorded: {$absentTotal}\n\n"
-            ."All monthly reports (web menu):\n{$reportsIndexUrl}\n\n"
-            ."Download Excel (.xlsx):\n{$excelUrl}\n\n"
-            ."View & edit in BNHS LMS (web):\n{$reportUrl}\n\n"
+            ."View & edit in BNHS LMS (web) or export from the EduTrack mobile app:\n{$reportUrl}\n\n"
             ."Print-ready page:\n{$printUrl}\n\n"
             ."Daily attendance from the web and mobile app is synced to this report.";
 

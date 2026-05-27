@@ -35,10 +35,7 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    var showAdvanced by remember { mutableStateOf(viewModel.showServerSettings) }
-    LaunchedEffect(viewModel.showServerSettings) {
-        if (viewModel.showServerSettings) showAdvanced = true
-    }
+    var showAdvanced by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         LmsMeshBackground()
@@ -177,66 +174,18 @@ fun LoginScreen(
                 label = { Text("API base URL") },
                 supportingText = {
                     Text(
-                        "Emulator: http://10.0.2.2/LMS_BNHS/public/api/\n" +
-                            "Physical phone (same Wi‑Fi): http://YOUR_PC_IP/LMS_BNHS/public/api/",
+                        "Emulator: http://10.0.2.2/LMS_BNHS/public/api/ — Phone: use your PC IP",
                         fontSize = 11.sp,
                     )
                 },
                 singleLine = true,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
+            OutlinedButton(
+                onClick = { viewModel.saveApiBaseUrl() },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(
-                    onClick = { viewModel.useEmulatorXamppUrl() },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("XAMPP (emulator)", fontSize = 11.sp)
-                }
-                OutlinedButton(
-                    onClick = { viewModel.resetApiBaseUrlToDefault() },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Reset default", fontSize = 11.sp)
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.saveApiBaseUrl() },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Save URL")
-                }
-                Button(
-                    onClick = { viewModel.testConnection() },
-                    modifier = Modifier.weight(1f),
-                    enabled = !viewModel.connectionTestInProgress,
-                ) {
-                    if (viewModel.connectionTestInProgress) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text("Test connection")
-                    }
-                }
-            }
-            viewModel.connectionTestMessage?.let { msg ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    msg,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    color = if (msg.startsWith("Connected")) LmsColors.Navy else ErrorMain,
-                )
+                Text("Save API URL")
             }
         }
 

@@ -9,9 +9,6 @@ import retrofit2.http.POST
 
 interface AuthApiService {
 
-    @GET("health")
-    suspend fun health(): Response<HealthResponse>
-
     @POST("auth/login")
     suspend fun login(@Body body: LoginRequest): Response<LoginResponse>
 
@@ -24,11 +21,6 @@ interface AuthApiService {
     @GET("auth/rbac")
     suspend fun rbacProfile(@Header("Authorization") authorization: String): Response<RbacProfileResponse>
 }
-
-data class HealthResponse(
-    val ok: Boolean?,
-    val app: String?,
-)
 
 data class LoginRequest(
     val email: String,

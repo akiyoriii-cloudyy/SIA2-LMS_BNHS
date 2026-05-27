@@ -39,30 +39,15 @@ class AuthViewModel(
     var apiBaseUrl by mutableStateOf(repository.getApiBaseUrl())
         private set
 
-    var connectionTestMessage by mutableStateOf<String?>(null)
-        private set
-
-    var connectionTestInProgress by mutableStateOf(false)
-        private set
-
-    var showServerSettings by mutableStateOf(false)
-        private set
-
     init {
         viewModelScope.launch {
-            val urlFixed = repository.sanitizeApiBaseUrl()
-            apiBaseUrl = repository.getApiBaseUrl()
-            if (urlFixed) {
-                showServerSettings = true
-                connectionTestMessage =
-                    "Old server URL removed. Using local XAMPP:\n$apiBaseUrl\nTap Test connection, then Sign In."
-            }
             val session = repository.restoreSession()
             uiState = if (session != null) {
                 AuthUiState.Authenticated(session)
             } else {
                 AuthUiState.Unauthenticated
             }
+            apiBaseUrl = repository.getApiBaseUrl()
         }
     }
 
@@ -73,34 +58,6 @@ class AuthViewModel(
     fun saveApiBaseUrl() {
         repository.setApiBaseUrl(apiBaseUrl)
         apiBaseUrl = repository.getApiBaseUrl()
-        connectionTestMessage = "API URL saved."
-    }
-
-    fun useEmulatorXamppUrl() {
-        apiBaseUrl = SessionStore.EMULATOR_XAMPP_API_URL
-        repository.setApiBaseUrl(apiBaseUrl)
-        connectionTestMessage = "Set to local XAMPP (emulator). Tap Test connection."
-    }
-
-    fun resetApiBaseUrlToDefault() {
-        repository.resetApiBaseUrlToDefault()
-        apiBaseUrl = repository.getApiBaseUrl()
-        connectionTestMessage = "Reset to default: $apiBaseUrl"
-    }
-
-    fun testConnection() {
-        connectionTestMessage = null
-        connectionTestInProgress = true
-        repository.setApiBaseUrl(apiBaseUrl)
-        viewModelScope.launch {
-            when (val result = repository.testConnection()) {
-                is ConnectionTestResult.Success ->
-                    connectionTestMessage = "Connected to ${result.baseUrl}"
-                is ConnectionTestResult.Error ->
-                    connectionTestMessage = result.message
-            }
-            connectionTestInProgress = false
-        }
     }
 
     fun login(email: String, password: String) {

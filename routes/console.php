@@ -10,5 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('attendance:send-monthly-reports --send')
     ->monthlyOn(1, '06:00')
-    ->timezone(config('app.timezone', 'Asia/Manila'))
     ->description('Generate and email previous month attendance reports to advisers');

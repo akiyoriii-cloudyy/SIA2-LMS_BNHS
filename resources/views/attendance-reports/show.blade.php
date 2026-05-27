@@ -21,9 +21,8 @@
         </div>
         <div class="dash-topbar-actions">
             <a class="btn btn-outline btn-sm" href="{{ route('attendance-reports.index') }}">All Reports</a>
-            <a class="btn btn-primary btn-sm" href="{{ route('attendance-reports.export-excel', $report) }}">Download Excel (.xlsx)</a>
-            <a class="btn btn-outline btn-sm" href="{{ $printUrl }}" target="_blank" rel="noopener">Print Preview</a>
-            <button class="btn btn-outline btn-sm" type="button" onclick="window.print()">Print Paper</button>
+            <a class="btn btn-outline btn-sm" href="{{ $printUrl }}" target="_blank" rel="noopener">Print View</a>
+            <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print</button>
         </div>
     </div>
 
@@ -45,7 +44,7 @@
             <div>
                 <h1 style="margin:0 0 6px 0;">Monthly Attendance Report</h1>
                 <p class="muted" style="margin:0;">Section: <strong>{{ $section?->name ?? '—' }}</strong> · Grade {{ $section?->grade_level ?? '—' }}</p>
-                <p class="muted" style="margin:4px 0 0 0;">School Year: <strong>{{ $schoolYear?->name ?? '—' }}</strong> · Month: <strong>{{ $report->monthName() }}</strong> · Year: <strong>{{ $report->calendarYear() }}</strong> ({{ $report->periodRangeLabel() }})</p>
+                <p class="muted" style="margin:4px 0 0 0;">School Year: <strong>{{ $schoolYear?->name ?? '—' }}</strong> · Period: <strong>{{ $report->periodLabel() }}</strong></p>
                 <p class="muted amr-print-only-meta" style="margin:4px 0 0 0;display:none;">Report #{{ $report->id }} · Synced with web &amp; mobile daily attendance</p>
             </div>
             <div class="amr-meta-box amr-no-print">

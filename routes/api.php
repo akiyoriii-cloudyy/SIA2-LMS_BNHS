@@ -7,14 +7,6 @@ use App\Http\Controllers\Api\MobileRecordsController;
 use App\Http\Controllers\Api\MobileSyncController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/health', function () {
-    return response()->json([
-        'ok' => true,
-        'app' => config('app.name'),
-        'time' => now()->toIso8601String(),
-    ]);
-});
-
 Route::middleware('throttle:api-login')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -39,7 +31,6 @@ Route::middleware(['auth.api'])->group(function (): void {
 
         Route::middleware('permission:attendance.manage')->prefix('mobile/attendance')->group(function (): void {
             Route::get('/monthly-reports', [ApiAttendanceMonthlyReportController::class, 'index']);
-            Route::post('/monthly-reports/generate', [ApiAttendanceMonthlyReportController::class, 'generate']);
             Route::get('/monthly-reports/{attendanceMonthlyReport}', [ApiAttendanceMonthlyReportController::class, 'show']);
         });
 

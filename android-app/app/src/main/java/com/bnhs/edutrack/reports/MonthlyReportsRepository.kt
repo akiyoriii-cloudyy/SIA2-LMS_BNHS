@@ -3,7 +3,6 @@ package com.bnhs.edutrack.reports
 import android.content.Context
 import com.bnhs.edutrack.auth.SessionStore
 import com.bnhs.edutrack.network.ApiClient
-import com.bnhs.edutrack.network.GenerateMonthlyReportRequest
 import com.bnhs.edutrack.network.LmsApiService
 import com.bnhs.edutrack.network.MonthlyReportDetailDto
 import com.bnhs.edutrack.network.MonthlyReportSummaryDto
@@ -50,38 +49,6 @@ class MonthlyReportsRepository(context: Context) {
             }
         } catch (e: Exception) {
             ReportsResult.Error(e.localizedMessage ?: "Could not load report.")
-        }
-    }
-
-    suspend fun generateReport(
-        reportYear: Int,
-        reportMonth: Int,
-        schoolYearId: Long? = null,
-        sectionId: Long? = null,
-    ): ReportsResult<Pair<String, List<MonthlyReportSummaryDto>>> {
-        val auth = sessionStore.bearerAuthorization()
-            ?: return ReportsResult.Error("Not signed in.")
-        return try {
-            val response = api.generateMonthlyReport(
-                auth,
-                GenerateMonthlyReportRequest(
-                    reportYear = reportYear,
-                    reportMonth = reportMonth,
-                    schoolYearId = schoolYearId,
-                    sectionId = sectionId,
-                ),
-            )
-            if (response.isSuccessful) {
-                val body = response.body()
-                val reports = body?.data.orEmpty()
-                val message = body?.message?.takeIf { it.isNotBlank() }
-                    ?: "Report is ready on the web portal. Open Monthly Reports to download Excel."
-                ReportsResult.Success(message to reports)
-            } else {
-                ReportsResult.Error(ApiClient.parseErrorMessage(response))
-            }
-        } catch (e: Exception) {
-            ReportsResult.Error(e.localizedMessage ?: "Could not generate report.")
         }
     }
 

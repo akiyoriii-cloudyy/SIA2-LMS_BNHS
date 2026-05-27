@@ -64,8 +64,7 @@ class BnhsRepository private constructor(
      * already exists.
      */
     suspend fun ensureSeedData() {
-        val hasServerSession = SessionStore(context).loadSession() != null
-        if (!hasServerSession && db.studentDao().count() == 0) {
+        if (db.studentDao().count() == 0) {
             seedStudentsAndParents()
         }
         if (db.userAccountDao().count() == 0) {

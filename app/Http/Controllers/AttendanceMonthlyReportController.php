@@ -6,7 +6,6 @@ use App\Models\AttendanceMonthlyReport;
 use App\Models\AttendanceMonthlyReportLine;
 use App\Models\SchoolYear;
 use App\Models\Section;
-use App\Services\AttendanceMonthlyReportExcelExporter;
 use App\Services\AttendanceMonthlyReportMailer;
 use App\Services\AttendanceMonthlyReportService;
 use App\Services\InAppNotificationService;
@@ -14,7 +13,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use PHPMailer\PHPMailer\Exception as MailException;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class AttendanceMonthlyReportController extends Controller
 {
@@ -31,39 +29,20 @@ class AttendanceMonthlyReportController extends Controller
             ->when($sectionIds->isNotEmpty(), fn ($q) => $q->whereIn('id', $sectionIds))
             ->get();
 
-        $filterMonth = $request->filled('filter_month')
-            ? (int) $request->integer('filter_month')
-            : null;
-        $filterYear = $request->filled('filter_year')
-            ? (int) $request->integer('filter_year')
-            : null;
-
         $reports = AttendanceMonthlyReport::query()
             ->with(['section', 'schoolYear'])
             ->withCount('lines')
             ->withSum('lines as total_absent_days', 'absent_days')
             ->when($user->teacher && ! $user->hasRole('admin'), fn ($q) => $q->where('teacher_id', $user->teacher->id))
             ->when($selectedSchoolYear > 0, fn ($q) => $q->where('school_year_id', $selectedSchoolYear))
-            ->when($filterMonth, fn ($q) => $q->where('report_month', $filterMonth))
-            ->when($filterYear, fn ($q) => $q->where('report_year', $filterYear))
             ->orderByDesc('report_year')
             ->orderByDesc('report_month')
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        // Default to the current calendar month in the school timezone (matches daily attendance).
-        $defaultMonth = (int) now()->month;
-        $defaultYear = (int) now()->year;
-
-        $currentYear = (int) now()->year;
-        $reportYears = range($currentYear - 3, $currentYear + 1);
-
-        $calendarMonths = collect(range(1, 12))->mapWithKeys(
-            fn (int $month): array => [
-                $month => \Carbon\Carbon::create(2000, $month, 1)->format('F'),
-            ],
-        );
+        $defaultMonth = (int) now()->subMonth()->month;
+        $defaultYear = (int) now()->subMonth()->year;
 
         return view('attendance-reports.index', [
             'schoolYears' => $schoolYears,
@@ -72,10 +51,6 @@ class AttendanceMonthlyReportController extends Controller
             'reports' => $reports,
             'defaultMonth' => $defaultMonth,
             'defaultYear' => $defaultYear,
-            'calendarMonths' => $calendarMonths,
-            'reportYears' => $reportYears,
-            'filterMonth' => $filterMonth,
-            'filterYear' => $filterYear,
         ]);
     }
 
@@ -157,55 +132,6 @@ class AttendanceMonthlyReportController extends Controller
         return view('attendance-reports.print', [
             'report' => $attendanceMonthlyReport,
         ]);
-    }
-
-    public function exportExcel(
-        Request $request,
-        AttendanceMonthlyReport $attendanceMonthlyReport,
-        AttendanceMonthlyReportService $service,
-        AttendanceMonthlyReportExcelExporter $excelExporter,
-    ): \Symfony\Component\HttpFoundation\Response {
-        $user = $request->user();
-        if (! $service->userCanAccess($user, $attendanceMonthlyReport)) {
-            abort(403);
-        }
-
-        $attendanceMonthlyReport->load(['lines', 'section', 'schoolYear']);
-
-        $spreadsheet = $excelExporter->makeSpreadsheet($attendanceMonthlyReport);
-
-        $period = $attendanceMonthlyReport->periodLabel();
-        $safePeriod = preg_replace('/[^A-Za-z0-9]+/', '_', (string) $period) ?: 'report';
-        $sectionName = $attendanceMonthlyReport->section?->name ?: 'section';
-        $safeSection = preg_replace('/[^A-Za-z0-9]+/', '_', (string) $sectionName) ?: 'section';
-
-        $filename = sprintf(
-            'attendance_monthly_report_%s_%s_%d.xlsx',
-            $safeSection,
-            $safePeriod,
-            $attendanceMonthlyReport->id,
-        );
-
-        $tmpFile = tempnam(sys_get_temp_dir(), 'att_monthly_report_');
-        if ($tmpFile === false) {
-            abort(500, 'Could not create export file.');
-        }
-
-        $xlsxFile = $tmpFile.'.xlsx';
-        @unlink($tmpFile); // PhpSpreadsheet will write the real file at $xlsxFile
-
-        $writer = new Xlsx($spreadsheet);
-        $writer->save($xlsxFile);
-
-        return response()
-            ->download(
-                $xlsxFile,
-                $filename,
-                [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                ],
-            )
-            ->deleteFileAfterSend(true);
     }
 
     public function update(Request $request, AttendanceMonthlyReport $attendanceMonthlyReport, AttendanceMonthlyReportService $service): RedirectResponse
@@ -341,13 +267,11 @@ class AttendanceMonthlyReportController extends Controller
             $recipient->id,
             'attendance_monthly_report',
             'Monthly attendance report ready',
-            $report->section?->name.' — '.$report->monthName().' '.$report->calendarYear().' (Report #'.$report->id.')',
+            $report->section?->name.' — '.$report->periodLabel().' (Report #'.$report->id.')',
             [
                 'report_id' => $report->id,
                 'action_url' => $webUrl,
                 'print_url' => $report->printUrl(),
-                'excel_url' => $report->exportExcelUrl(),
-                'reports_index_url' => $report->reportsIndexUrl(),
             ],
         );
 
