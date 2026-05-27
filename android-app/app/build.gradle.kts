@@ -15,11 +15,12 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Default API for teacher APK (Cloudflare Tunnel demo). Users can override in app: Server settings.
+        // Stable local default for Android emulator (host machine via 10.0.2.2).
+        // Users can still override in-app under Server settings.
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"https://quiz-timely-technologies-lock.trycloudflare.com/LMS_BNHS/api/\""
+            "\"http://10.0.2.2/LMS_BNHS/public/api/\""
         )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

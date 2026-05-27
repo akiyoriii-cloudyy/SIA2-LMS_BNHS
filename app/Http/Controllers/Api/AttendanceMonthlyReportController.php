@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceMonthlyReport;
+use App\Services\AttendanceMonthlyReportMailer;
 use App\Services\AttendanceMonthlyReportService;
+use App\Services\InAppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use PHPMailer\PHPMailer\Exception as MailException;
 
 class AttendanceMonthlyReportController extends Controller
 {
@@ -45,10 +48,92 @@ class AttendanceMonthlyReportController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $attendanceMonthlyReport->load(['lines', 'section', 'schoolYear']);
+        if ($request->boolean('refresh')) {
+            $actor = $request->user();
+            $teacher = $actor?->teacher;
+            if ($teacher && (int) $teacher->id === (int) $attendanceMonthlyReport->teacher_id) {
+                $service->generateOrRefresh(
+                    $teacher,
+                    $attendanceMonthlyReport->section,
+                    $attendanceMonthlyReport->schoolYear,
+                    (int) $attendanceMonthlyReport->report_year,
+                    (int) $attendanceMonthlyReport->report_month,
+                    $actor,
+                    true,
+                );
+            }
+            $attendanceMonthlyReport->refresh();
+        }
+
+        $attendanceMonthlyReport->load(['lines', 'section', 'schoolYear', 'teacher.user']);
 
         return response()->json([
             'data' => $this->serializeReport($attendanceMonthlyReport, includeLines: true),
+        ]);
+    }
+
+    public function generate(
+        Request $request,
+        AttendanceMonthlyReport $attendanceMonthlyReport,
+        AttendanceMonthlyReportService $service,
+        AttendanceMonthlyReportMailer $mailer,
+        InAppNotificationService $notifications,
+    ): JsonResponse {
+        $user = $request->user();
+        if (! $service->userCanAccess($user, $attendanceMonthlyReport)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $teacher = $user->teacher;
+        if (! $teacher || (int) $teacher->id !== (int) $attendanceMonthlyReport->teacher_id) {
+            return response()->json(['message' => 'Only the adviser owner can generate this report.'], 403);
+        }
+
+        $attendanceMonthlyReport->load(['section', 'schoolYear']);
+
+        $report = $service->generateOrRefresh(
+            $teacher,
+            $attendanceMonthlyReport->section,
+            $attendanceMonthlyReport->schoolYear,
+            (int) $attendanceMonthlyReport->report_year,
+            (int) $attendanceMonthlyReport->report_month,
+            $user,
+            true,
+        );
+
+        $emailMessage = null;
+        $shouldSendEmail = $request->boolean('send_email', true);
+        if ($shouldSendEmail && ! empty($user->email)) {
+            try {
+                $mailer->send($user, $report);
+                $report->update([
+                    'status' => AttendanceMonthlyReport::STATUS_SENT,
+                    'emailed_at' => now(),
+                ]);
+                $emailMessage = 'Report generated and emailed to '.$user->email.'.';
+            } catch (MailException $e) {
+                $emailMessage = 'Report generated, but email failed: '.$e->getMessage();
+            }
+        }
+
+        $report->refresh();
+        $report->load(['lines', 'section', 'schoolYear']);
+
+        $notifications->notifyUser(
+            $user->id,
+            'attendance_monthly_report',
+            'Monthly attendance report ready',
+            ($report->section?->name ?? 'Section').' — '.$report->periodLabel().' (Report #'.$report->id.')',
+            [
+                'report_id' => $report->id,
+                'action_url' => $report->webUrl(),
+                'print_url' => $report->printUrl(),
+            ],
+        );
+
+        return response()->json([
+            'message' => $emailMessage ?? 'Attendance records generated. Check web adviser page to download Excel.',
+            'data' => $this->serializeReport($report, includeLines: true),
         ]);
     }
 

@@ -26,7 +26,12 @@ class SessionStore(context: Context) {
 
     fun getApiBaseUrl(): String {
         val saved = prefs.getString(KEY_API_BASE_URL, null)?.trim().orEmpty()
-        if (saved.isNotEmpty()) return normalizeBaseUrl(saved)
+        if (saved.isNotEmpty()) {
+            // Auto-heal older tunnel/demo URLs that are often offline.
+            if (!saved.contains("trycloudflare.com", ignoreCase = true)) {
+                return normalizeBaseUrl(saved)
+            }
+        }
         return normalizeBaseUrl(BuildConfig.API_BASE_URL)
     }
 

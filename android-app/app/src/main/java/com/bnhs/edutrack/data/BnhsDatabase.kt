@@ -195,6 +195,9 @@ interface StudentDao {
     @Query("SELECT * FROM students WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): StudentEntity?
 
+    @Query("SELECT * FROM students WHERE lrn = :lrn COLLATE NOCASE LIMIT 1")
+    suspend fun findByLrn(lrn: String): StudentEntity?
+
     @Query("SELECT COUNT(*) FROM students")
     suspend fun count(): Int
 

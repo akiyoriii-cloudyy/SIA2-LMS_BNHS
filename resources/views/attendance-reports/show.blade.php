@@ -22,6 +22,7 @@
         <div class="dash-topbar-actions">
             <a class="btn btn-outline btn-sm" href="{{ route('attendance-reports.index') }}">All Reports</a>
             <a class="btn btn-outline btn-sm" href="{{ $printUrl }}" target="_blank" rel="noopener">Print View</a>
+            <a class="btn btn-primary btn-sm amr-download-excel-btn" href="{{ route('attendance-reports.export-excel', $report) }}">Download Excel</a>
             <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print</button>
         </div>
     </div>
@@ -188,6 +189,17 @@
         .amr-num-input { width: 56px; padding: 4px 6px; text-align: center; }
         .amr-absent-input { font-weight: 700; }
         .amr-print-table-only { display: none; }
+        .amr-download-excel-btn {
+            background: linear-gradient(135deg, #0f8f45 0%, #0a6b33 100%);
+            border-color: #0a6b33;
+            box-shadow: 0 0 0 2px rgba(15, 143, 69, 0.2);
+            font-weight: 700;
+        }
+        .amr-download-excel-btn:hover,
+        .amr-download-excel-btn:focus {
+            background: linear-gradient(135deg, #0da342 0%, #0b7a31 100%);
+            border-color: #0b7a31;
+        }
         @media print {
             .sidebar, .topbar, .admin-strip-desktop, .amr-no-print,
             form.amr-no-print, nav, .toggle-btn { display: none !important; }

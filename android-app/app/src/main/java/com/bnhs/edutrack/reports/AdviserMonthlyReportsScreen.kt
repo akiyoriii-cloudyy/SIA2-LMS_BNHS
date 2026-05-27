@@ -34,6 +34,7 @@ import com.bnhs.edutrack.rbac.RbacAccessDenied
 import com.bnhs.edutrack.rbac.RbacEnforcer
 import com.bnhs.edutrack.rbac.RbacPermission
 import kotlinx.coroutines.launch
+import java.time.Month
 
 class MonthlyReportsViewModel(
     private val repository: MonthlyReportsRepository,
@@ -89,6 +90,29 @@ class MonthlyReportsViewModel(
 
     fun selectReport(reportId: Long) {
         if (reportId != selectedReportId) loadDetail(reportId)
+    }
+
+    fun generateAttendanceRecords(onDone: (String) -> Unit) {
+        val reportId = selectedReportId ?: return
+        viewModelScope.launch {
+            isLoading = true
+            when (val result = repository.generateAttendanceRecords(reportId)) {
+                is ReportsResult.Success -> {
+                    val message = result.value.first
+                    selectedReport = result.value.second
+                    statusMessage = message
+                    onDone(message)
+                    // Pull latest list/order and force detail refresh to reflect complete lines.
+                    refreshList(selectLatest = false)
+                    loadDetail(reportId)
+                }
+                is ReportsResult.Error -> {
+                    statusMessage = result.message
+                    onDone(result.message)
+                }
+            }
+            isLoading = false
+        }
     }
 }
 
@@ -146,39 +170,98 @@ fun AdviserMonthlyReportsScreen(
         }
 
         if (viewModel.reports.isNotEmpty()) {
-            var expanded by remember { mutableStateOf(false) }
             val selectedSummary = viewModel.reports.firstOrNull { it.id == viewModel.selectedReportId }
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            val years = viewModel.reports.mapNotNull { it.reportYear }.distinct().sortedDescending()
+            val months = (1..12).toList()
+            val monthName: (Int) -> String = { m -> Month.of(m).name.lowercase().replaceFirstChar { it.uppercase() } }
+
+            var yearExpanded by remember { mutableStateOf(false) }
+            var monthExpanded by remember { mutableStateOf(false) }
+            var selectedYear by remember(viewModel.reports, viewModel.selectedReportId) {
+                mutableStateOf(selectedSummary?.reportYear ?: years.firstOrNull())
+            }
+            var selectedMonth by remember(viewModel.reports, viewModel.selectedReportId) {
+                mutableStateOf(selectedSummary?.reportMonth ?: months.first())
+            }
+
+            LaunchedEffect(selectedSummary?.id) {
+                selectedSummary?.reportYear?.let { selectedYear = it }
+                selectedSummary?.reportMonth?.let { selectedMonth = it }
+            }
+
+            LaunchedEffect(selectedYear, selectedMonth, viewModel.reports) {
+                val match = viewModel.reports.firstOrNull {
+                    it.reportYear == selectedYear && it.reportMonth == selectedMonth
+                }
+                if (match?.id != null && match.id != viewModel.selectedReportId) {
+                    viewModel.selectReport(match.id)
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedTextField(
-                    value = selectedSummary?.periodLabel ?: "Choose report period",
-                    onValueChange = {},
-                    readOnly = true,
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
-                    label = { Text("Report period") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                    shape = RoundedCornerShape(12.dp),
-                )
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    viewModel.reports.forEach { item ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    "${item.periodLabel.orEmpty()} — ${item.section?.name.orEmpty()}",
-                                    fontSize = 13.sp,
-                                )
-                            },
-                            onClick = {
-                                expanded = false
-                                item.id?.let { viewModel.selectReport(it) }
-                            },
-                        )
+                ExposedDropdownMenuBox(
+                    expanded = monthExpanded,
+                    onExpandedChange = { monthExpanded = it },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    OutlinedTextField(
+                        value = monthName(selectedMonth),
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        label = { Text("Month") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(monthExpanded) },
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    ExposedDropdownMenu(expanded = monthExpanded, onDismissRequest = { monthExpanded = false }) {
+                        months.forEach { month ->
+                            DropdownMenuItem(
+                                text = { Text(monthName(month), fontSize = 13.sp) },
+                                onClick = {
+                                    monthExpanded = false
+                                    selectedMonth = month
+                                },
+                            )
+                        }
+                    }
+                }
+
+                ExposedDropdownMenuBox(
+                    expanded = yearExpanded,
+                    onExpandedChange = { yearExpanded = it },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    OutlinedTextField(
+                        value = selectedYear?.toString() ?: "Year",
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        label = { Text("Year") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(yearExpanded) },
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    ExposedDropdownMenu(expanded = yearExpanded, onDismissRequest = { yearExpanded = false }) {
+                        years.forEach { year ->
+                            DropdownMenuItem(
+                                text = { Text(year.toString(), fontSize = 13.sp) },
+                                onClick = {
+                                    yearExpanded = false
+                                    selectedYear = year
+                                },
+                            )
+                        }
                     }
                 }
             }
+            Text(
+                text = "Selected: ${monthName(selectedMonth)} ${selectedYear ?: ""}",
+                fontSize = 11.sp,
+                color = TextSubtitle,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
         }
 
         Row(
@@ -188,7 +271,7 @@ fun AdviserMonthlyReportsScreen(
             Button(
                 onClick = {
                     report?.let { r ->
-                        context.startActivity(Intent.createChooser(MonthlyReportCsvExporter.shareCsv(context, r), "Send report"))
+                        context.startActivity(Intent.createChooser(MonthlyReportExcelExporter.shareExcel(context, r), "Send report"))
                     }
                 },
                 enabled = report != null && !viewModel.isLoading,
@@ -202,16 +285,7 @@ fun AdviserMonthlyReportsScreen(
             }
             OutlinedButton(
                 onClick = {
-                    report?.let { r ->
-                        val file = MonthlyReportCsvExporter.writeToCache(context, r)
-                        context.startActivity(
-                            Intent.createChooser(
-                                MonthlyReportCsvExporter.shareCsv(context, r),
-                                "Download CSV",
-                            ),
-                        )
-                        onStatus("Saved: ${file.name}")
-                    }
+                    viewModel.generateAttendanceRecords(onStatus)
                 },
                 enabled = report != null && !viewModel.isLoading,
                 modifier = Modifier.weight(1f),
@@ -219,7 +293,7 @@ fun AdviserMonthlyReportsScreen(
             ) {
                 Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp), tint = PrimaryMain)
                 Spacer(Modifier.width(6.dp))
-                Text("Download CSV", fontSize = 12.sp, color = PrimaryDark)
+                Text("Generate Attendance Records", fontSize = 12.sp, color = PrimaryDark)
             }
         }
 

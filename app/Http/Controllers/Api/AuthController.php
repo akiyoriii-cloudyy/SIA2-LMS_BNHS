@@ -37,7 +37,7 @@ class AuthController extends Controller
         }
 
         $user->loadMissing(['roles']);
-        if (! $user->hasPermission('lms.portal')) {
+        if (! $this->canAccessMobilePortal($user)) {
             return response()->json(['message' => 'Access denied.'], 403);
         }
 
@@ -102,6 +102,17 @@ class AuthController extends Controller
             'your_roles' => $user->roles->pluck('name')->values(),
             'your_permissions' => $user->resolvedPermissionNames(),
         ];
+    }
+
+    private function canAccessMobilePortal(User $user): bool
+    {
+        if ($user->hasPermission('lms.portal')) {
+            return true;
+        }
+
+        // Fallback for databases where role-permission sync is incomplete.
+        // Security/staff roles should still be able to sign in to mobile portal.
+        return $user->hasRole('admin', 'adviser', 'subject_teacher', 'security_guard', 'security');
     }
 
     public function logout(Request $request): JsonResponse

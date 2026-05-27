@@ -304,6 +304,64 @@ public final class StudentDao_Impl implements StudentDao {
   }
 
   @Override
+  public Object findByLrn(final String lrn, final Continuation<? super StudentEntity> $completion) {
+    final String _sql = "SELECT * FROM students WHERE lrn = ? COLLATE NOCASE LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    _statement.bindString(_argIndex, lrn);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<StudentEntity>() {
+      @Override
+      @Nullable
+      public StudentEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfName = CursorUtil.getColumnIndexOrThrow(_cursor, "name");
+          final int _cursorIndexOfLrn = CursorUtil.getColumnIndexOrThrow(_cursor, "lrn");
+          final int _cursorIndexOfRfidUid = CursorUtil.getColumnIndexOrThrow(_cursor, "rfid_uid");
+          final int _cursorIndexOfGradeLevel = CursorUtil.getColumnIndexOrThrow(_cursor, "grade_level");
+          final int _cursorIndexOfSection = CursorUtil.getColumnIndexOrThrow(_cursor, "section");
+          final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
+          final int _cursorIndexOfSex = CursorUtil.getColumnIndexOrThrow(_cursor, "sex");
+          final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "created_at");
+          final int _cursorIndexOfUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "updated_at");
+          final StudentEntity _result;
+          if (_cursor.moveToFirst()) {
+            final long _tmpId;
+            _tmpId = _cursor.getLong(_cursorIndexOfId);
+            final String _tmpName;
+            _tmpName = _cursor.getString(_cursorIndexOfName);
+            final String _tmpLrn;
+            _tmpLrn = _cursor.getString(_cursorIndexOfLrn);
+            final String _tmpRfidUid;
+            _tmpRfidUid = _cursor.getString(_cursorIndexOfRfidUid);
+            final String _tmpGradeLevel;
+            _tmpGradeLevel = _cursor.getString(_cursorIndexOfGradeLevel);
+            final String _tmpSection;
+            _tmpSection = _cursor.getString(_cursorIndexOfSection);
+            final String _tmpStatus;
+            _tmpStatus = _cursor.getString(_cursorIndexOfStatus);
+            final String _tmpSex;
+            _tmpSex = _cursor.getString(_cursorIndexOfSex);
+            final long _tmpCreatedAt;
+            _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
+            final long _tmpUpdatedAt;
+            _tmpUpdatedAt = _cursor.getLong(_cursorIndexOfUpdatedAt);
+            _result = new StudentEntity(_tmpId,_tmpName,_tmpLrn,_tmpRfidUid,_tmpGradeLevel,_tmpSection,_tmpStatus,_tmpSex,_tmpCreatedAt,_tmpUpdatedAt);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Object count(final Continuation<? super Integer> $completion) {
     final String _sql = "SELECT COUNT(*) FROM students";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);

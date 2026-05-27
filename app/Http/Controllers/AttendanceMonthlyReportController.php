@@ -13,6 +13,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use PHPMailer\PHPMailer\Exception as MailException;
+use PhpOffice\PhpSpreadsheet\Reader\Html as HtmlReader;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceMonthlyReportController extends Controller
 {
@@ -131,6 +134,38 @@ class AttendanceMonthlyReportController extends Controller
 
         return view('attendance-reports.print', [
             'report' => $attendanceMonthlyReport,
+        ]);
+    }
+
+    public function exportExcel(
+        Request $request,
+        AttendanceMonthlyReport $attendanceMonthlyReport,
+        AttendanceMonthlyReportService $service,
+    ): StreamedResponse {
+        $user = $request->user();
+        if (! $service->userCanAccess($user, $attendanceMonthlyReport)) {
+            abort(403);
+        }
+
+        $attendanceMonthlyReport->load(['lines', 'section', 'schoolYear']);
+        $html = view('attendance-reports.export-excel', ['report' => $attendanceMonthlyReport])->render();
+
+        $safeSection = preg_replace('/[^A-Za-z0-9]+/', '_', (string) ($attendanceMonthlyReport->section?->name ?: 'section')) ?: 'section';
+        $safePeriod = preg_replace('/[^A-Za-z0-9]+/', '_', (string) $attendanceMonthlyReport->periodLabel()) ?: 'report';
+        $filename = sprintf('attendance_monthly_report_%s_%s_%d.xlsx', $safeSection, $safePeriod, $attendanceMonthlyReport->id);
+
+        return response()->streamDownload(function () use ($html): void {
+            $reader = new HtmlReader();
+            $spreadsheet = $reader->loadFromString($html);
+            $writer = new XlsxWriter($spreadsheet);
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+            unset($writer, $spreadsheet);
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
+            'Pragma' => 'public',
+            'Expires' => '0',
         ]);
     }
 

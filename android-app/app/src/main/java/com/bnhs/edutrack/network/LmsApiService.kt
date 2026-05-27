@@ -5,6 +5,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -32,7 +33,15 @@ interface LmsApiService {
     suspend fun getMonthlyReport(
         @Header("Authorization") authorization: String,
         @Path("id") reportId: Long,
+        @Query("refresh") refresh: Int? = null,
     ): Response<MonthlyReportDetailResponse>
+
+    @POST("mobile/attendance/monthly-reports/{id}/generate")
+    suspend fun generateMonthlyReport(
+        @Header("Authorization") authorization: String,
+        @Path("id") reportId: Long,
+        @Query("send_email") sendEmail: Int = 1,
+    ): Response<MonthlyReportGenerateResponse>
 }
 
 data class MobileProfileResponse(
@@ -72,6 +81,11 @@ data class MonthlyReportsListResponse(
 )
 
 data class MonthlyReportDetailResponse(
+    val data: MonthlyReportDetailDto?,
+)
+
+data class MonthlyReportGenerateResponse(
+    val message: String?,
     val data: MonthlyReportDetailDto?,
 )
 

@@ -4,7 +4,7 @@
             "outputFile": "com.bnhs.edutrack.app-mergeDebugResources-51:/values-v30/values-v30.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Admin\\.gradle\\caches\\transforms-4\\8d9a1b795c221ed75e994dc61fb1fd58\\transformed\\material3-release\\res\\values-v30\\values-v30.xml",
+                    "source": "C:\\Users\\mansu\\.gradle\\caches\\transforms-4\\8d9a1b795c221ed75e994dc61fb1fd58\\transformed\\material3-release\\res\\values-v30\\values-v30.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

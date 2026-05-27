@@ -64,9 +64,7 @@ class BnhsRepository private constructor(
      * already exists.
      */
     suspend fun ensureSeedData() {
-        if (db.studentDao().count() == 0) {
-            seedStudentsAndParents()
-        }
+        seedStudentsAndParents()
         if (db.userAccountDao().count() == 0) {
             seedUserAccounts()
         }
@@ -108,9 +106,30 @@ class BnhsRepository private constructor(
                 "09663549820",
             ),
         )
-        seedData.forEach { (student, parentName, parentContact) ->
-            val studentId = db.studentDao().insert(student)
-            if (studentId > 0L) {
+        seedData.forEach { (studentSeed, parentName, parentContact) ->
+            val existing = db.studentDao().findByLrn(studentSeed.lrn)
+            val studentId = if (existing == null) {
+                db.studentDao().insert(studentSeed)
+            } else {
+                // Keep real user changes (status/sex), but ensure core seeded roster students remain present.
+                db.studentDao().update(
+                    existing.copy(
+                        name = studentSeed.name,
+                        rfidUid = studentSeed.rfidUid,
+                        gradeLevel = studentSeed.gradeLevel,
+                        section = studentSeed.section,
+                        updatedAt = System.currentTimeMillis(),
+                    ),
+                )
+                existing.id
+            }
+
+            if (studentId <= 0L) {
+                return@forEach
+            }
+
+            val existingParent = db.parentDao().primaryForStudent(studentId)?.let { guard.parentForDisplay(it) }
+            if (existingParent == null) {
                 db.parentDao().insert(
                     guard.parentForStorage(
                         ParentEntity(
@@ -121,6 +140,12 @@ class BnhsRepository private constructor(
                             isPrimary = true,
                         ),
                     ),
+                )
+            } else {
+                db.parentDao().updateContactInfo(
+                    id = existingParent.id,
+                    name = parentName,
+                    contact = guard.encryptField(parentContact),
                 )
             }
         }
