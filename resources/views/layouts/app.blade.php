@@ -185,17 +185,15 @@
                             @endif
                         </a>
 
-                        <div class="group">Communications</div>
-                        @if (auth()->user()->hasPermission('sms_logs.view'))
-                            <a href="{{ route('sms-logs.index') }}" class="{{ request()->routeIs('sms-logs.*') ? 'active' : '' }}">
-                                <span class="icon">&#128241;</span>
-                                SMS logs
+                        @if (auth()->user()->hasPermission('attendance.manage'))
+                            <a href="{{ route('attendance-reports.index') }}"
+                                class="{{ request()->routeIs('attendance-reports.*') ? 'active' : '' }}">
+                                <span class="icon">&#128197;</span>
+                                Monthly Reports
                             </a>
                         @endif
-                        <a href="{{ route('mobile.app') }}" class="{{ request()->routeIs('mobile.app') ? 'active' : '' }}">
-                            <span class="icon">&#128242;</span>
-                            RFID mobile app
-                        </a>
+
+                        <div class="group">Communications</div>
                         <a href="{{ $publicBase }}/download-app">
                             <span class="icon">&#11015;</span>
                             Download mobile app
